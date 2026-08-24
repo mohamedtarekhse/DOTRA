@@ -1,0 +1,20 @@
+{
+  "name": "factory-gate-access",
+  "version": "1.0.0",
+  "description": "Bilingual Vehicle Gate Access Authorization System for Cloudflare",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:pages": "wrangler pages deploy .",
+    "build": "echo \"Pure static build ready\""
+  },
+  "keywords": [
+    "cloudflare",
+    "d1",
+    "gate-access",
+    "vehicle-authorization"
+  ],
+  "author": "",
+  "license": "ISC"
+}

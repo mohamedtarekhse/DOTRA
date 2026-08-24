@@ -1,7 +1,12 @@
 # Cloudflare Configuration for Factory Gate Vehicle Access System
 name = "factory-gate-access"
+main = "_worker.js"
 compatibility_date = "2024-09-23"
-pages_build_output_dir = "."
+
+# Static Assets Configuration (Enables direct npx wrangler deploy)
+[assets]
+directory = "."
+binding = "ASSETS"
 
 # Cloudflare D1 Database Binding
 [[d1_databases]]
