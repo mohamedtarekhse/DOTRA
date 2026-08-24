@@ -1,5 +1,5 @@
-// Office Manager Dashboard Controller (SAP Blue & White Edition)
-// وحدة التحكم ببوابة مدير المكتب - نمط ساب المؤسسي أزرق وأبيض
+// Office Manager Dashboard Controller (DOTRA WhatsApp Pass Image Generator)
+// وحدة التحكم ببوابة مدير المكتب - توليد ومشاركة بطاقة التصريح كصورة كاملة مع QR واللوحة لواتساب
 
 class ManagerController {
     constructor() {
@@ -38,7 +38,7 @@ class ManagerController {
                         <span>${lang === 'ar' ? 'لوحة تحكم مدير العمليات وتصاريح البوابات' : 'Operations & Gate Permits Dashboard'}</span>
                     </h1>
                     <p class="text-xs text-[#556b82] mt-1 font-medium">
-                        ${lang === 'ar' ? 'نظام الرقابة وإصدار التصاريح المباشر للشاحنات والمركبات' : 'Real-time vehicle access tracking & fast permit issuance'}
+                        ${lang === 'ar' ? 'نظام تصاريح بوابات مصانع مجموعة دوترا - إرسال كروت التصاريح كصور عبر واتساب' : 'DOTRA Gate System - Send Pass Badges with QR & Plate to WhatsApp'}
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -251,8 +251,9 @@ class ManagerController {
                     <td class="py-3 px-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
                             ${permit ? `
-                                <button type="button" title="${window.i18n.t('printPass')}" onclick="Manager.showPassModal(${permit.id})" class="p-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold">
-                                    🎫 QR
+                                <button type="button" title="${window.i18n.t('printPass')}" onclick="Manager.showPassModal(${permit.id})" class="p-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1">
+                                    <span>🎫</span>
+                                    <span>كارت التصريح</span>
                                 </button>
                             ` : `
                                 <button type="button" title="${window.i18n.t('issueNewPermit')}" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="p-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold">
@@ -274,9 +275,6 @@ class ManagerController {
         this.renderDashboard();
     }
 
-    /**
-     * Ultra-Streamlined Quick Permit Modal (SAP Blue & White Style)
-     */
     openQuickPermitModal(vehicleId = null) {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
@@ -291,7 +289,6 @@ class ManagerController {
                         ✕
                     </button>
 
-                    <!-- Modal Header -->
                     <div class="flex items-center gap-3 mb-5 border-b border-[#d7e2ee] pb-3">
                         <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center text-2xl font-bold shadow-sm border border-[#b3d5fa]">
                             ⚡
@@ -316,12 +313,10 @@ class ManagerController {
                             
                             <input type="text" id="quick-plate" required placeholder="ط ر ق ٩ ٨ ٢ ١" value="${vehicle ? vehicle.plate_ar : ''}" class="w-full bg-white border-2 border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] font-black text-lg focus:border-[#0070f2] focus:outline-none" oninput="Manager.updateQuickPlatePreview(this.value)" />
 
-                            <!-- Egyptian Keypad -->
                             <div id="quick-keypad" class="hidden">
                                 ${window.ArabicPlate.renderArabicKeypad('quick-plate')}
                             </div>
 
-                            <!-- Live Egyptian Plate Preview -->
                             <div class="mt-3 flex items-center justify-between bg-white p-2 rounded-xl border border-[#d7e2ee]">
                                 <span class="text-xs text-[#556b82] font-bold">${lang === 'ar' ? 'معاينة اللوحة:' : 'Preview:'}</span>
                                 <div id="quick-plate-preview">
@@ -333,7 +328,7 @@ class ManagerController {
                         <!-- 2. Driver Phone Number -->
                         <div class="bg-[#f8fafc] p-4 rounded-2xl border-2 border-[#b0cfee] mb-4 shadow-sm">
                             <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">
-                                2️⃣ ${lang === 'ar' ? 'رقم هاتف / واتساب السائق (لإرسال الـ QR له):' : 'Driver Phone / WhatsApp:'}
+                                2️⃣ ${lang === 'ar' ? 'رقم هاتف / واتساب السائق (لإرسال كارت التصريح له):' : 'Driver Phone / WhatsApp:'}
                             </label>
                             <div class="relative">
                                 <span class="absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-3 text-[#0070f2] font-bold text-sm">📞</span>
@@ -369,14 +364,13 @@ class ManagerController {
                             </div>
                         </details>
 
-                        <!-- Submit Button -->
                         <div class="flex justify-end gap-3 pt-2">
                             <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2.5 sap-btn-secondary text-xs">
                                 ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
                             </button>
                             <button type="submit" class="flex-1 py-3 sap-btn-primary text-sm flex items-center justify-center gap-2">
                                 <span>🎫</span>
-                                <span>${lang === 'ar' ? 'توليد التصريح والـ QR فوراً' : 'Generate Pass & QR Code'}</span>
+                                <span>${lang === 'ar' ? 'توليد كارت التصريح والـ QR فوراً' : 'Generate Pass Card & QR'}</span>
                             </button>
                         </div>
                     </form>
@@ -438,6 +432,9 @@ class ManagerController {
         this.showPassModal(permit.id);
     }
 
+    /**
+     * Render Digital Pass Modal with QR Code & Image Exporter / WhatsApp Share
+     */
     showPassModal(permitId) {
         const permits = window.DB.getPermits();
         const permit = permits.find(p => p.id === permitId);
@@ -449,83 +446,337 @@ class ManagerController {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
 
+        const qrPayload = JSON.stringify({
+            permit: permit.permit_code,
+            plate: vehicle.plate_ar,
+            phone: vehicle.driver_phone
+        });
+
         modalContainer.innerHTML = `
             <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-md rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn text-center bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                <div class="sap-panel w-full max-w-md rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
                     </button>
 
-                    <div class="mb-3">
-                        <span class="px-3 py-1 bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] rounded-full text-xs font-bold">
-                            🟢 ${window.i18n.t('statusAuthorized')}
-                        </span>
-                        <h2 class="text-xl font-black text-[#002b66] mt-2">${lang === 'ar' ? 'تصريح دخول بوابة المصنع' : 'Gate Access Digital Pass'}</h2>
-                        <p class="text-xs font-mono text-[#0070f2] font-bold">${permit.permit_code}</p>
-                    </div>
-
-                    <!-- Egyptian Plate View -->
-                    <div class="mb-3 flex justify-center">
-                        ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'normal', vehicle.vehicle_type)}
-                    </div>
-
-                    <!-- QR Code Pass Container -->
-                    <div class="bg-white p-3 rounded-2xl shadow-md inline-block my-2 border-2 border-[#d7e2ee]" id="qrcode-canvas-box">
-                    </div>
-
-                    <!-- Pass Summary -->
-                    <div class="bg-[#f8fafc] rounded-2xl p-3 border border-[#d7e2ee] text-xs text-right my-3 space-y-1.5" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                        <div class="flex justify-between border-b border-[#e7eff7] pb-1">
-                            <span class="text-[#556b82] font-bold">هاتف السائق:</span>
-                            <span class="font-mono font-black text-[#0070f2]">${vehicle.driver_phone || 'غير مسجل'}</span>
+                    <!-- Printable & Exportable Badge Container -->
+                    <div id="printable-pass-card" class="bg-white p-4 rounded-2xl border border-[#d7e2ee] shadow-sm text-center mb-4">
+                        
+                        <!-- Header with Logo -->
+                        <div class="flex items-center justify-between border-b border-[#e7eff7] pb-2 mb-3">
+                            <div class="flex items-center gap-2">
+                                <img src="assets/logo.jpg" alt="DOTRA" class="h-9 w-auto object-contain" />
+                                <div class="text-right" dir="rtl">
+                                    <div class="font-black text-sm text-[#002b66]">مجموعة دوترا</div>
+                                    <div class="text-[9px] text-[#556b82] font-semibold">تصريح دخول البوابة الإلكتروني</div>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-0.5 bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] rounded-full text-[10px] font-black">
+                                🟢 مصرح بالدخول
+                            </span>
                         </div>
-                        <div class="flex justify-between border-b border-[#e7eff7] pb-1">
-                            <span class="text-[#556b82] font-bold">${window.i18n.t('driverName')}:</span>
-                            <span class="font-bold text-[#1d2d3e]">${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}</span>
+
+                        <!-- Egyptian Plate View -->
+                        <div class="mb-3 flex justify-center">
+                            ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'normal', vehicle.vehicle_type)}
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-[#556b82] font-bold">صالح حتى:</span>
-                            <span class="font-bold text-[#b85500] font-mono">${new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+
+                        <!-- QR Code Pass Container -->
+                        <div class="bg-white p-3 rounded-2xl shadow-inner inline-flex items-center justify-center my-1 border-2 border-[#d7e2ee] min-w-[140px] min-h-[140px]" id="qrcode-canvas-box">
+                        </div>
+
+                        <!-- Pass Summary Card -->
+                        <div class="bg-[#f8fafc] rounded-xl p-3 border border-[#d7e2ee] text-xs text-right mt-2 space-y-1" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                            <div class="flex justify-between border-b border-[#e7eff7] pb-1">
+                                <span class="text-[#556b82] font-bold">رقم التصريح:</span>
+                                <span class="font-mono font-black text-[#0070f2]">${permit.permit_code}</span>
+                            </div>
+                            <div class="flex justify-between border-b border-[#e7eff7] pb-1">
+                                <span class="text-[#556b82] font-bold">هاتف السائق:</span>
+                                <span class="font-mono font-black text-[#107e3e]">${vehicle.driver_phone || 'غير مسجل'}</span>
+                            </div>
+                            <div class="flex justify-between border-b border-[#e7eff7] pb-1">
+                                <span class="text-[#556b82] font-bold">${window.i18n.t('driverName')}:</span>
+                                <span class="font-bold text-[#1d2d3e]">${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-[#556b82] font-bold">صالح حتى:</span>
+                                <span class="font-bold text-[#b85500] font-mono">${new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
+                    <!-- WhatsApp & Image Action Buttons -->
                     <div class="flex flex-col gap-2">
-                        <button type="button" onclick="Manager.shareWhatsApp('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}')" class="w-full py-3 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
-                            <span>💬</span>
-                            <span>${lang === 'ar' ? 'إرسال التصريح والـ QR للسائق عبر واتساب' : 'Send Pass via WhatsApp'}</span>
+                        <!-- 1. Share Image Directly via WhatsApp -->
+                        <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}')" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-md text-sm flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5">
+                            <span>📲</span>
+                            <span>${lang === 'ar' ? 'مشاركة كارت التصريح كصورة عبر واتساب' : 'Share Pass Image to WhatsApp'}</span>
                         </button>
-                        <button type="button" onclick="window.print()" class="w-full py-2 sap-btn-secondary text-xs flex items-center justify-center gap-2">
-                            <span>🖨️</span>
-                            <span>${window.i18n.t('printPass')}</span>
-                        </button>
+
+                        <!-- 2. Download Image Button -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="Manager.downloadPassImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}')" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5">
+                                <span>📥</span>
+                                <span>${lang === 'ar' ? 'تحميل كصورة (PNG)' : 'Download Image'}</span>
+                            </button>
+                            <button type="button" onclick="window.print()" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5">
+                                <span>🖨️</span>
+                                <span>${window.i18n.t('printPass')}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
+        Manager.renderQRDirectly('qrcode-canvas-box', qrPayload);
+    }
+
+    static renderQRDirectly(containerId, payloadText) {
         setTimeout(() => {
-            const qrBox = document.getElementById('qrcode-canvas-box');
-            if (qrBox && window.QRCode) {
+            const qrBox = document.getElementById(containerId);
+            if (!qrBox) return;
+
+            try {
                 qrBox.innerHTML = '';
-                new window.QRCode(qrBox, {
-                    text: JSON.stringify({
-                        permit: permit.permit_code,
-                        plate: vehicle.plate_ar,
-                        phone: vehicle.driver_phone
-                    }),
-                    width: 140,
-                    height: 140,
-                    colorDark: "#002b66",
-                    colorLight: "#ffffff",
-                    correctLevel: window.QRCode.CorrectLevel.H
-                });
+                if (typeof window.QRCode !== 'undefined') {
+                    new window.QRCode(qrBox, {
+                        text: payloadText,
+                        width: 140,
+                        height: 140,
+                        colorDark: "#002b66",
+                        colorLight: "#ffffff",
+                        correctLevel: (window.QRCode.CorrectLevel && window.QRCode.CorrectLevel.M) || 0
+                    });
+                } else {
+                    const encoded = encodeURIComponent(payloadText);
+                    qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encoded}&color=002b66" alt="QR Code" class="w-[140px] h-[140px] rounded-lg" />`;
+                }
+            } catch (err) {
+                console.error("Local QR generation fallback", err);
+                const encoded = encodeURIComponent(payloadText);
+                qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encoded}&color=002b66" alt="QR Code" class="w-[140px] h-[140px] rounded-lg" />`;
             }
-        }, 50);
+        }, 10);
+    }
+
+    /**
+     * Generate High-Quality Digital Pass Badge Canvas Image (with DOTRA Logo, Egyptian Plate, QR & Details)
+     */
+    static async createPassCanvasBlob(permitCode, plate, phone, driverName, validUntil) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set High-DPI Dimensions
+        const width = 600;
+        const height = 820;
+        canvas.width = width;
+        canvas.height = height;
+
+        // 1. Background
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+
+        // 2. Top Header Navy Banner (SAP Blue)
+        const headerGradient = ctx.createLinearGradient(0, 0, width, 0);
+        headerGradient.addColorStop(0, "#002b66");
+        headerGradient.addColorStop(1, "#004b99");
+        ctx.fillStyle = headerGradient;
+        ctx.fillRect(0, 0, width, 120);
+
+        // Header Title
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 26px 'Cairo', 'Tajawal', sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("مجموعة دوترا - تصريح دخول البوابة", width - 30, 50);
+
+        ctx.font = "bold 15px 'Cairo', sans-serif";
+        ctx.fillStyle = "#a5f3fc";
+        ctx.fillText("DOTRA Group - Vehicle Gate Access Permit", width - 30, 80);
+
+        // Try drawing Logo on Left
+        try {
+            const logoImg = new Image();
+            logoImg.src = 'assets/logo.jpg';
+            await new Promise((resolve) => {
+                logoImg.onload = resolve;
+                logoImg.onerror = resolve;
+            });
+            if (logoImg.complete && logoImg.naturalWidth > 0) {
+                // White rounded circle behind logo
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath();
+                ctx.arc(65, 60, 42, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.drawImage(logoImg, 30, 25, 70, 70);
+            }
+        } catch (e) {}
+
+        // 3. Status Badge
+        ctx.fillStyle = "#e5f6eb";
+        ctx.strokeStyle = "#107e3e";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(180, 140, 240, 40, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#107e3e";
+        ctx.font = "bold 18px 'Cairo', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🟢 تصريح معتمد (AUTHORIZED)", 300, 166);
+
+        // 4. Egyptian License Plate Box
+        const plateY = 205;
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(120, plateY, 360, 110, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        // Egyptian Plate Top Red Band (نقل)
+        ctx.fillStyle = "#dc2626";
+        ctx.fillRect(122, plateY + 2, 356, 30);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 14px 'Cairo', monospace";
+        ctx.textAlign = "left";
+        ctx.fillText("EGYPT", 140, plateY + 22);
+        ctx.textAlign = "center";
+        ctx.fillText("نقل", 300, plateY + 22);
+        ctx.textAlign = "right";
+        ctx.fillText("مصر", 460, plateY + 22);
+
+        // Plate Numbers and Letters
+        const parsed = window.ArabicPlate.parsePlateParts(plate);
+        const digits = window.ArabicPlate.toEasternArabicDigits(parsed.numbers);
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 34px 'Cairo', sans-serif";
+        ctx.textAlign = "center";
+        // Numbers left / Letters right
+        ctx.fillText(digits || '٩٨٢١', 210, plateY + 82);
+        
+        // Plate divider line
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(300, plateY + 36);
+        ctx.lineTo(300, plateY + 104);
+        ctx.stroke();
+
+        ctx.fillText(parsed.letters || 'ط ر ق', 390, plateY + 82);
+
+        // 5. QR Code Drawing
+        const qrCanvas = document.querySelector('#qrcode-canvas-box canvas') || document.querySelector('#qrcode-canvas-box img');
+        if (qrCanvas) {
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = "#d7e2ee";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(190, 335, 220, 220, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.drawImage(qrCanvas, 205, 350, 190, 190);
+        }
+
+        // 6. Summary Details Box
+        const infoY = 575;
+        ctx.fillStyle = "#f8fafc";
+        ctx.strokeStyle = "#d7e2ee";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(50, infoY, 500, 180, 14);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.font = "bold 17px 'Cairo', sans-serif";
+        ctx.textAlign = "right";
+
+        // Row 1: Permit Code
+        ctx.fillStyle = "#556b82";
+        ctx.fillText("كود التصريح:", 520, infoY + 40);
+        ctx.fillStyle = "#0070f2";
+        ctx.fillText(permitCode, 380, infoY + 40);
+
+        // Row 2: Driver Phone
+        ctx.fillStyle = "#556b82";
+        ctx.fillText("هاتف السائق:", 520, infoY + 80);
+        ctx.fillStyle = "#107e3e";
+        ctx.fillText(phone || "غير مسجل", 380, infoY + 80);
+
+        // Row 3: Driver Name
+        ctx.fillStyle = "#556b82";
+        ctx.fillText("اسم السائق:", 520, infoY + 120);
+        ctx.fillStyle = "#1d2d3e";
+        ctx.fillText(driverName || "سائق مصرح", 380, infoY + 120);
+
+        // Row 4: Valid Until
+        ctx.fillStyle = "#556b82";
+        ctx.fillText("صالح حتى:", 520, infoY + 160);
+        ctx.fillStyle = "#b85500";
+        ctx.fillText(validUntil, 380, infoY + 160);
+
+        // 7. Footer
+        ctx.fillStyle = "#556b82";
+        ctx.font = "bold 13px 'Cairo', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("يرجى إبراز هذا الرمز لمسؤول البوابة عند الوصول • نظام بوابات دوترا الذكي", 300, 790);
+
+        return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    }
+
+    /**
+     * Share Digital Pass Image directly to WhatsApp using Web Share API or Direct Download
+     */
+    async shareWhatsAppImage(permitCode, plate, phone, driverName, validUntil) {
+        try {
+            const blob = await Manager.createPassCanvasBlob(permitCode, plate, phone, driverName, validUntil);
+            const file = new File([blob], `DOTRA_Gate_Pass_${permitCode}.png`, { type: 'image/png' });
+
+            // 1. Try Native Mobile Web Share (Direct to WhatsApp with Image)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: `تصريح دخول بوابة دوترا - ${permitCode}`,
+                    text: `🛡️ تصريح دخول بوابة مصانع دوتra\n🚘 رقم اللوحة: ${plate}\n📞 هاتف السائق: ${phone}\nصالح حتى: ${validUntil}`
+                });
+                return;
+            }
+        } catch (e) {
+            console.log("Web Share API fallback:", e);
+        }
+
+        // 2. Fallback: Download image and open WhatsApp with direct link
+        Manager.downloadPassImage(permitCode, plate, phone);
+        this.shareWhatsApp(permitCode, plate, phone);
+    }
+
+    /**
+     * Download Digital Pass Card as PNG Image
+     */
+    async downloadPassImage(permitCode, plate, phone) {
+        const vehicle = window.DB.findVehicleByPlate(plate) || {};
+        const blob = await Manager.createPassCanvasBlob(
+            permitCode, 
+            plate, 
+            phone, 
+            vehicle.driver_name_ar || 'سائق مصرح', 
+            new Date(Date.now() + 8 * 3600000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        );
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DOTRA_Pass_${permitCode}_${plate.replace(/\s+/g, '_')}.png`;
+        a.click();
     }
 
     shareWhatsApp(permitCode, plate, phone) {
-        const text = encodeURIComponent(`🛡️ تصريح دخول بوابة المصنع رقم: ${permitCode}\n🚘 رقم لوحة المركبة: ${plate}\nيرجى إبراز هذا الرمز لمسؤول البوابة عند الوصول.`);
+        const text = encodeURIComponent(`🛡️ تصريح دخول بوابة مصانع دوترا\nرقم التصريح: ${permitCode}\n🚘 رقم لوحة المركبة: ${plate}\nيرجى إبراز هذا الرمز لمسؤول البوابة عند الوصول.`);
         const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
         const url = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone}?text=${text}` : `https://api.whatsapp.com/send?text=${text}`;
         window.open(url, '_blank');
@@ -564,7 +815,7 @@ class ManagerController {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `sap_gate_access_logs_${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `dotra_gate_access_logs_${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
     }
 }
