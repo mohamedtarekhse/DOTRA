@@ -1,24 +1,26 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" class="dark">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>نظام تصاريح بوابات المركبات | Vehicle Gate Access System</title>
+    <title>نظام تصاريح بوابات المركبات | SAP Vehicle Gate Management</title>
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            900: '#0c4a6e',
+                        sap: {
+                            blue: '#0070f2',
+                            'blue-hover': '#005cbd',
+                            header: '#002b66',
+                            bg: '#f5f8fc',
+                            border: '#d7e2ee',
+                            card: '#ffffff',
+                            text: '#1d2d3e',
+                            muted: '#556b82'
                         }
                     }
                 }
@@ -35,12 +37,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
-    <!-- Custom CSS -->
+    <!-- Custom CSS (SAP Theme) -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-sky-500 selection:text-white">
+<body class="bg-[#f5f8fc] text-[#1d2d3e] min-h-screen flex flex-col font-sans selection:bg-[#0070f2] selection:text-white">
 
-    <!-- Application Dynamic Navigation Bar -->
+    <!-- Application Dynamic SAP Header -->
     <div id="app-header"></div>
 
     <!-- Main Dynamic Content Region -->
@@ -51,15 +53,17 @@
     <!-- Modal Container for Passes, Permits & Forms -->
     <div id="modal-container"></div>
 
-    <!-- Footer with Cloudflare Status -->
-    <footer class="mt-auto border-t border-slate-800/80 py-4 px-4 text-center text-xs text-slate-500">
+    <!-- SAP Footer -->
+    <footer class="mt-auto border-t border-[#d7e2ee] bg-[#ffffff] py-3.5 px-4 text-center text-xs text-[#556b82]">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
             <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span>Cloudflare Workers & D1 Database Engine</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e]"></span>
+                <span class="font-semibold text-[#1d2d3e]">SAP Fiori Gate Access Control</span>
+                <span class="text-[#d7e2ee]">|</span>
+                <span>Cloudflare Workers & D1 Engine</span>
             </div>
-            <div class="font-mono text-[11px] text-slate-400">
-                <span>Enterprise Gate Access Control v2.4 (Bilingual Edition)</span>
+            <div class="font-mono text-[11px] text-[#556b82]">
+                <span>Enterprise Gate Management v3.0 (SAP Edition)</span>
             </div>
         </div>
     </footer>

@@ -1,12 +1,13 @@
-// Translations Dictionary - Arabic & English
-// قاموس الترجمة - العربية والإنجليزية
+// Translations Dictionary - Arabic & English (DOTRA Edition)
+// قاموس الترجمة - مجموعة دوترا (العربية والإنجليزية)
 
 const translations = {
     ar: {
-        appName: "نظام تصاريح بوابات المركبات",
-        appSubtitle: "إدارة وتصريح دخول وخروج الشاحنات والمركبات",
+        appName: "مجموعة دوترا - تصاريح البوابات",
+        appSubtitle: "نظام تصاريح ومراقبة بوابات الشاحنات والمركبات - دوترا",
+        companyName: "مجموعة دوترا (DOTRA Group)",
         loginTitle: "تسجيل الدخول للنظام",
-        loginDesc: "اختر نوع الحساب للمتابعة",
+        loginDesc: "اختر نوع الحساب للمتابعة في بوابة دوترا",
         managerTab: "🏢 مدير المكتب (PC)",
         officerTab: "👮 حارس البوابة (Mobile)",
         emailLabel: "البريد الإلكتروني",
@@ -28,7 +29,7 @@ const translations = {
         navWhitelist: "القائمة المعتمدة والمحظورة",
         
         // Metrics
-        metricInside: "مركبات بالداخل الآن",
+        metricInside: "مركبات بمصانع دوترا الآن",
         metricToday: "إجمالي الدخول اليوم",
         metricOverstay: "تنبيهات تجاوز المدة",
         metricPending: "تصاريح قيد الانتظار",
@@ -54,8 +55,8 @@ const translations = {
         truckMedium: "شاحنة متوسطة / دينا",
         van: "فان بضائع",
         tanker: "صهريج وقود/كيماويات",
-        car: "سيارة ركاب / سيدان",
-        pickup: "وانيت / بيك آب",
+        car: "سيارة ركاب / ملاكي",
+        pickup: "وانيت / نصف نقل",
         
         // Statuses
         statusInside: "داخل المصنع",
@@ -67,10 +68,10 @@ const translations = {
         statusWhitelist: "معتمد دائم",
         
         // Gate Officer Actions
-        searchPlatePlaceholder: "ابحث برقم اللوحة (عربي أو إنجليزي)...",
+        searchPlatePlaceholder: "ابحث برقم اللوحة (مثال: ط ر ق ٩ ٨ ٢ ١)...",
         openScanner: "📷 مسح تصريح QR بكاميرا الجوال",
         closeScanner: "إغلاق الكاميرا",
-        arabicKeyboard: "لوحة المفاتيح العربية للوحات",
+        arabicKeyboard: "لوحة المفاتيح المصرية للوحات",
         allowEntry: "✅ السماح بالدخول (تسجيل دخول)",
         recordExit: "🚪 تسجيل خروج المركبة",
         denyAccess: "⛔ منع الدخول / مخالفة",
@@ -80,7 +81,7 @@ const translations = {
         deniedSuccess: "تم حظر الدخول وتسجيل الملاحظة",
         
         // Manager Features
-        issueNewPermit: "إصدار تصريح دخول جديد",
+        issueNewPermit: "إصدار تصريح دخول سريع",
         printPass: "طباعة / مشاركة التصريح",
         downloadQr: "تحميل رمز QR",
         shareWhatsapp: "إرسال للسائق عبر واتساب",
@@ -101,10 +102,11 @@ const translations = {
         blacklistedAlert: "⚠️ تحذير أمني: هذه المركبة مدرجة في القائمة السوداء والمحظورة!"
     },
     en: {
-        appName: "Vehicle Gate Access System",
-        appSubtitle: "Gate Authorization & Fleet Entry Control",
+        appName: "DOTRA Group - Gate Access",
+        appSubtitle: "DOTRA Fleet & Vehicle Access Management System",
+        companyName: "DOTRA Group",
         loginTitle: "System Login",
-        loginDesc: "Select your account portal to continue",
+        loginDesc: "Select your DOTRA account to continue",
         managerTab: "🏢 Office Manager (PC)",
         officerTab: "👮 Gate Officer (Mobile)",
         emailLabel: "Email Address",
@@ -126,7 +128,7 @@ const translations = {
         navWhitelist: "Whitelist / Blacklist",
         
         // Metrics
-        metricInside: "Vehicles Inside Now",
+        metricInside: "Vehicles Inside DOTRA",
         metricToday: "Total Entries Today",
         metricOverstay: "Overstay Alerts",
         metricPending: "Pending Passes",
@@ -165,10 +167,10 @@ const translations = {
         statusWhitelist: "Permanent Whitelist",
         
         // Gate Officer Actions
-        searchPlatePlaceholder: "Search plate (Arabic or English)...",
+        searchPlatePlaceholder: "Search plate (e.g. TRQ 9821)...",
         openScanner: "📷 Scan Driver QR Code",
         closeScanner: "Close Camera",
-        arabicKeyboard: "Arabic Plate Keyboard",
+        arabicKeyboard: "Egyptian Plate Keyboard",
         allowEntry: "✅ Authorize Entry (Check-In)",
         recordExit: "🚪 Record Exit (Check-Out)",
         denyAccess: "⛔ Deny Access / Flag",
@@ -178,7 +180,7 @@ const translations = {
         deniedSuccess: "Access denied and incident logged",
         
         // Manager Features
-        issueNewPermit: "Issue New Vehicle Permit",
+        issueNewPermit: "Issue Fast Vehicle Permit",
         printPass: "Print / Share Permit",
         downloadQr: "Download QR Pass",
         shareWhatsapp: "Share with Driver via WhatsApp",
@@ -212,30 +214,27 @@ function setLanguage(lang) {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     
-    // Update active lang buttons
     const arBtn = document.getElementById('lang-btn-ar');
     const enBtn = document.getElementById('lang-btn-en');
     if (arBtn && enBtn) {
         if (lang === 'ar') {
-            arBtn.classList.add('bg-sky-600', 'text-white');
-            arBtn.classList.remove('text-slate-400');
-            enBtn.classList.remove('bg-sky-600', 'text-white');
-            enBtn.classList.add('text-slate-400');
+            arBtn.classList.add('bg-[#0070f2]', 'text-white');
+            arBtn.classList.remove('text-blue-200');
+            enBtn.classList.remove('bg-[#0070f2]', 'text-white');
+            enBtn.classList.add('text-blue-200');
         } else {
-            enBtn.classList.add('bg-sky-600', 'text-white');
-            enBtn.classList.remove('text-slate-400');
-            arBtn.classList.remove('bg-sky-600', 'text-white');
-            arBtn.classList.add('text-slate-400');
+            enBtn.classList.add('bg-[#0070f2]', 'text-white');
+            enBtn.classList.remove('text-blue-200');
+            arBtn.classList.remove('bg-[#0070f2]', 'text-white');
+            arBtn.classList.add('text-blue-200');
         }
     }
     
-    // Re-render UI with new translations
     if (window.App && typeof window.App.refreshUI === 'function') {
         window.App.refreshUI();
     }
 }
 
-// Export to window
 window.i18n = {
     t,
     setLanguage,

@@ -1,5 +1,5 @@
--- Cloudflare D1 Database Schema for Vehicle Gate Access System
--- نظام تصاريح بوابات المركبات - قاعدة بيانات كلاود فلير D1
+-- Cloudflare D1 Database Schema for Vehicle Gate Access System (Egypt Traffic Edition)
+-- نظام تصاريح بوابات المركبات - قاعدة بيانات كلاود فلير D1 (معيار المرور المصري)
 
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS vehicles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    plate_ar TEXT NOT NULL,           -- e.g. "أ ب ج 1 2 3 4"
-    plate_en TEXT NOT NULL,           -- e.g. "ABC 1234"
-    vehicle_type TEXT NOT NULL,       -- truck, car, van, tanker, bus, pickup
+    plate_ar TEXT NOT NULL,           -- e.g. "ط ر ق ٩ ٨ ٢ ١"
+    plate_en TEXT NOT NULL,           -- e.g. "TRQ 9821"
+    vehicle_type TEXT NOT NULL,       -- truckHeavy, truckMedium, car, van, tanker
     driver_name_ar TEXT NOT NULL,
     driver_name_en TEXT NOT NULL,
     driver_phone TEXT,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
 
 CREATE TABLE IF NOT EXISTS permits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    permit_code TEXT UNIQUE NOT NULL, -- e.g. "PER-2026-8891"
+    permit_code TEXT UNIQUE NOT NULL,
     vehicle_id INTEGER NOT NULL REFERENCES vehicles(id),
     destination_ar TEXT NOT NULL,
     destination_en TEXT NOT NULL,
@@ -59,8 +59,15 @@ CREATE TABLE IF NOT EXISTS access_logs (
     remarks TEXT
 );
 
--- Seed Initial Admin/Manager & Officers
+-- Seed Initial Egyptian Admin & Gate Officers
 INSERT OR IGNORE INTO users (id, badge_id, email, password_hash, pin_code, name_ar, name_en, role, gate_assigned) VALUES
-(1, 'MGR-01', 'manager@factory.com', 'Manager@2026', '9900', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', 'Office HQ'),
-(2, 'GT-01', 'officer1@factory.com', 'Officer@2026', '1234', 'الضابط طارق الحربي', 'Officer Tariq Al-Harbi', 'officer', 'بوابة 1 الرئيسية (Gate 1)'),
-(3, 'GT-02', 'officer2@factory.com', 'Officer@2026', '5678', 'الضابط خالد الشمري', 'Officer Khalid Al-Shammari', 'officer', 'بوابة 2 الشحن (Gate 2 Cargo)');
+(1, 'MGR-01', 'manager@factory.com', 'Manager@2026', '9900', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', 'Office HQ (الإدارة الرئيسية)'),
+(2, 'GT-01', 'officer1@factory.com', 'Officer@2026', '1234', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية (Gate 1 Main)'),
+(3, 'GT-02', 'officer2@factory.com', 'Officer@2026', '5678', 'أمين الشرطة / خالد الشناوي', 'Officer Khalid El-Shenawy', 'officer', 'بوابة 2 الشحن والجمارك (Gate 2 Cargo)');
+
+-- Seed Egyptian Standard Vehicles
+INSERT OR IGNORE INTO vehicles (id, plate_ar, plate_en, vehicle_type, driver_name_ar, driver_name_en, driver_phone, company_ar, company_en, status) VALUES
+(1, 'ط ر ق ٩ ٨ ٢ ١', 'TRQ 9821', 'truckHeavy', 'محمود عبدالفتاح إبراهيم', 'Mahmoud Abdelfattah', '+201012345678', 'شركة حديد عز للصناعات المعدنية', 'Ezz Steel Industry', 'whitelist'),
+(2, 'س ف ر ٤ ٥ ٢ ٠', 'SFR 4520', 'van', 'كريم السيد الباز', 'Karim El-Sayed El-Baz', '+201123456789', 'دي إتش إل إكسبريس مصر', 'DHL Express Egypt', 'visitor'),
+(3, 'د ن ق ١ ١ ٠ ٢', 'DNQ 1102', 'tanker', 'حسين رمضان الشرقاوي', 'Hussein El-Sharkawy', '+201234567890', 'شركة مصر للبترول', 'Misr Petroleum Co.', 'visitor'),
+(4, 'م ص ر ٣ ٣ ٠ ٤', 'MSR 3304', 'car', 'طارق صلاح النجار', 'Tariq El-Naggar', '+201567890123', 'مجموعة السويدي إلكتريك', 'Elsewedy Electric', 'blacklist');

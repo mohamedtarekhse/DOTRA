@@ -1,5 +1,5 @@
-// Database Layer - Cloudflare D1 Integration & Local Storage Sync
-// طبقة إدارة البيانات - قاعدة بيانات كلاود فلير D1 مع المزامنة الفورية
+// Database Layer - Egyptian Standard Vehicles & Cloudflare D1 Sync
+// طبقة إدارة البيانات - قاعدة بيانات كلاود فلير D1 مع دعم لوحات المرور المصرية
 
 const SEED_USERS = [
     {
@@ -19,8 +19,8 @@ const SEED_USERS = [
         email: 'officer1@factory.com',
         password: 'Officer@2026',
         pin_code: '1234',
-        name_ar: 'الضابط طارق الحربي',
-        name_en: 'Officer Tariq Al-Harbi',
+        name_ar: 'أمين الشرطة / طارق مصطفى',
+        name_en: 'Officer Tariq Mostafa',
         role: 'officer',
         gate_assigned: 'بوابة 1 الرئيسية (Gate 1 Main)'
     },
@@ -30,62 +30,74 @@ const SEED_USERS = [
         email: 'officer2@factory.com',
         password: 'Officer@2026',
         pin_code: '5678',
-        name_ar: 'الضابط خالد الشمري',
-        name_en: 'Officer Khalid Al-Shammari',
+        name_ar: 'أمين الشرطة / خالد الشناوي',
+        name_en: 'Officer Khalid El-Shenawy',
         role: 'officer',
-        gate_assigned: 'بوابة 2 الشحن (Gate 2 Cargo)'
+        gate_assigned: 'بوابة 2 الشحن والجمارك (Gate 2 Cargo)'
     }
 ];
 
 const SEED_VEHICLES = [
     {
         id: 1,
-        plate_ar: 'أ ب ج 9 8 2 1',
-        plate_en: 'ABJ 9821',
+        plate_ar: 'ط ر ق ٩ ٨ ٢ ١',
+        plate_en: 'TRQ 9821',
         vehicle_type: 'truckHeavy',
-        driver_name_ar: 'عبدالرحمن الدوسري',
-        driver_name_en: 'Abdulrahman Al-Dossari',
-        driver_phone: '+966501234567',
-        company_ar: 'شركة إسمنت اليمامة',
-        company_en: 'Yamama Cement Co.',
+        driver_name_ar: 'محمود عبدالفتاح إبراهيم',
+        driver_name_en: 'Mahmoud Abdelfattah',
+        driver_phone: '+201012345678',
+        company_ar: 'شركة حديد عز للصناعات المعدنية',
+        company_en: 'Ezz Steel Industry',
         status: 'whitelist'
     },
     {
         id: 2,
-        plate_ar: 'د ر س 4 5 2 0',
-        plate_en: 'DRS 4520',
+        plate_ar: 'س ف ر ٤ ٥ ٢ ٠',
+        plate_en: 'SFR 4520',
         vehicle_type: 'van',
-        driver_name_ar: 'محمد سامي العلي',
-        driver_name_en: 'Mohamed Sami Al-Ali',
-        driver_phone: '+966559876543',
-        company_ar: 'دي إتش إل للشحن السريع',
-        company_en: 'DHL Express Logistics',
+        driver_name_ar: 'كريم السيد الباز',
+        driver_name_en: 'Karim El-Sayed El-Baz',
+        driver_phone: '+201123456789',
+        company_ar: 'دي إتش إل إكسبريس مصر',
+        company_en: 'DHL Express Egypt',
         status: 'visitor'
     },
     {
         id: 3,
-        plate_ar: 'ص ق ط 1 1 0 2',
-        plate_en: 'SQT 1102',
+        plate_ar: 'د ن ق ١ ١ ٠ ٢',
+        plate_en: 'DNQ 1102',
         vehicle_type: 'tanker',
-        driver_name_ar: 'فهد إبراهيم السبيعي',
-        driver_name_en: 'Fahad Al-Subaie',
-        driver_phone: '+966543322110',
-        company_ar: 'الوقود والغاز الصناعي',
-        company_en: 'Industrial Gas & Fuel',
+        driver_name_ar: 'حسين رمضان الشرقاوي',
+        driver_name_en: 'Hussein El-Sharkawy',
+        driver_phone: '+201234567890',
+        company_ar: 'شركة مصر للبترول',
+        company_en: 'Misr Petroleum Co.',
         status: 'visitor'
     },
     {
         id: 4,
-        plate_ar: 'ح م د 3 3 0 4',
-        plate_en: 'HMD 3304',
+        plate_ar: 'م ص ر ٣ ٣ ٠ ٤',
+        plate_en: 'MSR 3304',
         vehicle_type: 'car',
-        driver_name_ar: 'سالم مبارك القحطاني',
-        driver_name_en: 'Salem Al-Qahtani',
-        driver_phone: '+966567788990',
-        company_ar: 'الشركة العربية للحديد والصلب',
-        company_en: 'Arabian Steel & Metal',
+        driver_name_ar: 'طارق صلاح النجار',
+        driver_name_en: 'Tariq El-Naggar',
+        driver_phone: '+201567890123',
+        company_ar: 'مجموعة السويدي إلكتريك',
+        company_en: 'Elsewedy Electric',
         status: 'blacklist',
-        blacklist_reason: 'تجاوز السرعة المحددة داخل المصنع ومخالفة اشتراطات السلامة'
+        blacklist_reason: 'تجاوز السرعة المقررة بموقع المصنع ومخالفة لوائح الأمان الصناعي'
+    },
+    {
+        id: 5,
+        plate_ar: 'ب س م ٧ ٧ ٨ ٩',
+        plate_en: 'BSM 7789',
+        vehicle_type: 'truckMedium',
+        driver_name_ar: 'عصام فتحي الديب',
+        driver_name_en: 'Essam El-Deeb',
+        driver_phone: '+201099887766',
+        company_ar: 'شركة أسمنت السويس',
+        company_en: 'Suez Cement Group',
+        status: 'visitor'
     }
 ];
 
@@ -94,39 +106,39 @@ const SEED_PERMITS = [
         id: 1,
         permit_code: 'PER-2026-8801',
         vehicle_id: 1,
-        destination_ar: 'مستودع المواد الخام - رصيف 3',
-        destination_en: 'Raw Materials Warehouse - Bay 3',
-        purpose_ar: 'تفريغ شحنة إسمنت وحصى',
-        purpose_en: 'Unload cement and aggregate',
-        cargo_details: '30 طن إسمنت بورتلاندي',
-        valid_from: new Date(Date.now() - 3 * 3600000).toISOString(),
-        valid_until: new Date(Date.now() + 5 * 3600000).toISOString(),
+        destination_ar: 'مجمع الأفران ومستودع رصيف 3',
+        destination_en: 'Furnace Complex & Bay 3',
+        purpose_ar: 'تفريغ خام بليت وحديد تسليح',
+        purpose_en: 'Unload raw iron billets',
+        cargo_details: '40 طن بليت صلب',
+        valid_from: new Date(Date.now() - 2 * 3600000).toISOString(),
+        valid_until: new Date(Date.now() + 6 * 3600000).toISOString(),
         status: 'active'
     },
     {
         id: 2,
         permit_code: 'PER-2026-8802',
         vehicle_id: 2,
-        destination_ar: 'مبنى الإدارة ومستودع الطرود',
-        destination_en: 'Admin Building & Parcels Dept',
-        purpose_ar: 'تسليم قطع غيار وأوراق جمركية',
-        purpose_en: 'Deliver spare parts and customs docs',
-        cargo_details: '8 طرود بريدية ومستندات',
+        destination_ar: 'مبنى الشؤون الإدارية والطرود',
+        destination_en: 'Admin Building & Documents',
+        purpose_ar: 'تسليم شحنة قطع غيار ألمانية ومستندات',
+        purpose_en: 'Deliver German spare parts & docs',
+        cargo_details: '12 طرد ومستندات جمركية',
         valid_from: new Date(Date.now() - 1 * 3600000).toISOString(),
-        valid_until: new Date(Date.now() + 3 * 3600000).toISOString(),
+        valid_until: new Date(Date.now() + 4 * 3600000).toISOString(),
         status: 'active'
     },
     {
         id: 3,
         permit_code: 'PER-2026-8803',
         vehicle_id: 3,
-        destination_ar: 'محطة خزانات الديزل المركزية',
-        destination_en: 'Central Diesel Tank Farm',
-        purpose_ar: 'تزويد محطة الطاقة بالديزل',
-        purpose_en: 'Diesel supply for backup generator',
-        cargo_details: '20,000 لتر ديزل ممتاز',
-        valid_from: new Date(Date.now() - 6 * 3600000).toISOString(),
-        valid_until: new Date(Date.now() - 1 * 3600000).toISOString(), // Overstayed permit
+        destination_ar: 'محطة الصهاريج والمحروقات المركزية',
+        destination_en: 'Central Fuel Tank Storage',
+        purpose_ar: 'تزويد محطة الكهرباء بالسولار الصناعي',
+        purpose_en: 'Industrial diesel refill',
+        cargo_details: '30,000 لتر سولار صناعي',
+        valid_from: new Date(Date.now() - 5 * 3600000).toISOString(),
+        valid_until: new Date(Date.now() - 1 * 3600000).toISOString(), // Overstayed
         status: 'active'
     }
 ];
@@ -139,10 +151,10 @@ const SEED_LOGS = [
         officer_id: 2,
         gate_name: 'بوابة 1 الرئيسية (Gate 1)',
         action_type: 'entry',
-        timestamp: new Date(Date.now() - 2.5 * 3600000).toISOString(),
+        timestamp: new Date(Date.now() - 1.5 * 3600000).toISOString(),
         exit_timestamp: null,
         duration_minutes: null,
-        remarks: 'دخول نظامي بتصريح معتمد'
+        remarks: 'دخول شاحنة حديد عز بتصريح معتمد'
     },
     {
         id: 2,
@@ -151,10 +163,10 @@ const SEED_LOGS = [
         officer_id: 3,
         gate_name: 'بوابة 2 الشحن (Gate 2)',
         action_type: 'entry',
-        timestamp: new Date(Date.now() - 5.5 * 3600000).toISOString(),
+        timestamp: new Date(Date.now() - 4.5 * 3600000).toISOString(),
         exit_timestamp: null,
         duration_minutes: null,
-        remarks: 'دخول صهريج الوقود (تجاوزت المدة المسموحة)'
+        remarks: 'دخول صهريج مصر للبترول (تجاوزت المدة المسموحة)'
     }
 ];
 
@@ -164,16 +176,12 @@ class DatabaseService {
     }
 
     initStorage() {
-        if (!localStorage.getItem('gate_users')) {
+        // Force refresh seed data to Egyptian standard if previously stored
+        const storedVehicles = localStorage.getItem('gate_vehicles');
+        if (!storedVehicles || storedVehicles.includes('أ ب ج 9 8 2 1')) {
             localStorage.setItem('gate_users', JSON.stringify(SEED_USERS));
-        }
-        if (!localStorage.getItem('gate_vehicles')) {
             localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
-        }
-        if (!localStorage.getItem('gate_permits')) {
             localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
-        }
-        if (!localStorage.getItem('gate_logs')) {
             localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
         }
     }
@@ -202,7 +210,7 @@ class DatabaseService {
         return vehicles.find(v => {
             const arClean = (v.plate_ar || '').toLowerCase().replace(/\s+/g, '');
             const enClean = (v.plate_en || '').toLowerCase().replace(/\s+/g, '');
-            return arClean.includes(term) || enClean.includes(term);
+            return arClean.includes(term) || enClean.includes(term) || term.includes(arClean);
         });
     }
 
@@ -221,7 +229,6 @@ class DatabaseService {
         const logs = this.getLogs();
         const vehicleLogs = logs.filter(l => l.vehicle_id === vehicleId);
         if (vehicleLogs.length === 0) return null;
-        // Last log
         const lastLog = vehicleLogs[vehicleLogs.length - 1];
         if (lastLog.action_type === 'entry' && !lastLog.exit_timestamp) {
             return lastLog;
@@ -266,7 +273,6 @@ class DatabaseService {
             localStorage.setItem('gate_logs', JSON.stringify(logs));
             return entryLog;
         } else {
-            // Unregistered exit log
             const newExitLog = {
                 id: Date.now(),
                 vehicle_id: vehicleId,

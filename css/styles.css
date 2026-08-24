@@ -1,20 +1,39 @@
-/* Factory Gate Vehicle Access System - Custom Styles & Arabic Plate Design */
+/* SAP Fiori Blue & White Theme (نظام الثيم المؤسسي أزرق وأبيض - نمط ساب) */
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
     --font-arabic: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-latin: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    --primary-color: #0284c7;
-    --accent-emerald: #10b981;
-    --accent-rose: #f43f5e;
-    --accent-amber: #f59e0b;
+    
+    /* Official SAP Palette */
+    --sap-primary: #0070f2;
+    --sap-primary-hover: #005cbd;
+    --sap-primary-active: #004791;
+    --sap-header-bg: #002b66;
+    --sap-header-dark: #001940;
+    --sap-page-bg: #f5f8fc;
+    --sap-card-bg: #ffffff;
+    --sap-text-main: #1d2d3e;
+    --sap-text-secondary: #556b82;
+    --sap-border: #d7e2ee;
+    --sap-border-subtle: #e7eff7;
+    
+    /* SAP Statuses */
+    --sap-positive: #107e3e;
+    --sap-positive-bg: #e5f6eb;
+    --sap-critical: #bb0000;
+    --sap-critical-bg: #ffebeb;
+    --sap-warning: #b85500;
+    --sap-warning-bg: #fff1e5;
+    --sap-info: #0070f2;
+    --sap-info-bg: #ebf3fb;
 }
 
 body {
     font-family: var(--font-latin);
-    background-color: #0b1120;
-    color: #f8fafc;
+    background-color: var(--sap-page-bg);
+    color: var(--sap-text-main);
     min-height: 100vh;
     overflow-x: hidden;
 }
@@ -24,205 +43,150 @@ body {
     font-family: var(--font-arabic);
 }
 
-/* Glassmorphism & Cards */
-.glass-panel {
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(51, 65, 85, 0.6);
+/* SAP Enterprise Cards & Panels */
+.sap-header {
+    background: linear-gradient(135deg, #002b66 0%, #004b99 100%);
+    color: #ffffff;
+    border-bottom: 2px solid #001940;
+    box-shadow: 0 4px 12px rgba(0, 43, 102, 0.15);
 }
 
-.glass-card {
-    background: rgba(30, 41, 59, 0.7);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(71, 85, 105, 0.4);
+.sap-card {
+    background: #ffffff;
+    border: 1px solid var(--sap-border);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 43, 102, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
     transition: all 0.2s ease-in-out;
 }
 
-.glass-card:hover {
-    border-color: rgba(56, 189, 248, 0.4);
-    box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.15);
+.sap-card:hover {
+    border-color: #b0cfee;
+    box-shadow: 0 6px 18px rgba(0, 112, 242, 0.08);
 }
 
-/* ===================================================
-   AUTHENTIC ARABIC & GULF LICENSE PLATE STYLING
-   =================================================== */
-.license-plate-arabic {
-    display: inline-flex;
-    flex-direction: column;
+.sap-panel {
     background: #ffffff;
-    color: #0f172a;
-    border: 3px solid #1e293b;
+    border: 1px solid var(--sap-border);
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(0, 43, 102, 0.06);
+}
+
+/* SAP Primary Buttons */
+.sap-btn-primary {
+    background-color: var(--sap-primary);
+    color: #ffffff;
+    font-weight: 700;
     border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.8);
-    overflow: hidden;
-    user-select: none;
-    font-family: var(--font-mono), var(--font-arabic);
-    position: relative;
+    border: 1px solid var(--sap-primary);
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0, 112, 242, 0.2);
 }
 
-.license-plate-arabic.plate-truck {
-    border-color: #047857;
-    background: #f0fdf4;
+.sap-btn-primary:hover {
+    background-color: var(--sap-primary-hover);
+    box-shadow: 0 4px 8px rgba(0, 112, 242, 0.3);
+    transform: translateY(-1px);
 }
 
-.license-plate-arabic.plate-commercial {
-    border-color: #b45309;
-    background: #fffbeb;
+.sap-btn-primary:active {
+    background-color: var(--sap-primary-active);
+    transform: translateY(1px);
 }
 
-.license-plate-arabic.plate-large {
-    min-width: 220px;
-    height: 78px;
-}
-
-.license-plate-arabic.plate-compact {
-    min-width: 150px;
-    height: 52px;
-}
-
-.plate-header-band {
-    background: #0284c7;
-    color: white;
-    font-size: 9px;
+.sap-btn-secondary {
+    background-color: #ffffff;
+    color: var(--sap-primary);
+    border: 1px solid var(--sap-border);
     font-weight: 700;
-    letter-spacing: 1px;
-    padding: 1px 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #0369a1;
+    border-radius: 8px;
+    transition: all 0.15s ease;
 }
 
-.plate-content-grid {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    height: 100%;
-    align-items: center;
-    padding: 2px 10px;
+.sap-btn-secondary:hover {
+    background-color: var(--sap-info-bg);
+    border-color: var(--sap-primary);
 }
 
-.plate-arabic-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    color: #0f172a;
-}
-
-.plate-arabic-section .arabic-letters {
-    font-size: 19px;
-    line-height: 1.1;
-    letter-spacing: 2px;
-    font-family: var(--font-arabic);
-}
-
-.plate-arabic-section .arabic-digits {
-    font-size: 16px;
-    line-height: 1.1;
+/* SAP Status Badges */
+.badge-inside {
+    background-color: var(--sap-positive-bg);
+    color: var(--sap-positive);
+    border: 1px solid #b4e3c4;
     font-weight: 700;
-    color: #334155;
 }
 
-.plate-divider {
-    width: 2px;
-    height: 80%;
-    background: #cbd5e1;
-    margin: 0 8px;
+.badge-overstay {
+    background-color: var(--sap-critical-bg);
+    color: var(--sap-critical);
+    border: 1px solid #f6b3b3;
+    font-weight: 700;
+    animation: sap-pulse 2s infinite;
 }
 
-.plate-latin-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+.badge-active {
+    background-color: var(--sap-info-bg);
+    color: var(--sap-info);
+    border: 1px solid #b3d5fa;
+    font-weight: 700;
+}
+
+.badge-exited {
+    background-color: #f1f4f8;
+    color: var(--sap-text-secondary);
+    border: 1px solid #d7e2ee;
+    font-weight: 600;
+}
+
+.badge-blacklisted {
+    background-color: #3b0d0c;
+    color: #ffcccc;
+    border: 1px solid #8a1f1d;
     font-weight: 800;
-    font-family: var(--font-mono);
-    color: #0f172a;
 }
 
-.plate-latin-section .latin-letters {
-    font-size: 16px;
-    letter-spacing: 3px;
-    line-height: 1.1;
+@keyframes sap-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(187, 0, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(187, 0, 0, 0);
+    }
 }
 
-.plate-latin-section .latin-digits {
-    font-size: 18px;
-    line-height: 1.1;
-    color: #0284c7;
+/* Egyptian License Plate in SAP Light Theme */
+.egyptian-plate {
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
 }
 
-/* Arabic Keyboard Keypad */
+/* Keypad Keys for SAP Theme */
 .arabic-key {
-    background: #1e293b;
-    color: #f1f5f9;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    font-size: 18px;
+    background: #ffffff;
+    color: var(--sap-text-main);
+    border: 1px solid var(--sap-border);
+    border-radius: 6px;
+    font-size: 17px;
     font-weight: 700;
-    height: 44px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.15s ease;
     user-select: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .arabic-key:hover {
-    background: #0284c7;
-    border-color: #38bdf8;
+    background: var(--sap-primary);
+    border-color: var(--sap-primary);
     color: #ffffff;
     transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 112, 242, 0.2);
 }
 
 .arabic-key:active {
     transform: translateY(1px);
-    background: #0369a1;
-}
-
-/* Status Badges */
-.badge-inside {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.35);
-}
-
-.badge-overstay {
-    background: rgba(244, 63, 94, 0.15);
-    color: #fb7185;
-    border: 1px solid rgba(244, 63, 94, 0.4);
-    animation: pulse-border 2s infinite;
-}
-
-.badge-active {
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.35);
-}
-
-.badge-exited {
-    background: rgba(148, 163, 184, 0.15);
-    color: #94a3b8;
-    border: 1px solid rgba(148, 163, 184, 0.3);
-}
-
-.badge-blacklisted {
-    background: rgba(239, 68, 68, 0.25);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.6);
-}
-
-@keyframes pulse-border {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 0 6px rgba(244, 63, 94, 0);
-    }
+    background: var(--sap-primary-active);
 }
 
 /* Custom Scrollbars */
@@ -231,37 +195,32 @@ body {
     height: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: #e7eff7;
 }
 ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: #b0cfee;
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: var(--sap-primary);
 }
 
 /* QR Code Scanner Overlay */
 #qr-reader {
     width: 100% !important;
     border: none !important;
-    border-radius: 12px;
+    border-radius: 10px;
     overflow: hidden;
 }
 
-#qr-reader__scan_region video {
-    border-radius: 12px;
-    object-fit: cover;
-}
-
-/* Touch Friendly Mobile Buttons */
+/* Tactile Touch Buttons */
 .touch-btn {
-    min-height: 54px;
+    min-height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    border-radius: 12px;
+    font-weight: 800;
+    border-radius: 10px;
     transition: all 0.15s ease;
 }
 
