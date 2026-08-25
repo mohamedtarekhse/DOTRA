@@ -47,7 +47,7 @@ class OfficerController {
                     <label class="block text-xs font-bold text-[#1d2d3e] mb-2 flex justify-between items-center">
                         <span class="flex items-center gap-1.5">
                             ${icon('search', 'w-4 h-4 text-[#0070f2]')}
-                            <span>${lang === 'ar' ? 'أدخل رقم اللوحة (حروف وأرقام):' : 'Enter License Plate:'}</span>
+                            <span>${lang === 'ar' ? 'فحص لوحة المركبة أو كود التحقق السريع (5 أرقام):' : 'Enter License Plate or 5-Digit PIN:'}</span>
                         </span>
                         <button type="button" onclick="Officer.toggleKeypad()" class="text-[#0070f2] hover:text-[#005cbd] text-xs font-bold flex items-center gap-1">
                             ${icon('keyboard', 'w-3.5 h-3.5')}
@@ -56,7 +56,7 @@ class OfficerController {
                     </label>
 
                     <div class="relative">
-                        <input type="text" id="officer-plate-input" autofocus placeholder="ط ر ق ٩ ٨ ٢ ١ أو س ف ر 4520..." class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-4 py-3 text-[#1d2d3e] font-black text-lg focus:border-[#0070f2] focus:bg-white focus:outline-none placeholder-[#94a3b8] shadow-inner" oninput="Officer.handlePlateSearch(this.value)" />
+                        <input type="text" id="officer-plate-input" autofocus placeholder="${lang === 'ar' ? 'مثال: ط ر ق ٩ ٨ ٢ ١ أو الكود: 84920' : 'e.g. TRQ 9821 or PIN: 84920'}" class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-4 py-3 text-[#1d2d3e] font-black text-lg focus:border-[#0070f2] focus:bg-white focus:outline-none placeholder-[#94a3b8] shadow-inner" oninput="Officer.handlePlateSearch(this.value)" />
                         <button type="button" onclick="Officer.clearSearch()" class="absolute ${lang === 'ar' ? 'left-3' : 'right-3'} top-3 text-[#556b82] hover:text-[#1d2d3e] text-base font-bold">
                             ✕
                         </button>
@@ -111,10 +111,10 @@ class OfficerController {
                     ${icon('truck', 'w-8 h-8')}
                 </div>
                 <h3 class="text-base font-bold text-[#002b66] mb-1">
-                    ${lang === 'ar' ? 'في انتظار فحص لوحة مركبة' : 'Waiting to Verify Vehicle'}
+                    ${lang === 'ar' ? 'في انتظار فحص لوحة مركبة أو كود PIN' : 'Waiting to Verify Vehicle or PIN'}
                 </h3>
                 <p class="text-xs text-[#556b82] max-w-xs mx-auto">
-                    ${lang === 'ar' ? 'اكتب رقم اللوحة أو اضغط على مسح الكاميرا لقراءة الـ QR الخاص بالسائق فورياً' : 'Type license plate or scan QR code'}
+                    ${lang === 'ar' ? 'اكتب رقم اللوحة أو كود التصريح السريع (5 أرقام) أو امسح الـ QR' : 'Type license plate, 5-digit PIN or scan QR code'}
                 </p>
             </div>
         `;
@@ -143,25 +143,39 @@ class OfficerController {
             return;
         }
 
-        const vehicle = window.DB.findVehicleByPlate(query);
         const lang = window.i18n.getLang();
         const resultContainer = document.getElementById('vehicle-verification-result');
+        const cleanQuery = query.trim();
+
+        // 1. Try search by 5-Digit PIN or Permit Code first
+        let permit = window.DB.findPermitByPin(cleanQuery) || window.DB.findPermitByCodeOrVehicle(cleanQuery);
+        let vehicle = null;
+
+        if (permit) {
+            vehicle = window.DB.getVehicles().find(v => v.id === permit.vehicle_id);
+        } else {
+            // 2. Search by License Plate
+            vehicle = window.DB.findVehicleByPlate(cleanQuery);
+            if (vehicle) {
+                permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
+            }
+        }
 
         if (!vehicle) {
             resultContainer.innerHTML = `
                 <div class="sap-card p-5 bg-[#fff8eb] border-2 border-[#ffc966] animate-scaleUp">
                     <div class="flex items-center justify-between mb-3">
                         <span class="px-2.5 py-1 bg-[#fff1e5] text-[#b85500] rounded-full text-xs font-bold border border-[#ffd8b3]">
-                            ⚠️ ${lang === 'ar' ? 'مركبة غير مسجلة' : 'Unregistered Vehicle'}
+                            ⚠️ ${lang === 'ar' ? 'مركبة / كود غير مسجل' : 'Unregistered Vehicle / PIN'}
                         </span>
-                        <div class="text-xs font-mono font-bold text-[#556b82]">${query}</div>
+                        <div class="text-xs font-mono font-bold text-[#556b82]">${cleanQuery}</div>
                     </div>
                     <p class="text-xs text-[#556b82] mb-3">
-                        ${lang === 'ar' ? 'لم يتم العثور على تصريح مسبق لهذه اللوحة. يمكنك تسجيل دخول فوري كزائر الآن.' : 'No prior permit found for this plate. You can register an instant walk-in pass.'}
+                        ${lang === 'ar' ? 'لم يتم العثور على تصريح مسبق برقم اللوحة أو كود PIN هذا. يمكنك تسجيل دخول فوري كزائر الآن.' : 'No prior permit found for this plate or PIN. You can register an instant walk-in pass.'}
                     </p>
-                    <button type="button" onclick="Officer.openWalkinWithPlate('${query}')" class="w-full py-2.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold">
+                    <button type="button" onclick="Officer.openWalkinWithPlate('${cleanQuery}')" class="w-full py-2.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold">
                         <span>⚡</span>
-                        <span>${lang === 'ar' ? 'تسجيل دخول فوري لهذه اللوحة' : 'Register Instant Entry'}</span>
+                        <span>${lang === 'ar' ? 'تسجيل دخول فوري لهذه المركبة' : 'Register Instant Entry'}</span>
                     </button>
                 </div>
             `;
@@ -169,8 +183,8 @@ class OfficerController {
         }
 
         this.selectedVehicle = vehicle;
-        this.selectedPermit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
-        this.renderVehicleDecisionCard(vehicle, this.selectedPermit, lang);
+        this.selectedPermit = permit;
+        this.renderVehicleDecisionCard(vehicle, permit, lang);
     }
 
     renderVehicleDecisionCard(vehicle, permit, lang) {
@@ -226,7 +240,10 @@ class OfficerController {
                         <div class="text-sm font-black flex items-center justify-center gap-1.5">
                             <span>📤 تصريح خروج بضائع معتمد (${permit.permit_code})</span>
                         </div>
-                        ${permit.invoice_no ? `<div class="text-xs text-[#1d2d3e] font-mono font-bold mt-1">رقم إذن الصرف: <b class="text-[#0070f2]">${permit.invoice_no}</b> • الحمولة: ${permit.cargo_details}</div>` : ''}
+                        <div class="mt-1 flex items-center justify-center gap-2">
+                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '84920'}</span>
+                        </div>
+                        ${permit.invoice_no ? `<div class="text-xs text-[#1d2d3e] font-mono font-bold mt-1.5">رقم إذن الصرف: <b class="text-[#0070f2]">${permit.invoice_no}</b> • الحمولة: ${permit.cargo_details}</div>` : ''}
                     </div>
                 `;
                 actionButtons = `
@@ -247,6 +264,9 @@ class OfficerController {
                         <div class="text-sm font-black flex items-center justify-center gap-1.5">
                             ${icon('check', 'w-4 h-4 text-[#107e3e]')}
                             <span>🟢 ${isBoth ? 'تصريح دخول وخروج معتمد' : window.i18n.t('statusAuthorized')} (${permit.permit_code})</span>
+                        </div>
+                        <div class="mt-1 flex items-center justify-center gap-2">
+                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b4e3c4] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '84920'}</span>
                         </div>
                     </div>
                 `;

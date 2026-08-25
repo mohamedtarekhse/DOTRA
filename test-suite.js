@@ -257,7 +257,17 @@ assert(latestExitPermit.invoice_no === 'INV-2026-904', 'Exit pass contains invoi
 const prevPermitInDb = allPermits.find(p => p.id === freshPermit.id);
 assert(prevPermitInDb.status === 'superseded', 'Previous duplicate active permit marked as superseded');
 
-// Canvas Image Data URI Generation test for Exit Pass
+assert(latestExitPermit.pin_code && latestExitPermit.pin_code.length === 5, `Permit generated with 5-digit verification PIN: ${latestExitPermit.pin_code}`);
+
+// Search & Verify by 5-Digit PIN
+const permitFoundByPin = window.DB.findPermitByPin(latestExitPermit.pin_code);
+assert(permitFoundByPin !== null && permitFoundByPin.id === latestExitPermit.id, 'Permit successfully found and verified using 5-digit PIN');
+
+// Officer searches by PIN
+window.Officer.handlePlateSearch(latestExitPermit.pin_code);
+assert(window.Officer.selectedPermit !== null && window.Officer.selectedPermit.pin_code === latestExitPermit.pin_code, 'Officer successfully verified car using 5-digit PIN code');
+
+// Canvas Image Data URI Generation test for Exit Pass with PIN
 const exitPassDataUri = window.Manager.createPassCanvasDataUrl(
     latestExitPermit.permit_code,
     freshTruck.plate_ar,
@@ -266,9 +276,10 @@ const exitPassDataUri = window.Manager.createPassCanvasDataUrl(
     '18:00',
     'exit',
     latestExitPermit.invoice_no,
-    latestExitPermit.cargo_details
+    latestExitPermit.cargo_details,
+    latestExitPermit.pin_code
 );
-assert(exitPassDataUri && exitPassDataUri.startsWith('data:image/png'), 'Exit Pass PNG DataURL generated safely');
+assert(exitPassDataUri && exitPassDataUri.startsWith('data:image/png'), 'Exit Pass PNG DataURL with PIN generated safely');
 
 // Officer Scans QR and Records Entry
 const officerEntry = window.DB.recordEntry(freshTruck.id, latestExitPermit.id, 2, 'بوابة 1 دوترا', 'دخول معتمد');

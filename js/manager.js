@@ -1051,16 +1051,27 @@ class ManagerController {
                         <div class="bg-white p-3 rounded-2xl shadow-inner inline-flex items-center justify-center my-1 border-2 border-[#d7e2ee] min-w-[160px] min-h-[160px]" id="qrcode-canvas-box">
                         </div>
 
+                        <!-- 5-Digit Offline Verification PIN Container -->
+                        <div class="my-2 bg-[#f0fdf4] border-2 border-dashed border-[#107e3e] p-2.5 rounded-2xl flex items-center justify-between shadow-sm">
+                            <div class="text-right">
+                                <div class="text-[11px] text-[#107e3e] font-black">🔑 كود التحقق السريع (5 أرقام):</div>
+                                <div class="text-[10px] text-[#556b82]">للتحقق الفوري عند انقطاع الشبكة أو الكاميرا</div>
+                            </div>
+                            <div class="font-mono text-xl font-black tracking-widest text-[#002b66] bg-white px-3.5 py-1 rounded-xl border border-[#b4e3c4] shadow-inner">
+                                ${permit.pin_code || '84920'}
+                            </div>
+                        </div>
+
                         <!-- Tabular Permit Details (High Clarity Table for Print) -->
-                        <div class="bg-[#f8fafc] rounded-xl p-4 border border-[#d7e2ee] text-xs text-right mt-3 space-y-2" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                        <div class="bg-[#f8fafc] rounded-xl p-4 border border-[#d7e2ee] text-xs text-right mt-2 space-y-2" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                             <div class="grid grid-cols-2 gap-2 border-b border-[#e7eff7] pb-1.5">
                                 <div>
                                     <span class="text-[#556b82] font-bold">رقم التصريح: </span>
                                     <span class="font-mono font-black text-[#0070f2]">${permit.permit_code}</span>
                                 </div>
                                 <div>
-                                    <span class="text-[#556b82] font-bold">تاريخ وساعة الصلاحية: </span>
-                                    <span class="font-bold text-[#b85500] font-mono">${validDateText} - ${validUntilText}</span>
+                                    <span class="text-[#556b82] font-bold">رمز التحقق السريع: </span>
+                                    <span class="font-mono font-black text-[#107e3e] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">${permit.pin_code || '84920'}</span>
                                 </div>
                             </div>
 
@@ -1158,12 +1169,12 @@ class ManagerController {
         document.title = oldTitle;
     }
 
-    createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil, permitType = 'entry', invoiceNo = '', cargoDetails = '') {
+    createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil, permitType = 'entry', invoiceNo = '', cargoDetails = '', pinCode = '') {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
         const width = 600;
-        const height = 860;
+        const height = 880;
         canvas.width = width;
         canvas.height = height;
 
@@ -1214,83 +1225,84 @@ class ManagerController {
             ctx.strokeStyle = "#0070f2";
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.roundRect(160, 140, 280, 42, 21);
+            ctx.roundRect(160, 135, 280, 40, 20);
             ctx.fill();
             ctx.stroke();
 
             ctx.fillStyle = "#0070f2";
-            ctx.font = "bold 18px 'Cairo', sans-serif";
+            ctx.font = "bold 17px 'Cairo', sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText("📤 تصريح خروج بضائع معتمد (EXIT PASS)", 300, 167);
+            ctx.fillText("📤 تصريح خروج بضائع معتمد (EXIT PASS)", 300, 161);
         } else if (isBoth) {
             ctx.fillStyle = "#fff1e5";
             ctx.strokeStyle = "#b85500";
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.roundRect(160, 140, 280, 42, 21);
+            ctx.roundRect(160, 135, 280, 40, 20);
             ctx.fill();
             ctx.stroke();
 
             ctx.fillStyle = "#b85500";
-            ctx.font = "bold 18px 'Cairo', sans-serif";
+            ctx.font = "bold 17px 'Cairo', sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText("🔄 تصريح دخول وخروج (ROUNDTRIP)", 300, 167);
+            ctx.fillText("🔄 تصريح دخول وخروج (ROUNDTRIP)", 300, 161);
         } else {
             ctx.fillStyle = "#e5f6eb";
             ctx.strokeStyle = "#107e3e";
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.roundRect(160, 140, 280, 42, 21);
+            ctx.roundRect(160, 135, 280, 40, 20);
             ctx.fill();
             ctx.stroke();
 
             ctx.fillStyle = "#107e3e";
-            ctx.font = "bold 18px 'Cairo', sans-serif";
+            ctx.font = "bold 17px 'Cairo', sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText("🟢 تصريح دخول معتمد (AUTHORIZED)", 300, 167);
+            ctx.fillText("🟢 تصريح دخول معتمد (AUTHORIZED)", 300, 161);
         }
 
         // Egyptian License Plate
-        const plateY = 205;
+        const plateY = 190;
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#1e293b";
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.roundRect(110, plateY, 380, 115, 14);
+        ctx.roundRect(110, plateY, 380, 110, 14);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = "#dc2626";
-        ctx.fillRect(112, plateY + 2, 376, 32);
+        ctx.fillRect(112, plateY + 2, 376, 30);
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 15px 'Cairo', monospace";
+        ctx.font = "bold 14px 'Cairo', monospace";
         ctx.textAlign = "left";
-        ctx.fillText("EGYPT", 130, plateY + 23);
+        ctx.fillText("EGYPT", 130, plateY + 22);
         ctx.textAlign = "center";
-        ctx.fillText("نقل", 300, plateY + 23);
+        ctx.fillText("نقل", 300, plateY + 22);
         ctx.textAlign = "right";
-        ctx.fillText("مصر", 470, plateY + 23);
+        ctx.fillText("مصر", 470, plateY + 22);
 
         const parsed = window.ArabicPlate ? window.ArabicPlate.parsePlateParts(plate) : { numbers: '٩٨٢١', letters: 'ط ر ق' };
         const digits = window.ArabicPlate ? window.ArabicPlate.toEasternArabicDigits(parsed.numbers) : parsed.numbers;
 
         ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 36px 'Cairo', sans-serif";
+        ctx.font = "bold 34px 'Cairo', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(digits || '٩٨٢١', 200, plateY + 84);
+        ctx.fillText(digits || '٩٨٢١', 200, plateY + 78);
         
         ctx.strokeStyle = "#cbd5e1";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(300, plateY + 36);
-        ctx.lineTo(300, plateY + 110);
+        ctx.moveTo(300, plateY + 32);
+        ctx.lineTo(300, plateY + 105);
         ctx.stroke();
 
-        ctx.fillText(parsed.letters || 'ط ر ق', 400, plateY + 84);
+        ctx.fillText(parsed.letters || 'ط ر ق', 400, plateY + 78);
 
         // QR Code
         const qrPayload = JSON.stringify({
             permit: permitCode,
+            pin: pinCode,
             type: permitType,
             plate: plate,
             phone: phone
@@ -1301,20 +1313,41 @@ class ManagerController {
             ctx.strokeStyle = "#d7e2ee";
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.roundRect(190, 340, 220, 220, 16);
+            ctx.roundRect(205, 315, 190, 190, 16);
             ctx.fill();
             ctx.stroke();
 
-            window.QREngine.drawToCanvas(ctx, qrPayload, 205, 355, 190, '#002b66', '#ffffff');
+            window.QREngine.drawToCanvas(ctx, qrPayload, 215, 325, 170, '#002b66', '#ffffff');
+        }
+
+        // 5-Digit Offline Verification PIN Badge
+        if (pinCode) {
+            ctx.fillStyle = "#f0fdf4";
+            ctx.strokeStyle = "#16a34a";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(140, 520, 320, 42, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#15803d";
+            ctx.font = "bold 13px 'Cairo', sans-serif";
+            ctx.textAlign = "right";
+            ctx.fillText("رمز التحقق السريع (5 أرقام):", 445, 546);
+
+            ctx.fillStyle = "#002b66";
+            ctx.font = "900 22px monospace";
+            ctx.textAlign = "left";
+            ctx.fillText(pinCode, 160, 549);
         }
 
         // Details Panel
-        const infoY = 580;
+        const infoY = 575;
         ctx.fillStyle = "#f8fafc";
         ctx.strokeStyle = "#d7e2ee";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.roundRect(40, infoY, 520, 215, 16);
+        ctx.roundRect(40, infoY, 520, 225, 16);
         ctx.fill();
         ctx.stroke();
 
@@ -1356,7 +1389,7 @@ class ManagerController {
         ctx.fillStyle = "#556b82";
         ctx.font = "bold 13px 'Cairo', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("يرجى إبراز هذا الرمز لمسؤول البوابة عند الوصول • نظام بوابات دوترا الذكي", 300, 830);
+        ctx.fillText("يرجى إبراز هذا الرمز أو الرقم الخماسي لضابط البوابة • نظام بوابات دوترا الذكي", 300, 845);
 
         return canvas.toDataURL('image/png');
     }
@@ -1374,7 +1407,17 @@ class ManagerController {
 
     async shareWhatsAppImage(permitCode, plate, phone, driverName, validUntil, permitType = 'entry') {
         const permit = window.DB.getPermits().find(p => p.permit_code === permitCode) || {};
-        const dataUrl = this.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil, permitType, permit.invoice_no || '', permit.cargo_details || '');
+        const dataUrl = this.createPassCanvasDataUrl(
+            permitCode, 
+            plate, 
+            phone, 
+            driverName, 
+            validUntil, 
+            permitType, 
+            permit.invoice_no || '', 
+            permit.cargo_details || '', 
+            permit.pin_code || ''
+        );
         const blob = this.dataURItoBlob(dataUrl);
         const file = new File([blob], `DOTRA_${permitType === 'exit' ? 'ExitPass' : 'EntryPass'}_${permitCode}.png`, { type: 'image/png' });
 
@@ -1385,7 +1428,7 @@ class ManagerController {
                 await navigator.share({
                     files: [file],
                     title: `تصريح ${permitType === 'exit' ? 'خروج بضائع' : 'دخول'} بوابة دوترا - ${permitCode}`,
-                    text: `🛡️ تصريح ${permitType === 'exit' ? 'خروج بضائع ومواد' : 'دخول'} بوابة مصانع دوترا\nرقم التصريح: ${permitCode}\n🚘 رقم لوحة المركبة: ${plate}\n📞 هاتف: ${phone}\nصالح حتى: ${validUntil}`
+                    text: `🛡️ تصريح ${permitType === 'exit' ? 'خروج بضائع ومواد' : 'دخول'} بوابة مصانع دوترا\nرقم التصريح: ${permitCode}\n🔑 رمز التحقق: ${permit.pin_code || ''}\n🚘 رقم لوحة المركبة: ${plate}\n📞 هاتف: ${phone}\nصالح حتى: ${validUntil}`
                 });
                 return;
             } catch (err) {
@@ -1393,7 +1436,7 @@ class ManagerController {
             }
         }
 
-        this.shareWhatsApp(permitCode, plate, phone, permitType);
+        this.shareWhatsApp(permitCode, plate, phone, permitType, permit.pin_code);
     }
 
     downloadPassImage(permitCode, plate, phone, permitType = 'entry') {
@@ -1407,7 +1450,8 @@ class ManagerController {
             new Date(Date.now() + 8 * 3600000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             permitType,
             permit.invoice_no || '',
-            permit.cargo_details || ''
+            permit.cargo_details || '',
+            permit.pin_code || ''
         );
         
         const a = document.createElement('a');
@@ -1418,9 +1462,9 @@ class ManagerController {
         document.body.removeChild(a);
     }
 
-    shareWhatsApp(permitCode, plate, phone, permitType = 'entry') {
+    shareWhatsApp(permitCode, plate, phone, permitType = 'entry', pinCode = '') {
         const typeText = permitType === 'exit' ? 'خروج بضائع ومواد' : 'دخول';
-        const text = encodeURIComponent(`🛡️ تصريح ${typeText} بوابة مصانع دوترا\nرقم التصريح: ${permitCode}\n🚘 رقم لوحة المركبة: ${plate}\nيرجى إبراز هذا الرمز لمسؤول البوابة.`);
+        const text = encodeURIComponent(`🛡️ تصريح ${typeText} بوابة مصانع دوترا\nرقم التصريح: ${permitCode}\n🔑 رمز التحقق السريع: ${pinCode || ''}\n🚘 رقم لوحة المركبة: ${plate}\nيرجى إبراز هذا الرمز لمسؤول البوابة.`);
         const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
         const url = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone}?text=${text}` : `https://api.whatsapp.com/send?text=${text}`;
         window.open(url, '_blank');
@@ -1465,6 +1509,6 @@ class ManagerController {
 }
 
 window.Manager = new ManagerController();
-ManagerController.createPassCanvasDataUrl = (permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails) => window.Manager.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails);
+ManagerController.createPassCanvasDataUrl = (permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails, pinCode) => window.Manager.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails, pinCode);
 ManagerController.dataURItoBlob = (dataURI) => window.Manager.dataURItoBlob(dataURI);
 

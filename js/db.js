@@ -240,15 +240,23 @@ class DatabaseService {
         });
     }
 
-    findPermitByCodeOrVehicle(permitCode, vehicleId) {
+    findPermitByCodeOrVehicle(permitCodeOrPin, vehicleId) {
         const permits = this.getPermits();
-        if (permitCode) {
-            return permits.find(p => p.permit_code === permitCode);
+        if (permitCodeOrPin) {
+            const clean = permitCodeOrPin.toString().trim();
+            return permits.find(p => p.permit_code === clean || p.pin_code === clean);
         }
         if (vehicleId) {
             return permits.find(p => p.vehicle_id === vehicleId && p.status === 'active');
         }
         return null;
+    }
+
+    findPermitByPin(pin) {
+        if (!pin) return null;
+        const clean = pin.toString().trim();
+        const permits = this.getPermits();
+        return permits.find(p => p.pin_code === clean && p.status === 'active') || permits.find(p => p.pin_code === clean);
     }
 
     findActivePermitByPlate(plate) {
@@ -371,13 +379,15 @@ class DatabaseService {
 
     addPermit(permitData) {
         const permits = this.getPermits();
+        const pin = permitData.pin_code || Math.floor(10000 + Math.random() * 90000).toString();
         const newPermit = {
             id: Date.now(),
             permit_code: `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            pin_code: pin,
             permit_type: permitData.permit_type || 'entry', // 'entry' | 'exit' | 'both'
             status: 'active',
             invoice_no: permitData.invoice_no || '',
-            cargo_details: permitData.cargo_details || 'بضائع مصرحة',
+            cargo_details: permitData.cargo_details || 'بضائع ومواد مصرحة',
             ...permitData
         };
         permits.push(newPermit);
