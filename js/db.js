@@ -63,20 +63,127 @@ const SEED_SETTINGS = {
     overstay_hours_threshold: 3
 };
 
+const SEED_VEHICLES = [
+    {
+        id: 1,
+        plate_ar: 'ط ر ق ٩ ٨ ٢ ١',
+        plate_en: 'TRQ 9821',
+        vehicle_type: 'truckHeavy',
+        driver_name_ar: 'محمود عبدالفتاح إبراهيم',
+        driver_name_en: 'Mahmoud Abdelfattah',
+        driver_phone: '01012345678',
+        company_ar: 'شركة النيل للصناعات والتوريدات',
+        company_en: 'Nile Industries & Supplies',
+        status: 'whitelist'
+    },
+    {
+        id: 2,
+        plate_ar: 'س ف ر ٤ ٥ ٢ ٠',
+        plate_en: 'SFR 4520',
+        vehicle_type: 'van',
+        driver_name_ar: 'كريم السيد الباز',
+        driver_name_en: 'Karim El-Sayed El-Baz',
+        driver_phone: '01123456789',
+        company_ar: 'دي إتش إل إكسبريس مصر',
+        company_en: 'DHL Express Egypt',
+        status: 'visitor'
+    },
+    {
+        id: 3,
+        plate_ar: 'د ن ق ١ ١ ٠ ٢',
+        plate_en: 'DNQ 1102',
+        vehicle_type: 'tanker',
+        driver_name_ar: 'حسين رمضان الشرقاوي',
+        driver_name_en: 'Hussein El-Sharkawy',
+        driver_phone: '01234567890',
+        company_ar: 'شركة مصر للبترول والكيماويات',
+        company_en: 'Misr Petroleum & Chemicals',
+        status: 'visitor'
+    },
+    {
+        id: 4,
+        plate_ar: 'م ص ر ٣ ٣ ٠ ٤',
+        plate_en: 'MSR 3304',
+        vehicle_type: 'car',
+        driver_name_ar: 'طارق صلاح النجار',
+        driver_name_en: 'Tariq El-Naggar',
+        driver_phone: '01567890123',
+        company_ar: 'مجموعة السويدي إلكتريك',
+        company_en: 'Elsewedy Electric',
+        status: 'blacklist'
+    }
+];
+
+const SEED_PERMITS = [
+    {
+        id: 1,
+        permit_code: 'PER-2026-84920',
+        pin_code: '84920',
+        permit_type: 'entry',
+        vehicle_id: 1,
+        destination_ar: 'المستودع الرئيسي',
+        destination_en: 'Main Warehouse',
+        purpose_ar: 'توريد شحنة مواد خام ومخصبات',
+        purpose_en: 'Raw Materials & Fertilizers Delivery',
+        cargo_details: '٢٥ طن أسمدة نيتروجينية',
+        valid_from: new Date(Date.now() - 2 * 3600000).toISOString(),
+        valid_until: new Date(Date.now() + 8 * 3600000).toISOString(),
+        status: 'active',
+        created_by: 1,
+        created_at: new Date(Date.now() - 2 * 3600000).toISOString()
+    },
+    {
+        id: 2,
+        permit_code: 'PER-2026-63152',
+        pin_code: '63152',
+        permit_type: 'entry',
+        vehicle_id: 2,
+        destination_ar: 'مصنع الأسمدة والمخصبات',
+        destination_en: 'Fertilizers Plant',
+        purpose_ar: 'تسليم طرود ومستلزمات معامل',
+        purpose_en: 'Lab Supplies Delivery',
+        cargo_details: 'طرد عينات كيميائية معتمدة',
+        valid_from: new Date(Date.now() - 3 * 3600000).toISOString(),
+        valid_until: new Date(Date.now() + 8 * 3600000).toISOString(),
+        status: 'active',
+        created_by: 1,
+        created_at: new Date(Date.now() - 3 * 3600000).toISOString()
+    }
+];
+
+const SEED_LOGS = [
+    {
+        id: 1,
+        permit_id: 1,
+        vehicle_id: 1,
+        officer_id: 2,
+        gate_name: 'بوابة 1 الرئيسية - دوترا',
+        action_type: 'entry',
+        timestamp: new Date(Date.now() - 45 * 60000).toISOString(),
+        exit_timestamp: null,
+        duration_minutes: null,
+        remarks: 'دخول نظامي بتصريح معتمد'
+    },
+    {
+        id: 2,
+        permit_id: 2,
+        vehicle_id: 2,
+        officer_id: 3,
+        gate_name: 'بوابة 2 الشحن والجمارك - دوترا',
+        action_type: 'entry',
+        timestamp: new Date(Date.now() - 120 * 60000).toISOString(),
+        exit_timestamp: new Date(Date.now() - 30 * 60000).toISOString(),
+        duration_minutes: 90,
+        remarks: 'خروج نظامي بعد تسليم العينات'
+    }
+];
+
 class DatabaseService {
     constructor() {
         this.initStorage();
     }
 
     initStorage() {
-        // Force-clean any old cached vehicle, permit or log entries from user browser
-        if (localStorage.getItem('gate_storage_v4_clean') !== 'true') {
-            localStorage.removeItem('gate_vehicles');
-            localStorage.removeItem('gate_permits');
-            localStorage.removeItem('gate_logs');
-            localStorage.setItem('gate_storage_v4_clean', 'true');
-        }
-
         if (!localStorage.getItem('gate_users')) {
             localStorage.setItem('gate_users', JSON.stringify(SEED_USERS));
         }
@@ -86,20 +193,27 @@ class DatabaseService {
         if (!localStorage.getItem('gate_destinations')) {
             localStorage.setItem('gate_destinations', JSON.stringify(SEED_DESTINATIONS));
         }
-        if (!localStorage.getItem('gate_vehicles')) {
-            localStorage.setItem('gate_vehicles', JSON.stringify([]));
+        if (!localStorage.getItem('gate_vehicles') || JSON.parse(localStorage.getItem('gate_vehicles') || '[]').length === 0) {
+            localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
         }
-        if (!localStorage.getItem('gate_permits')) {
-            localStorage.setItem('gate_permits', JSON.stringify([]));
+        if (!localStorage.getItem('gate_permits') || JSON.parse(localStorage.getItem('gate_permits') || '[]').length === 0) {
+            localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
         }
-        if (!localStorage.getItem('gate_logs')) {
-            localStorage.setItem('gate_logs', JSON.stringify([]));
+        if (!localStorage.getItem('gate_logs') || JSON.parse(localStorage.getItem('gate_logs') || '[]').length === 0) {
+            localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
         }
         if (!localStorage.getItem('gate_settings')) {
             localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
         }
 
         this.syncFromCloud();
+    }
+
+    loadDemoData() {
+        localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
+        localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
+        localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
+        return true;
     }
 
     async syncFromCloud() {

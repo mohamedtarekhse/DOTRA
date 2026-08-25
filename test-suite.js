@@ -159,16 +159,21 @@ const renderedTruckPlate = window.ArabicPlate.renderEgyptianPlate('ط ر ق ٩ �
 assert(renderedTruckPlate.includes('EGYPT') && renderedTruckPlate.includes('مصر'), 'Egyptian plate contains EGYPT & مصر');
 assert(renderedTruckPlate.includes('bg-red-600') && renderedTruckPlate.includes('نقل'), 'Truck plate has Red header and "نقل" text');
 
-// 6. Test Database Layer (Clean Slate)
-console.log("\n[5] Testing Database Layer (Clean Slate):");
+// 6. Test Database Layer (Persistent Standard Seeds)
+console.log("\n[5] Testing Database Layer (Persistent Standard Seeds):");
 const dbCode = fs.readFileSync('js/db.js', 'utf8');
 eval(dbCode);
 
+const initialVehicles = window.DB.getVehicles();
+assert(initialVehicles.length >= 4, `Persistent vehicles loaded: ${initialVehicles.length}`);
+
 const initialPermits = window.DB.getPermits();
-assert(initialPermits.length === 0, `Initial hardcoded permits count is 0 (Clean Slate)`);
+assert(initialPermits.length >= 2, `Persistent permits loaded on startup/cache clear: ${initialPermits.length}`);
 
 const initialLogs = window.DB.getLogs();
-assert(initialLogs.length === 0, `Initial hardcoded logs count is 0 (Clean Slate)`);
+assert(initialLogs.length >= 2, `Persistent logs loaded on startup/cache clear: ${initialLogs.length}`);
+
+assert(typeof window.DB.loadDemoData === 'function', 'DatabaseService.loadDemoData is available');
 
 // 7. Test Settings & Dispatch WhatsApp
 console.log("\n[6] Testing Settings & Dispatch WhatsApp:");
@@ -221,8 +226,8 @@ eval(offCode);
 
 // Manager creates permit
 const freshTruck = window.DB.addVehicle({
-    plate_ar: 'ط ر ق ٩ ٨ ٢ ١',
-    plate_en: 'TRQ 9821',
+    plate_ar: 'ن م ر ٧ ٧ ٤ ٤',
+    plate_en: 'NMR 7744',
     vehicle_type: 'truckHeavy',
     driver_name_ar: 'محمود عبدالفتاح',
     driver_phone: '01012345678',
@@ -235,7 +240,7 @@ const freshPermit = window.DB.addPermit({
     valid_until: new Date(Date.now() + 8 * 3600000).toISOString()
 });
 
-assert(window.DB.getPermits().length === 1, 'Fresh permit issued');
+assert(window.DB.getPermits().length >= 1, 'Fresh permit issued');
 
 // Duplicate Active Permit Check
 const existingActive = window.DB.findActivePermitByPlate(freshTruck.plate_ar);

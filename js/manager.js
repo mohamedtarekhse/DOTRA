@@ -657,16 +657,29 @@ class ManagerController {
                                 </div>
                             </div>
 
-                            <!-- Danger Zone: Reset All Data -->
-                            <div class="bg-red-50 p-3.5 rounded-2xl border border-red-200 flex items-center justify-between">
-                                <div>
-                                    <div class="text-xs font-bold text-red-700">مسح وتصفير كافة البيانات</div>
-                                    <div class="text-[10px] text-red-500 font-medium">حذف كافة التصاريح القديمة لبدء صفحة نظيفة</div>
+                            <!-- Database Management Tools: Demo Data & Reset -->
+                            <div class="space-y-2">
+                                <div class="bg-[#ebf3fb] p-3 rounded-2xl border border-[#b3d5fa] flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs font-bold text-[#0070f2]">استعادة البيانات النموذجية والتصاريح</div>
+                                        <div class="text-[10px] text-[#556b82] font-medium">إعادة تحميل تصاريح وشاحنات وسجلات تجريبية نموذجية</div>
+                                    </div>
+                                    <button type="button" onclick="Manager.restoreDemoData()" class="px-3 py-1.5 sap-btn-primary font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
+                                        ${icon('bolt', 'w-3.5 h-3.5')}
+                                        <span>استعادة النموذج</span>
+                                    </button>
                                 </div>
-                                <button type="button" onclick="Manager.resetAllData()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
-                                    ${icon('trash', 'w-3.5 h-3.5')}
-                                    <span>تصفير الآن</span>
-                                </button>
+
+                                <div class="bg-red-50 p-3 rounded-2xl border border-red-200 flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs font-bold text-red-700">مسح وتصفير كافة البيانات</div>
+                                        <div class="text-[10px] text-red-500 font-medium">حذف كافة التصاريح القديمة لبدء صفحة نظيفة</div>
+                                    </div>
+                                    <button type="button" onclick="Manager.resetAllData()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
+                                        ${icon('trash', 'w-3.5 h-3.5')}
+                                        <span>تصفير الآن</span>
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
@@ -881,12 +894,23 @@ class ManagerController {
         }
     }
 
-    resetAllData() {
-        if (confirm("هل أنت متأكد من رغبتك في تصفير ومسح كافة التصاريح والمركبات؟")) {
-            window.DB.clearAllData();
+    restoreDemoData() {
+        window.DB.loadDemoData();
+        if (typeof document !== 'undefined' && document.getElementById('modal-container')) {
             document.getElementById('modal-container').innerHTML = '';
+        }
+        this.renderDashboard();
+        alert(window.i18n.getLang() === 'ar' ? "تم استعادة وتعبئة البيانات والتصاريح النموذجية بنجاح!" : "Sample permits and vehicles restored successfully!");
+    }
+
+    resetAllData() {
+        if (confirm(window.i18n.getLang() === 'ar' ? "هل أنت متأكد من رغبتك في تصفير ومسح كافة التصاريح والمركبات؟" : "Are you sure you want to clear all permits?")) {
+            window.DB.clearAllData();
+            if (typeof document !== 'undefined' && document.getElementById('modal-container')) {
+                document.getElementById('modal-container').innerHTML = '';
+            }
             this.renderDashboard();
-            alert("تم مسح وتصفير كافة البيانات بنجاح!");
+            alert(window.i18n.getLang() === 'ar' ? "تم مسح وتصفير كافة البيانات بنجاح!" : "All data cleared successfully!");
         }
     }
 
