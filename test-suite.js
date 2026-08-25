@@ -172,8 +172,38 @@ assert(defaultSettings.default_whatsapp !== undefined, `Default WhatsApp setting
 const updatedSettings = window.DB.updateSettings({ default_whatsapp: '01011223344' });
 assert(updatedSettings.default_whatsapp === '01011223344', 'Default WhatsApp setting updated successfully');
 
-// 8. Test Manager & Officer Lifecycle
-console.log("\n[7] Testing Full Permit Lifecycle & Officer Gate Scanner:");
+// 8. Test Dynamic Gates & Destinations Layer
+console.log("\n[7] Testing Dynamic Gates & Destinations Layer:");
+const initialGates = window.DB.getGates();
+assert(initialGates.length >= 4, `Initial gates loaded: ${initialGates.length} gates`);
+window.DB.addGate('بوابة 5 صوامع الحبوب');
+assert(window.DB.getGates().includes('بوابة 5 صوامع الحبوب'), 'Custom gate added dynamically');
+
+const initialDests = window.DB.getDestinations();
+assert(initialDests.length >= 6, `Initial destinations loaded: ${initialDests.length} destinations`);
+window.DB.addDestination('مستودع التصدير الخارجي');
+assert(window.DB.getDestinations().includes('مستودع التصدير الخارجي'), 'Custom destination added dynamically');
+
+// 9. Test Security Officers & Gate Assignment
+console.log("\n[8] Testing Security Officers & Gate Assignments:");
+const initialOfficers = window.DB.getOfficers();
+assert(initialOfficers.length >= 2, `Officers count loaded: ${initialOfficers.length} officers`);
+
+const newOfficer = window.DB.addOfficer({
+    name_ar: 'رقيب أول / ياسر جلال',
+    name_en: 'Officer Yasser Galal',
+    badge_id: 'GT-09',
+    pin_code: '4321',
+    gate_assigned: 'بوابة 5 صوامع الحبوب'
+});
+assert(newOfficer.id !== undefined && newOfficer.badge_id === 'GT-09', 'New security officer added');
+
+window.DB.assignOfficerToGate(newOfficer.id, 'بوابة 1 الرئيسية - دوترا');
+const updatedOfficer = window.DB.getOfficers().find(o => o.id === newOfficer.id);
+assert(updatedOfficer.gate_assigned === 'بوابة 1 الرئيسية - دوترا', 'Officer successfully reassigned to Gate 1');
+
+// 10. Test Manager & Officer Lifecycle
+console.log("\n[9] Testing Full Permit Lifecycle & Officer Gate Scanner:");
 const authCode = fs.readFileSync('js/auth.js', 'utf8');
 eval(authCode);
 const i18nCode = fs.readFileSync('js/i18n.js', 'utf8');
@@ -201,24 +231,53 @@ const freshPermit = window.DB.addPermit({
 
 assert(window.DB.getPermits().length === 1, 'Fresh permit issued');
 
-// Canvas Image Data URI Generation test
-const passDataUri = window.Manager.constructor.createPassCanvasDataUrl(
-    freshPermit.permit_code,
+// Duplicate Active Permit Check
+const existingActive = window.DB.findActivePermitByPlate(freshTruck.plate_ar);
+assert(existingActive !== null && existingActive.permit_code === freshPermit.permit_code, 'Duplicate active permit successfully detected by plate');
+
+// Test Exit Permit (Material / Goods Release) & Expire duplicate
+const exitPermitData = {
+    plate: freshTruck.plate_ar,
+    phone: freshTruck.driver_phone,
+    permit_type: 'exit',
+    destination: 'منطقة الشحن والتصدير',
+    invoice_no: 'INV-2026-904',
+    cargo_details: 'سماد نتروجين دوترا - 30 طن',
+    driver_name: 'محمود عبدالفتاح',
+    company: 'دوترا للصناعات',
+    vehicle_type: 'truckHeavy'
+};
+
+// Simulate Manager.finalizeQuickPermit(exitPermitData)
+window.Manager.finalizeQuickPermit(exitPermitData);
+const allPermits = window.DB.getPermits();
+const latestExitPermit = allPermits[allPermits.length - 1];
+assert(latestExitPermit.permit_type === 'exit', 'Exit pass (تصريح خروج بضائع) created with type=exit');
+assert(latestExitPermit.invoice_no === 'INV-2026-904', 'Exit pass contains invoice/dispatch note number');
+const prevPermitInDb = allPermits.find(p => p.id === freshPermit.id);
+assert(prevPermitInDb.status === 'superseded', 'Previous duplicate active permit marked as superseded');
+
+// Canvas Image Data URI Generation test for Exit Pass
+const exitPassDataUri = window.Manager.createPassCanvasDataUrl(
+    latestExitPermit.permit_code,
     freshTruck.plate_ar,
     freshTruck.driver_phone,
     freshTruck.driver_name_ar,
-    '18:00'
+    '18:00',
+    'exit',
+    latestExitPermit.invoice_no,
+    latestExitPermit.cargo_details
 );
-assert(passDataUri && passDataUri.startsWith('data:image/png'), 'Digital Pass PNG DataURL generated safely without canvas tainting');
+assert(exitPassDataUri && exitPassDataUri.startsWith('data:image/png'), 'Exit Pass PNG DataURL generated safely');
 
 // Officer Scans QR and Records Entry
-const officerEntry = window.DB.recordEntry(freshTruck.id, freshPermit.id, 2, 'بوابة 1 دوترا', 'دخول معتمد');
+const officerEntry = window.DB.recordEntry(freshTruck.id, latestExitPermit.id, 2, 'بوابة 1 دوترا', 'دخول معتمد');
 assert(officerEntry.action_type === 'entry', 'Officer recorded vehicle entry');
 assert(window.DB.isVehicleInside(freshTruck.id) !== null, 'Vehicle currently active inside factory');
 
-// Officer Records Exit
-const officerExit = window.DB.recordExit(freshTruck.id, 2, 'بوابة 1 دوترا', 'خروج نظامي');
-assert(officerExit.exit_timestamp !== null, 'Officer recorded vehicle exit');
+// Officer Records Exit for Material Pass
+const officerExit = window.DB.recordExit(freshTruck.id, 2, 'بوابة 1 دوترا', 'خروج بضائع مصرحة');
+assert(officerExit.exit_timestamp !== null, 'Officer recorded vehicle exit with goods released');
 assert(window.DB.isVehicleInside(freshTruck.id) === null, 'Vehicle marked as exited');
 
 // 9. Test Backend Worker API Integrity

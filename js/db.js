@@ -1,5 +1,5 @@
-// Database Layer - Egyptian Standard Vehicles, Settings & Cloudflare D1 Sync
-// طبقة إدارة البيانات - تصفير تلقائي للذاكرة المؤقتة القديمة (Clean Slate Guaranteed)
+// Database Layer - Egyptian Standard Vehicles, Settings, Gates, Destinations & Personnel
+// طبقة إدارة البيانات - دعم كامل للبوابات المخصصة، الوجهات الداخلية، وتعيين أفراد الأمن
 
 const SEED_USERS = [
     {
@@ -11,7 +11,7 @@ const SEED_USERS = [
         name_ar: 'م. أحمد المنصور',
         name_en: 'Eng. Ahmed Al-Mansoor',
         role: 'manager',
-        gate_assigned: 'Office HQ (الإدارة الرئيسية)'
+        gate_assigned: 'Office HQ (الإدارة العامة)'
     },
     {
         id: 2,
@@ -35,6 +35,22 @@ const SEED_USERS = [
         role: 'officer',
         gate_assigned: 'بوابة 2 الشحن والجمارك - دوترا'
     }
+];
+
+const SEED_GATES = [
+    'بوابة 1 الرئيسية - دوترا',
+    'بوابة 2 الشحن والجمارك - دوترا',
+    'بوابة 3 المواد الخام والكيماويات',
+    'بوابة 4 خروج الإنتاج والشاحنات'
+];
+
+const SEED_DESTINATIONS = [
+    'المستودع الرئيسي',
+    'مصنع الأسمدة والمخصبات',
+    'مصنع المبيدات والكيماويات',
+    'منطقة التحميل والتفريغ',
+    'ميزان البسكول',
+    'مبنى الإدارة العامة'
 ];
 
 const SEED_SETTINGS = {
@@ -64,6 +80,12 @@ class DatabaseService {
         if (!localStorage.getItem('gate_users')) {
             localStorage.setItem('gate_users', JSON.stringify(SEED_USERS));
         }
+        if (!localStorage.getItem('gate_gates')) {
+            localStorage.setItem('gate_gates', JSON.stringify(SEED_GATES));
+        }
+        if (!localStorage.getItem('gate_destinations')) {
+            localStorage.setItem('gate_destinations', JSON.stringify(SEED_DESTINATIONS));
+        }
         if (!localStorage.getItem('gate_vehicles')) {
             localStorage.setItem('gate_vehicles', JSON.stringify([]));
         }
@@ -85,6 +107,7 @@ class DatabaseService {
         return true;
     }
 
+    // --- Settings ---
     getSettings() {
         return JSON.parse(localStorage.getItem('gate_settings') || JSON.stringify(SEED_SETTINGS));
     }
@@ -96,10 +119,103 @@ class DatabaseService {
         return updated;
     }
 
+    // --- Gates Management ---
+    getGates() {
+        return JSON.parse(localStorage.getItem('gate_gates') || JSON.stringify(SEED_GATES));
+    }
+
+    addGate(name) {
+        if (!name || !name.trim()) return;
+        const gates = this.getGates();
+        if (!gates.includes(name.trim())) {
+            gates.push(name.trim());
+            localStorage.setItem('gate_gates', JSON.stringify(gates));
+        }
+        return gates;
+    }
+
+    deleteGate(index) {
+        const gates = this.getGates();
+        if (index >= 0 && index < gates.length) {
+            gates.splice(index, 1);
+            localStorage.setItem('gate_gates', JSON.stringify(gates));
+        }
+        return gates;
+    }
+
+    // --- Destinations Management ---
+    getDestinations() {
+        return JSON.parse(localStorage.getItem('gate_destinations') || JSON.stringify(SEED_DESTINATIONS));
+    }
+
+    addDestination(name) {
+        if (!name || !name.trim()) return;
+        const dests = this.getDestinations();
+        if (!dests.includes(name.trim())) {
+            dests.push(name.trim());
+            localStorage.setItem('gate_destinations', JSON.stringify(dests));
+        }
+        return dests;
+    }
+
+    deleteDestination(index) {
+        const dests = this.getDestinations();
+        if (index >= 0 && index < dests.length) {
+            dests.splice(index, 1);
+            localStorage.setItem('gate_destinations', JSON.stringify(dests));
+        }
+        return dests;
+    }
+
+    // --- Users & Personnel Management ---
     getUsers() {
         return JSON.parse(localStorage.getItem('gate_users') || '[]');
     }
 
+    getOfficers() {
+        return this.getUsers().filter(u => u.role === 'officer');
+    }
+
+    addOfficer(officerData) {
+        const users = this.getUsers();
+        const newOfficer = {
+            id: Date.now(),
+            role: 'officer',
+            badge_id: officerData.badge_id || `GT-0${users.length + 1}`,
+            name_ar: officerData.name_ar || 'حارس بوابة',
+            name_en: officerData.name_en || 'Gate Officer',
+            pin_code: officerData.pin_code || '1234',
+            gate_assigned: officerData.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
+            email: officerData.email || `officer${Date.now()}@factory.com`,
+            password: 'Officer@2026'
+        };
+        users.push(newOfficer);
+        localStorage.setItem('gate_users', JSON.stringify(users));
+        return newOfficer;
+    }
+
+    updateOfficer(id, data) {
+        const users = this.getUsers();
+        const user = users.find(u => u.id === id);
+        if (user) {
+            Object.assign(user, data);
+            localStorage.setItem('gate_users', JSON.stringify(users));
+        }
+        return user;
+    }
+
+    deleteOfficer(id) {
+        let users = this.getUsers();
+        users = users.filter(u => u.id !== id);
+        localStorage.setItem('gate_users', JSON.stringify(users));
+        return users;
+    }
+
+    assignOfficerToGate(officerId, gateName) {
+        return this.updateOfficer(officerId, { gate_assigned: gateName });
+    }
+
+    // --- Vehicles & Permits ---
     getVehicles() {
         return JSON.parse(localStorage.getItem('gate_vehicles') || '[]');
     }
@@ -133,6 +249,28 @@ class DatabaseService {
             return permits.find(p => p.vehicle_id === vehicleId && p.status === 'active');
         }
         return null;
+    }
+
+    findActivePermitByPlate(plate) {
+        const vehicle = this.findVehicleByPlate(plate);
+        if (!vehicle) return null;
+        const permits = this.getPermits();
+        return permits.find(p => p.vehicle_id === vehicle.id && p.status === 'active');
+    }
+
+    expireExistingPermitsForVehicle(vehicleId) {
+        const permits = this.getPermits();
+        let updated = false;
+        permits.forEach(p => {
+            if (p.vehicle_id === vehicleId && p.status === 'active') {
+                p.status = 'superseded';
+                updated = true;
+            }
+        });
+        if (updated) {
+            localStorage.setItem('gate_permits', JSON.stringify(permits));
+        }
+        return updated;
     }
 
     isVehicleInside(vehicleId) {
@@ -236,7 +374,10 @@ class DatabaseService {
         const newPermit = {
             id: Date.now(),
             permit_code: `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            permit_type: permitData.permit_type || 'entry', // 'entry' | 'exit' | 'both'
             status: 'active',
+            invoice_no: permitData.invoice_no || '',
+            cargo_details: permitData.cargo_details || 'بضائع مصرحة',
             ...permitData
         };
         permits.push(newPermit);

@@ -217,26 +217,52 @@ class OfficerController {
                 </button>
             `;
         } else if (permit && permit.status === 'active') {
-            decisionBadge = `
-                <div class="p-3 bg-[#e5f6eb] text-[#107e3e] rounded-xl border border-[#b4e3c4] mb-3 text-center">
-                    <div class="text-sm font-black flex items-center justify-center gap-1.5">
-                        ${icon('check', 'w-4 h-4 text-[#107e3e]')}
-                        <span>🟢 ${window.i18n.t('statusAuthorized')} (${permit.permit_code})</span>
+            const isExit = permit.permit_type === 'exit';
+            const isBoth = permit.permit_type === 'both';
+            
+            if (isExit) {
+                decisionBadge = `
+                    <div class="p-3 bg-[#ebf3fb] text-[#0070f2] rounded-xl border-2 border-[#b3d5fa] mb-3 text-center">
+                        <div class="text-sm font-black flex items-center justify-center gap-1.5">
+                            <span>📤 تصريح خروج بضائع معتمد (${permit.permit_code})</span>
+                        </div>
+                        ${permit.invoice_no ? `<div class="text-xs text-[#1d2d3e] font-mono font-bold mt-1">رقم إذن الصرف: <b class="text-[#0070f2]">${permit.invoice_no}</b> • الحمولة: ${permit.cargo_details}</div>` : ''}
                     </div>
-                </div>
-            `;
-            actionButtons = `
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="Officer.recordAction('entry')" class="py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
-                        ${icon('check', 'w-4 h-4')}
-                        <span>${window.i18n.t('authorizeEntryBtn')}</span>
-                    </button>
-                    <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3]">
-                        ${icon('ban', 'w-3.5 h-3.5')}
-                        <span>${window.i18n.t('denyEntryBtn')}</span>
-                    </button>
-                </div>
-            `;
+                `;
+                actionButtons = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="Officer.recordAction('exit', 'خروج بضائع مصرحة')" class="py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
+                            ${icon('logout', 'w-4 h-4')}
+                            <span>تسجيل خروج البضائع</span>
+                        </button>
+                        <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3]">
+                            ${icon('ban', 'w-3.5 h-3.5')}
+                            <span>منع الخروج والتفتيش</span>
+                        </button>
+                    </div>
+                `;
+            } else {
+                decisionBadge = `
+                    <div class="p-3 bg-[#e5f6eb] text-[#107e3e] rounded-xl border border-[#b4e3c4] mb-3 text-center">
+                        <div class="text-sm font-black flex items-center justify-center gap-1.5">
+                            ${icon('check', 'w-4 h-4 text-[#107e3e]')}
+                            <span>🟢 ${isBoth ? 'تصريح دخول وخروج معتمد' : window.i18n.t('statusAuthorized')} (${permit.permit_code})</span>
+                        </div>
+                    </div>
+                `;
+                actionButtons = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="Officer.recordAction('entry')" class="py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
+                            ${icon('check', 'w-4 h-4')}
+                            <span>${window.i18n.t('authorizeEntryBtn')}</span>
+                        </button>
+                        <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3]">
+                            ${icon('ban', 'w-3.5 h-3.5')}
+                            <span>${window.i18n.t('denyEntryBtn')}</span>
+                        </button>
+                    </div>
+                `;
+            }
         } else {
             decisionBadge = `
                 <div class="p-3 bg-[#fff1e5] text-[#b85500] rounded-xl border border-[#ffd8b3] mb-3 text-center">
