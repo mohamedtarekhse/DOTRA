@@ -1,5 +1,5 @@
 // Database Layer - Egyptian Standard Vehicles, Settings & Cloudflare D1 Sync
-// طبقة إدارة البيانات - قاعدة بيانات كلاود فلير D1 مع إدارة إعدادات النظام والرقم الافتراضي لواتساب
+// طبقة إدارة البيانات - قاعدة بيانات كلاود فلير D1 بدون أي تصاريح مسبقة (تصاريح جديدة ونظيفة 100%)
 
 const SEED_USERS = [
     {
@@ -38,7 +38,7 @@ const SEED_USERS = [
 ];
 
 const SEED_SETTINGS = {
-    default_whatsapp: '01012345678', // Default factory dispatcher WhatsApp number
+    default_whatsapp: '01012345678',
     company_name_ar: 'مجموعة دوترا',
     company_name_en: 'DOTRA Group',
     gate_name_ar: 'بوابة مصانع دوترا الرئيسية',
@@ -47,138 +47,11 @@ const SEED_SETTINGS = {
     overstay_hours_threshold: 3
 };
 
-const SEED_VEHICLES = [
-    {
-        id: 1,
-        plate_ar: 'ط ر ق ٩ ٨ ٢ ١',
-        plate_en: 'TRQ 9821',
-        vehicle_type: 'truckHeavy',
-        driver_name_ar: 'محمود عبدالفتاح إبراهيم',
-        driver_name_en: 'Mahmoud Abdelfattah',
-        driver_phone: '+201012345678',
-        company_ar: 'شركة حديد عز للصناعات المعدنية',
-        company_en: 'Ezz Steel Industry',
-        status: 'whitelist'
-    },
-    {
-        id: 2,
-        plate_ar: 'س ف ر ٤ ٥ ٢ ٠',
-        plate_en: 'SFR 4520',
-        vehicle_type: 'van',
-        driver_name_ar: 'كريم السيد الباز',
-        driver_name_en: 'Karim El-Sayed El-Baz',
-        driver_phone: '+201123456789',
-        company_ar: 'دي إتش إل إكسبريس مصر',
-        company_en: 'DHL Express Egypt',
-        status: 'visitor'
-    },
-    {
-        id: 3,
-        plate_ar: 'د ن ق ١ ١ ٠ ٢',
-        plate_en: 'DNQ 1102',
-        vehicle_type: 'tanker',
-        driver_name_ar: 'حسين رمضان الشرقاوي',
-        driver_name_en: 'Hussein El-Sharkawy',
-        driver_phone: '+201234567890',
-        company_ar: 'شركة مصر للبترول',
-        company_en: 'Misr Petroleum Co.',
-        status: 'visitor'
-    },
-    {
-        id: 4,
-        plate_ar: 'م ص ر ٣ ٣ ٠ ٤',
-        plate_en: 'MSR 3304',
-        vehicle_type: 'car',
-        driver_name_ar: 'طارق صلاح النجار',
-        driver_name_en: 'Tariq El-Naggar',
-        driver_phone: '+201567890123',
-        company_ar: 'مجموعة السويدي إلكتريك',
-        company_en: 'Elsewedy Electric',
-        status: 'blacklist',
-        blacklist_reason: 'تجاوز السرعة المقررة بموقع المصنع ومخالفة لوائح الأمان الصناعي'
-    },
-    {
-        id: 5,
-        plate_ar: 'ب س م ٧ ٧ ٨ ٩',
-        plate_en: 'BSM 7789',
-        vehicle_type: 'truckMedium',
-        driver_name_ar: 'عصام فتحي الديب',
-        driver_name_en: 'Essam El-Deeb',
-        driver_phone: '+201099887766',
-        company_ar: 'شركة أسمنت السويس',
-        company_en: 'Suez Cement Group',
-        status: 'visitor'
-    }
-];
+const SEED_VEHICLES = [];
 
-const SEED_PERMITS = [
-    {
-        id: 1,
-        permit_code: 'PER-2026-8801',
-        vehicle_id: 1,
-        destination_ar: 'مجمع الأفران ومستودع رصيف 3',
-        destination_en: 'Furnace Complex & Bay 3',
-        purpose_ar: 'تفريغ خام بليت وحديد تسليح',
-        purpose_en: 'Unload raw iron billets',
-        cargo_details: '40 طن بليت صلب',
-        valid_from: new Date(Date.now() - 2 * 3600000).toISOString(),
-        valid_until: new Date(Date.now() + 6 * 3600000).toISOString(),
-        status: 'active'
-    },
-    {
-        id: 2,
-        permit_code: 'PER-2026-8802',
-        vehicle_id: 2,
-        destination_ar: 'مبنى الشؤون الإدارية والطرود',
-        destination_en: 'Admin Building & Documents',
-        purpose_ar: 'تسليم شحنة قطع غيار ألمانية ومستندات',
-        purpose_en: 'Deliver German spare parts & docs',
-        cargo_details: '12 طرد ومستندات جمركية',
-        valid_from: new Date(Date.now() - 1 * 3600000).toISOString(),
-        valid_until: new Date(Date.now() + 4 * 3600000).toISOString(),
-        status: 'active'
-    },
-    {
-        id: 3,
-        permit_code: 'PER-2026-8803',
-        vehicle_id: 3,
-        destination_ar: 'محطة الصهاريج والمحروقات المركزية',
-        destination_en: 'Central Fuel Tank Storage',
-        purpose_ar: 'تزويد محطة الكهرباء بالسولار الصناعي',
-        purpose_en: 'Industrial diesel refill',
-        cargo_details: '30,000 لتر سولار صناعي',
-        valid_from: new Date(Date.now() - 5 * 3600000).toISOString(),
-        valid_until: new Date(Date.now() - 1 * 3600000).toISOString(),
-        status: 'active'
-    }
-];
-
-const SEED_LOGS = [
-    {
-        id: 1,
-        vehicle_id: 1,
-        permit_id: 1,
-        officer_id: 2,
-        gate_name: 'بوابة 1 الرئيسية - دوترا',
-        action_type: 'entry',
-        timestamp: new Date(Date.now() - 1.5 * 3600000).toISOString(),
-        exit_timestamp: null,
-        duration_minutes: null,
-        remarks: 'دخول شاحنة حديد عز بتصريح معتمد'
-    },
-    {
-        id: 2,
-        vehicle_id: 3,
-        permit_id: 3,
-        officer_id: 3,
-        gate_name: 'بوابة 2 الشحن - دوترا',
-        action_type: 'entry',
-        timestamp: new Date(Date.now() - 4.5 * 3600000).toISOString(),
-        exit_timestamp: null,
-        duration_minutes: null,
-        remarks: 'دخول صهريج مصر للبترول (تجاوزت المدة المسموحة)'
-    }
-];
+// No Hardcoded Permits - Clean Slate
+const SEED_PERMITS = [];
+const SEED_LOGS = [];
 
 class DatabaseService {
     constructor() {
@@ -192,12 +65,14 @@ class DatabaseService {
         if (!localStorage.getItem('gate_vehicles')) {
             localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
         }
-        if (!localStorage.getItem('gate_permits')) {
+        
+        // Ensure permits start empty (Clean Slate)
+        if (!localStorage.getItem('gate_permits_v2_clean')) {
             localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
-        }
-        if (!localStorage.getItem('gate_logs')) {
             localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
+            localStorage.setItem('gate_permits_v2_clean', 'true');
         }
+
         if (!localStorage.getItem('gate_settings')) {
             localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
         }

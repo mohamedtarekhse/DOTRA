@@ -1,5 +1,5 @@
-// Cloudflare Pages Functions / Workers Backend Handler
-// معالج سحابة كلاود فلير وربط قاعدة البيانات D1
+// Cloudflare Pages Functions / Workers Backend Handler (DOTRA Edition)
+// معالج سحابة كلاود فلير وربط قاعدة البيانات D1 مع تكامل كامل للواجهة الأمامية
 
 export default {
     async fetch(request, env, ctx) {
@@ -19,25 +19,64 @@ export default {
             }
 
             try {
-                // Check if D1 database is bound (env.DB)
                 const db = env.DB;
 
-                // 1. GET /api/vehicles
-                if (url.pathname === '/api/vehicles' && request.method === 'GET') {
-                    if (db) {
-                        const { results } = await db.prepare("SELECT * FROM vehicles ORDER BY id DESC").all();
-                        return new Response(JSON.stringify(results), { headers });
+                // 1. GET & POST /api/vehicles
+                if (url.pathname === '/api/vehicles') {
+                    if (request.method === 'GET') {
+                        if (db) {
+                            const { results } = await db.prepare("SELECT * FROM vehicles ORDER BY id DESC").all();
+                            return new Response(JSON.stringify(results || []), { headers });
+                        }
+                        return new Response(JSON.stringify([]), { headers });
                     }
-                    return new Response(JSON.stringify({ status: 'ok', source: 'edge-mock' }), { headers });
+                    if (request.method === 'POST') {
+                        const data = await request.json();
+                        if (db) {
+                            const res = await db.prepare(`
+                                INSERT INTO vehicles (plate_ar, plate_en, vehicle_type, driver_name_ar, driver_name_en, driver_phone, company_ar, company_en, status)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                data.plate_ar, data.plate_en || data.plate_ar, data.vehicle_type || 'truckHeavy',
+                                data.driver_name_ar || 'سائق مصرح', data.driver_name_en || 'Authorized Driver',
+                                data.driver_phone || '', data.company_ar || 'توريدات عامة', data.company_en || 'General Supplies',
+                                data.status || 'visitor'
+                            ).run();
+                            return new Response(JSON.stringify({ success: true, id: res.meta.last_row_id }), { headers });
+                        }
+                        return new Response(JSON.stringify({ success: true, id: Date.now() }), { headers });
+                    }
                 }
 
-                // 2. GET /api/permits
-                if (url.pathname === '/api/permits' && request.method === 'GET') {
-                    if (db) {
-                        const { results } = await db.prepare("SELECT * FROM permits WHERE status = 'active' ORDER BY id DESC").all();
-                        return new Response(JSON.stringify(results), { headers });
+                // 2. GET & POST /api/permits
+                if (url.pathname === '/api/permits') {
+                    if (request.method === 'GET') {
+                        if (db) {
+                            const { results } = await db.prepare("SELECT * FROM permits WHERE status = 'active' ORDER BY id DESC").all();
+                            return new Response(JSON.stringify(results || []), { headers });
+                        }
+                        return new Response(JSON.stringify([]), { headers });
                     }
-                    return new Response(JSON.stringify({ status: 'ok', source: 'edge-mock' }), { headers });
+                    if (request.method === 'POST') {
+                        const data = await request.json();
+                        const permitCode = data.permit_code || `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                        if (db) {
+                            const res = await db.prepare(`
+                                INSERT INTO permits (permit_code, vehicle_id, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, valid_from, valid_until, created_by)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                permitCode, data.vehicle_id,
+                                data.destination_ar || 'المستودع الرئيسي', data.destination_en || 'Main Plant',
+                                data.purpose_ar || 'تصريح دخول سريع', data.purpose_en || 'Fast Entry Pass',
+                                data.cargo_details || 'بضائع مصرحة',
+                                data.valid_from || new Date().toISOString(),
+                                data.valid_until || new Date(Date.now() + 8 * 3600000).toISOString(),
+                                data.created_by || 1
+                            ).run();
+                            return new Response(JSON.stringify({ success: true, id: res.meta.last_row_id, permit_code: permitCode }), { headers });
+                        }
+                        return new Response(JSON.stringify({ success: true, id: Date.now(), permit_code: permitCode }), { headers });
+                    }
                 }
 
                 // 3. POST /api/entry (Log vehicle entry)
@@ -47,10 +86,10 @@ export default {
                         const res = await db.prepare(`
                             INSERT INTO access_logs (vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, remarks)
                             VALUES (?, ?, ?, ?, 'entry', CURRENT_TIMESTAMP, ?)
-                        `).bind(data.vehicle_id, data.permit_id, data.officer_id, data.gate_name, data.remarks || '').run();
+                        `).bind(data.vehicle_id, data.permit_id || null, data.officer_id || 2, data.gate_name || 'بوابة 1 الرئيسية', data.remarks || '').run();
                         return new Response(JSON.stringify({ success: true, id: res.meta.last_row_id }), { headers });
                     }
-                    return new Response(JSON.stringify({ success: true, timestamp: new Date().toISOString() }), { headers });
+                    return new Response(JSON.stringify({ success: true, id: Date.now(), timestamp: new Date().toISOString() }), { headers });
                 }
 
                 // 4. POST /api/exit (Log vehicle exit)
@@ -68,30 +107,22 @@ export default {
                     return new Response(JSON.stringify({ success: true, exit_timestamp: new Date().toISOString() }), { headers });
                 }
 
-                // 5. POST /api/permits/new (Issue new permit)
-                if (url.pathname === '/api/permits/new' && request.method === 'POST') {
-                    const data = await request.json();
-                    const permitCode = `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                // 5. GET /api/logs (Live access logs)
+                if (url.pathname === '/api/logs' && request.method === 'GET') {
                     if (db) {
-                        await db.prepare(`
-                            INSERT INTO permits (permit_code, vehicle_id, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, valid_from, valid_until, created_by)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `).bind(
-                            permitCode, data.vehicle_id, data.destination_ar, data.destination_en,
-                            data.purpose_ar, data.purpose_en, data.cargo_details, data.valid_from, data.valid_until, data.created_by
-                        ).run();
+                        const { results } = await db.prepare("SELECT * FROM access_logs ORDER BY id DESC LIMIT 100").all();
+                        return new Response(JSON.stringify(results || []), { headers });
                     }
-                    return new Response(JSON.stringify({ success: true, permit_code: permitCode }), { headers });
+                    return new Response(JSON.stringify([]), { headers });
                 }
 
-                // Fallback API response
-                return new Response(JSON.stringify({ status: 'active', message: 'Cloudflare Gate Access API' }), { headers });
+                return new Response(JSON.stringify({ status: 'ok', message: 'DOTRA Cloudflare Gate API' }), { headers });
             } catch (err) {
                 return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
             }
         }
 
-        // Serve static asset via Cloudflare Pages
+        // Serve static assets via Cloudflare Pages
         return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
     }
 };

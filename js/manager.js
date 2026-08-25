@@ -1,5 +1,5 @@
-// Office Manager Dashboard Controller (Settings & Official A4 Print Layout Edition)
-// وحدة التحكم ببوابة مدير المكتب - مجموعة دوترا (صفحة الإعدادات وتنسيق طباعة A4 الرسمي)
+// Office Manager Dashboard Controller (DOTRA Verified Pass Image Generator & Centered A4 Print)
+// وحدة التحكم ببوابة مدير المكتب - توليد كروت التصاريح كصور فائقة الجودة وطباعة A4 متمركزة 100%
 
 class ManagerController {
     constructor() {
@@ -51,7 +51,7 @@ class ManagerController {
                         <span>⚙️</span>
                         <span>${lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
                     </button>
-                    <button type="button" onclick="Manager.exportCSV()" class="sap-btn-secondary px-3 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="تصدير إكسل">
+                    <button type="button" onclick="Manager.exportCSV()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="تصدير إكسل">
                         <span>📥</span>
                         <span class="hidden sm:inline">${window.i18n.t('exportCsv')}</span>
                     </button>
@@ -186,7 +186,7 @@ class ManagerController {
                 <tr>
                     <td colspan="8" class="text-center py-10 text-[#556b82]">
                         <div class="text-3xl mb-2">🔍</div>
-                        <p class="font-bold">${lang === 'ar' ? 'لا توجد مركبات مطابقة' : 'No vehicles found'}</p>
+                        <p class="font-bold">${lang === 'ar' ? 'لا توجد مركبات أو تصاريح حالياً (لوحة التحكم نظيفة)' : 'No vehicles or permits found'}</p>
                     </td>
                 </tr>
             `;
@@ -530,7 +530,7 @@ class ManagerController {
     }
 
     /**
-     * Render Digital Pass Modal + Standard A4 Print Template
+     * Render Digital Pass Modal with Live Generated Image & Centered A4 Print
      */
     showPassModal(permitId) {
         const permits = window.DB.getPermits();
@@ -562,7 +562,7 @@ class ManagerController {
                     </button>
 
                     <!-- Official Standard A4 Printable Document Container -->
-                    <div id="printable-pass-card" class="bg-white p-5 rounded-2xl border border-[#d7e2ee] shadow-sm text-center mb-4">
+                    <div id="printable-pass-card" class="bg-white p-5 rounded-2xl border-2 border-[#002b66] shadow-sm text-center mb-4">
                         
                         <!-- Official DOTRA Header (Print Optimized) -->
                         <div class="flex items-center justify-between border-b-2 border-[#002b66] pb-3 mb-4 text-right" dir="rtl">
@@ -577,7 +577,7 @@ class ManagerController {
                                 <span class="inline-block px-3 py-1 bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] rounded-full text-xs font-black">
                                     🟢 AUTHORIZED
                                 </span>
-                                <div class="text-[10px] text-[#556b82] font-mono mt-1">${permit.permit_code}</div>
+                                <div class="text-[10px] text-[#556b82] font-mono mt-1 font-bold">${permit.permit_code}</div>
                             </div>
                         </div>
 
@@ -587,7 +587,7 @@ class ManagerController {
                         </div>
 
                         <!-- QR Code Container (Large & Centered) -->
-                        <div class="bg-white p-3 rounded-2xl shadow-inner inline-flex items-center justify-center my-1 border-2 border-[#d7e2ee] min-w-[150px] min-h-[150px]" id="qrcode-canvas-box">
+                        <div class="bg-white p-3 rounded-2xl shadow-inner inline-flex items-center justify-center my-1 border-2 border-[#d7e2ee] min-w-[160px] min-h-[160px]" id="qrcode-canvas-box">
                         </div>
 
                         <!-- Tabular Permit Details (High Clarity Table for Print) -->
@@ -657,7 +657,7 @@ class ManagerController {
                         </button>
 
                         <div class="grid grid-cols-2 gap-2">
-                            <button type="button" onclick="window.print()" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5 font-bold">
+                            <button type="button" onclick="Manager.printPass()" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5 font-bold">
                                 <span>🖨️</span>
                                 <span>${lang === 'ar' ? 'طباعة تصريح A4 معتمد' : 'Print A4 Pass'}</span>
                             </button>
@@ -673,103 +673,123 @@ class ManagerController {
 
         // Render QR Code immediately using QREngine
         if (window.QREngine) {
-            window.QREngine.render('qrcode-canvas-box', qrPayload, { size: 150 });
+            window.QREngine.render('qrcode-canvas-box', qrPayload, { size: 160 });
         }
     }
 
-    static async createPassCanvasBlob(permitCode, plate, phone, driverName, validUntil) {
+    /**
+     * Perfected Print Pass with Clean Orientation & Title
+     */
+    printPass() {
+        const oldTitle = document.title;
+        document.title = `DOTRA_Gate_Permit_${Date.now()}`;
+        window.print();
+        document.title = oldTitle;
+    }
+
+    /**
+     * Generate High-Quality Digital Pass Badge Canvas Image
+     * Bulletproof Vector Drawing with Direct QR Embedding (Never Taints Canvas)
+     */
+    static createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
         const width = 600;
-        const height = 820;
+        const height = 860;
         canvas.width = width;
         canvas.height = height;
 
+        // 1. White Background
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, width, height);
 
+        // 2. Navy Blue Header (SAP Style)
         const headerGradient = ctx.createLinearGradient(0, 0, width, 0);
         headerGradient.addColorStop(0, "#002b66");
         headerGradient.addColorStop(1, "#004b99");
         ctx.fillStyle = headerGradient;
         ctx.fillRect(0, 0, width, 120);
 
+        // Header Title
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 26px 'Cairo', 'Tajawal', sans-serif";
         ctx.textAlign = "right";
-        ctx.fillText("مجموعة دوترا - تصريح دخول البوابة", width - 30, 50);
+        ctx.fillText("مجموعة دوترا - تصريح دخول البوابة", width - 30, 52);
 
         ctx.font = "bold 15px 'Cairo', sans-serif";
         ctx.fillStyle = "#a5f3fc";
-        ctx.fillText("DOTRA Group - Vehicle Gate Access Permit", width - 30, 80);
+        ctx.fillText("DOTRA Group - Vehicle Gate Access Permit", width - 30, 84);
 
-        try {
-            const logoImg = new Image();
-            logoImg.src = 'assets/logo.jpg';
-            await new Promise((resolve) => {
-                logoImg.onload = resolve;
-                logoImg.onerror = resolve;
-            });
-            if (logoImg.complete && logoImg.naturalWidth > 0) {
-                ctx.fillStyle = "#ffffff";
-                ctx.beginPath();
-                ctx.arc(65, 60, 42, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.drawImage(logoImg, 30, 25, 70, 70);
-            }
-        } catch (e) {}
+        // Vector Logo Emblem on Left (Safe, Non-Tainting)
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(65, 60, 42, 0, Math.PI * 2);
+        ctx.fill();
 
+        ctx.fillStyle = "#002b66";
+        ctx.font = "900 20px 'Cairo', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("DOTRA", 65, 62);
+        ctx.fillStyle = "#107e3e";
+        ctx.font = "bold 11px 'Cairo', sans-serif";
+        ctx.fillText("دوترا", 65, 78);
+
+        // 3. Status Badge
         ctx.fillStyle = "#e5f6eb";
         ctx.strokeStyle = "#107e3e";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(180, 140, 240, 40, 20);
+        ctx.roundRect(180, 140, 240, 42, 21);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = "#107e3e";
         ctx.font = "bold 18px 'Cairo', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("🟢 تصريح معتمد (AUTHORIZED)", 300, 166);
+        ctx.fillText("🟢 تصريح معتمد (AUTHORIZED)", 300, 167);
 
+        // 4. Egyptian License Plate Box
         const plateY = 205;
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#1e293b";
         ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.roundRect(120, plateY, 360, 110, 12);
+        ctx.roundRect(110, plateY, 380, 115, 14);
         ctx.fill();
         ctx.stroke();
 
+        // Egyptian Plate Top Red Band (نقل)
         ctx.fillStyle = "#dc2626";
-        ctx.fillRect(122, plateY + 2, 356, 30);
+        ctx.fillRect(112, plateY + 2, 376, 32);
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 14px 'Cairo', monospace";
+        ctx.font = "bold 15px 'Cairo', monospace";
         ctx.textAlign = "left";
-        ctx.fillText("EGYPT", 140, plateY + 22);
+        ctx.fillText("EGYPT", 130, plateY + 23);
         ctx.textAlign = "center";
-        ctx.fillText("نقل", 300, plateY + 22);
+        ctx.fillText("نقل", 300, plateY + 23);
         ctx.textAlign = "right";
-        ctx.fillText("مصر", 460, plateY + 22);
+        ctx.fillText("مصر", 470, plateY + 23);
 
-        const parsed = window.ArabicPlate.parsePlateParts(plate);
-        const digits = window.ArabicPlate.toEasternArabicDigits(parsed.numbers);
+        // Plate Numbers and Letters
+        const parsed = window.ArabicPlate ? window.ArabicPlate.parsePlateParts(plate) : { numbers: '٩٨٢١', letters: 'ط ر ق' };
+        const digits = window.ArabicPlate ? window.ArabicPlate.toEasternArabicDigits(parsed.numbers) : parsed.numbers;
 
         ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 34px 'Cairo', sans-serif";
+        ctx.font = "bold 36px 'Cairo', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(digits || '٩٨٢١', 210, plateY + 82);
+        ctx.fillText(digits || '٩٨٢١', 200, plateY + 84);
         
         ctx.strokeStyle = "#cbd5e1";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(300, plateY + 36);
-        ctx.lineTo(300, plateY + 104);
+        ctx.lineTo(300, plateY + 110);
         ctx.stroke();
 
-        ctx.fillText(parsed.letters || 'ط ر ق', 390, plateY + 82);
+        ctx.fillText(parsed.letters || 'ط ر ق', 400, plateY + 84);
 
+        // 5. Draw QR Code directly to Canvas Context via QREngine
         const qrPayload = JSON.stringify({
             permit: permitCode,
             plate: plate,
@@ -777,18 +797,24 @@ class ManagerController {
         });
 
         if (window.QREngine) {
-            window.QREngine.drawToCanvas(ctx, qrPayload, 205, 345, 190, '#002b66', '#ffffff');
+            ctx.fillStyle = "#ffffff";
             ctx.strokeStyle = "#d7e2ee";
             ctx.lineWidth = 2;
-            ctx.strokeRect(205, 345, 190, 190);
+            ctx.beginPath();
+            ctx.roundRect(190, 340, 220, 220, 16);
+            ctx.fill();
+            ctx.stroke();
+
+            window.QREngine.drawToCanvas(ctx, qrPayload, 205, 355, 190, '#002b66', '#ffffff');
         }
 
-        const infoY = 575;
+        // 6. Summary Details Box
+        const infoY = 580;
         ctx.fillStyle = "#f8fafc";
         ctx.strokeStyle = "#d7e2ee";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.roundRect(50, infoY, 500, 180, 14);
+        ctx.roundRect(50, infoY, 500, 200, 16);
         ctx.fill();
         ctx.stroke();
 
@@ -796,57 +822,74 @@ class ManagerController {
         ctx.textAlign = "right";
 
         ctx.fillStyle = "#556b82";
-        ctx.fillText("كود التصريح:", 520, infoY + 40);
+        ctx.fillText("كود التصريح:", 520, infoY + 45);
         ctx.fillStyle = "#0070f2";
-        ctx.fillText(permitCode, 380, infoY + 40);
+        ctx.fillText(permitCode, 380, infoY + 45);
 
         ctx.fillStyle = "#556b82";
-        ctx.fillText("هاتف السائق:", 520, infoY + 80);
+        ctx.fillText("هاتف السائق:", 520, infoY + 90);
         ctx.fillStyle = "#107e3e";
-        ctx.fillText(phone || "غير مسجل", 380, infoY + 80);
+        ctx.fillText(phone || "غير مسجل", 380, infoY + 90);
 
         ctx.fillStyle = "#556b82";
-        ctx.fillText("اسم السائق:", 520, infoY + 120);
+        ctx.fillText("اسم السائق:", 520, infoY + 135);
         ctx.fillStyle = "#1d2d3e";
-        ctx.fillText(driverName || "سائق مصرح", 380, infoY + 120);
+        ctx.fillText(driverName || "سائق مصرح", 380, infoY + 135);
 
         ctx.fillStyle = "#556b82";
-        ctx.fillText("صالح حتى:", 520, infoY + 160);
+        ctx.fillText("صالح حتى:", 520, infoY + 175);
         ctx.fillStyle = "#b85500";
-        ctx.fillText(validUntil, 380, infoY + 160);
+        ctx.fillText(validUntil, 380, infoY + 175);
 
+        // 7. Footer
         ctx.fillStyle = "#556b82";
         ctx.font = "bold 13px 'Cairo', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("يرجى إبراز هذا الرمز لمسؤول البوابة عند الوصول • نظام بوابات دوترا الذكي", 300, 790);
+        ctx.fillText("يرجى إبراز هذا الرمز لمسؤول البوابة عند الوصول • نظام بوابات دوترا الذكي", 300, 825);
 
-        return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        return canvas.toDataURL('image/png');
+    }
+
+    static dataURItoBlob(dataURI) {
+        const byteString = atob(dataURI.split(',')[1]);
+        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        return new Blob([ab], { type: mimeString });
     }
 
     async shareWhatsAppImage(permitCode, plate, phone, driverName, validUntil) {
-        try {
-            const blob = await Manager.createPassCanvasBlob(permitCode, plate, phone, driverName, validUntil);
-            const file = new File([blob], `DOTRA_Gate_Pass_${permitCode}.png`, { type: 'image/png' });
+        const dataUrl = Manager.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil);
+        const blob = Manager.dataURItoBlob(dataUrl);
+        const file = new File([blob], `DOTRA_Gate_Pass_${permitCode}.png`, { type: 'image/png' });
 
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // Trigger automatic download of the PNG image so the user has it ready
+        Manager.downloadPassImage(permitCode, plate, phone);
+
+        // Native mobile share sheet (Shares file directly to WhatsApp if on Mobile)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
                 await navigator.share({
                     files: [file],
                     title: `تصريح دخول بوابة دوترا - ${permitCode}`,
-                    text: `🛡️ تصريح دخول بوابة مصانع دوترا\n🚘 رقم اللوحة: ${plate}\n📞 هاتف: ${phone}\nصالح حتى: ${validUntil}`
+                    text: `🛡️ تصريح دخول بوابة مصانع دوترا\nرقم التصريح: ${permitCode}\n🚘 رقم لوحة المركبة: ${plate}\n📞 هاتف: ${phone}\nصالح حتى: ${validUntil}`
                 });
                 return;
+            } catch (err) {
+                console.log("Native share dismissed:", err);
             }
-        } catch (e) {
-            console.log("Web Share API fallback:", e);
         }
 
-        Manager.downloadPassImage(permitCode, plate, phone);
+        // Open WhatsApp directly with pre-formatted message
         this.shareWhatsApp(permitCode, plate, phone);
     }
 
-    async downloadPassImage(permitCode, plate, phone) {
+    downloadPassImage(permitCode, plate, phone) {
         const vehicle = window.DB.findVehicleByPlate(plate) || {};
-        const blob = await Manager.createPassCanvasBlob(
+        const dataUrl = Manager.createPassCanvasDataUrl(
             permitCode, 
             plate, 
             phone, 
@@ -854,11 +897,12 @@ class ManagerController {
             new Date(Date.now() + 8 * 3600000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         );
         
-        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
+        a.href = dataUrl;
         a.download = `DOTRA_Pass_${permitCode}_${plate.replace(/\s+/g, '_')}.png`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
     }
 
     shareWhatsApp(permitCode, plate, phone) {
