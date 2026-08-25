@@ -1,5 +1,5 @@
-// Main Application Bootstrapper & Routing (DOTRA Edition - Production Clean Login)
-// المحرك الرئيسي للتطبيق - مجموعة دوترا (شاشة تسجيل دخول نظيفة واحترافية)
+// Main Application Bootstrapper & Routing (DOTRA Edition - Perfect RTL/LTR & SAP Enterprise Alignment)
+// المحرك الرئيسي للتطبيق - ضبط دقيق للمحاذاة والاتجاهات للعربية والإنجليزية
 
 class AppController {
     constructor() {
@@ -28,15 +28,15 @@ class AppController {
 
         if (headerContainer) {
             headerContainer.innerHTML = `
-                <header class="sap-header py-2.5 px-4 sm:px-6 sticky top-0 z-40">
+                <header class="sap-header py-2.5 px-4 sm:px-6 sticky top-0 z-40" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="max-w-7xl mx-auto flex items-center justify-between">
                         
                         <!-- DOTRA Official Brand Logo & Name -->
                         <div class="flex items-center gap-3">
-                            <div class="bg-white p-1 rounded-xl shadow-md border border-white/30 flex items-center justify-center h-12 w-12 overflow-hidden">
+                            <div class="bg-white p-1 rounded-xl shadow-md border border-white/30 flex items-center justify-center h-12 w-12 overflow-hidden flex-shrink-0">
                                 <img src="assets/logo.jpg" alt="DOTRA دوترا" class="h-full w-full object-contain transform scale-110" />
                             </div>
-                            <div>
+                            <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                                 <div class="flex items-center gap-2">
                                     <h1 class="text-base sm:text-lg font-black text-white leading-tight">
                                         ${lang === 'ar' ? 'مجموعة دوترا' : 'DOTRA Group'}
@@ -67,7 +67,7 @@ class AppController {
                                 <!-- User Profile Badge -->
                                 <div class="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 border border-white/20 py-1 px-3 rounded-xl text-xs backdrop-blur-md shadow-sm">
                                     <span class="text-lg">${user.role === 'manager' ? '🏢' : '👮'}</span>
-                                    <div class="hidden sm:block text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                                    <div class="hidden sm:block ${lang === 'ar' ? 'text-right' : 'text-left'}">
                                         <div class="font-bold text-white text-xs">${lang === 'ar' ? user.name_ar : user.name_en}</div>
                                         <div class="text-[10px] text-emerald-300 font-mono font-bold">${user.role === 'manager' ? 'OPERATIONS MANAGER' : user.badge_id}</div>
                                     </div>

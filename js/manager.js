@@ -1,5 +1,5 @@
-// Office Manager Dashboard Controller (DOTRA Verified Pass Image Generator & Centered A4 Print)
-// وحدة التحكم ببوابة مدير المكتب - توليد كروت التصاريح كصور فائقة الجودة وطباعة A4 متمركزة 100%
+// Office Manager Dashboard Controller (DOTRA Enterprise SVG & Micro-Interactions Edition)
+// وحدة التحكم ببوابة مدير المكتب - مجموعة دوترا (واجهة مؤسسية فائقة مع أيقونات SVG ومحاذاة متطورة)
 
 class ManagerController {
     constructor() {
@@ -29,13 +29,16 @@ class ManagerController {
         });
 
         const activePermits = permits.filter(p => p.status === 'active').length;
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         container.innerHTML = `
             <!-- Top Dashboard Bar -->
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                <div>
-                    <h1 class="text-2xl font-black text-[#002b66] flex items-center gap-2">
-                        <span>🏢</span>
+                <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
+                    <h1 class="text-2xl font-black text-[#002b66] flex items-center gap-2.5">
+                        <span class="p-2 rounded-xl bg-[#ebf3fb] text-[#0070f2] shadow-sm border border-[#b3d5fa]">
+                            ${icon('building', 'w-6 h-6')}
+                        </span>
                         <span>${lang === 'ar' ? 'لوحة تحكم مدير العمليات وتصاريح البوابات' : 'Operations & Gate Permits Dashboard'}</span>
                     </h1>
                     <p class="text-xs text-[#556b82] mt-1 font-medium">
@@ -43,73 +46,73 @@ class ManagerController {
                     </p>
                 </div>
                 <div class="flex items-center gap-2.5">
-                    <button type="button" onclick="Manager.openQuickPermitModal()" class="sap-btn-primary px-5 py-2.5 flex items-center gap-2 text-sm shadow-md">
-                        <span class="text-lg font-bold leading-none">⚡</span>
+                    <button type="button" onclick="Manager.openQuickPermitModal()" class="sap-btn-primary px-4 py-2.5 flex items-center gap-2 text-sm shadow-md">
+                        ${icon('bolt', 'w-4 h-4 text-amber-300')}
                         <span>${lang === 'ar' ? 'إصدار تصريح سريع' : 'Quick Pass'}</span>
                     </button>
                     <button type="button" onclick="Manager.openSettingsModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="إعدادات النظام ورقم واتساب الافتراضي">
-                        <span>⚙️</span>
+                        ${icon('settings', 'w-4 h-4 text-[#0070f2]')}
                         <span>${lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
                     </button>
                     <button type="button" onclick="Manager.exportCSV()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="تصدير إكسل">
-                        <span>📥</span>
+                        ${icon('download', 'w-4 h-4 text-[#0070f2]')}
                         <span class="hidden sm:inline">${window.i18n.t('exportCsv')}</span>
                     </button>
                 </div>
             </div>
 
-            <!-- SAP KPI Metric Cards -->
+            <!-- SAP Enterprise KPI Metric Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                 <div class="sap-card p-5 border-t-4 border-t-[#107e3e] flex items-center justify-between">
-                    <div>
+                    <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricInside')}</p>
                         <h3 class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${insideCount}</h3>
-                        <p class="text-[11px] text-[#107e3e] mt-1 font-bold flex items-center gap-1">
+                        <p class="text-[11px] text-[#107e3e] mt-1 font-bold flex items-center gap-1.5">
                             <span class="inline-block w-2 h-2 rounded-full bg-[#107e3e] animate-pulse"></span>
-                            ${lang === 'ar' ? 'متواجدون داخل المصنع' : 'Active on premises'}
+                            <span>${lang === 'ar' ? 'متواجدون داخل المصنع' : 'Active on premises'}</span>
                         </p>
                     </div>
-                    <div class="w-12 h-12 rounded-xl bg-[#e5f6eb] text-[#107e3e] flex items-center justify-center text-2xl font-bold">
-                        🚛
+                    <div class="w-12 h-12 rounded-2xl bg-[#e5f6eb] text-[#107e3e] flex items-center justify-center border border-[#b4e3c4] shadow-sm">
+                        ${icon('truck', 'w-6 h-6')}
                     </div>
                 </div>
 
                 <div class="sap-card p-5 border-t-4 border-t-[#0070f2] flex items-center justify-between">
-                    <div>
+                    <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricToday')}</p>
                         <h3 class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${todayEntries}</h3>
                         <p class="text-[11px] text-[#0070f2] mt-1 font-bold">
                             ${lang === 'ar' ? 'حركة دخول عبر كافة البوابات' : 'Recorded entries'}
                         </p>
                     </div>
-                    <div class="w-12 h-12 rounded-xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center text-2xl font-bold">
-                        📈
+                    <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
+                        ${icon('activity', 'w-6 h-6')}
                     </div>
                 </div>
 
                 <div class="sap-card p-5 border-t-4 border-t-[#bb0000] flex items-center justify-between ${overstayLogs.length > 0 ? 'ring-2 ring-red-300' : ''}">
-                    <div>
+                    <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricOverstay')}</p>
                         <h3 class="text-3xl font-black text-[#bb0000] mt-1 font-mono">${overstayLogs.length}</h3>
                         <p class="text-[11px] text-[#bb0000] mt-1 font-bold">
                             ${overstayLogs.length > 0 ? (lang === 'ar' ? `تجاوزوا مدة البقاء (>${settings.overstay_hours_threshold || 3} س)` : 'Overstayed') : (lang === 'ar' ? 'لا توجد تجاوزات' : 'Zero violations')}
                         </p>
                     </div>
-                    <div class="w-12 h-12 rounded-xl bg-[#ffebeb] text-[#bb0000] flex items-center justify-center text-2xl font-bold">
-                        ⚠️
+                    <div class="w-12 h-12 rounded-2xl bg-[#ffebeb] text-[#bb0000] flex items-center justify-center border border-[#f6b3b3] shadow-sm">
+                        ${icon('alert', 'w-6 h-6')}
                     </div>
                 </div>
 
                 <div class="sap-card p-5 border-t-4 border-t-[#b85500] flex items-center justify-between">
-                    <div>
+                    <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricPending')}</p>
                         <h3 class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${activePermits}</h3>
                         <p class="text-[11px] text-[#b85500] mt-1 font-bold">
                             ${lang === 'ar' ? 'تصاريح فعالة بانتظار الوصول' : 'Active valid permits'}
                         </p>
                     </div>
-                    <div class="w-12 h-12 rounded-xl bg-[#fff1e5] text-[#b85500] flex items-center justify-center text-2xl font-bold">
-                        🎫
+                    <div class="w-12 h-12 rounded-2xl bg-[#fff1e5] text-[#b85500] flex items-center justify-center border border-[#ffd8b3] shadow-sm">
+                        ${icon('shield', 'w-6 h-6')}
                     </div>
                 </div>
             </div>
@@ -119,10 +122,10 @@ class ManagerController {
                 <div class="p-4 bg-[#f8fafc] border-b border-[#d7e2ee] flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     <div class="flex items-center gap-2">
                         <h2 class="text-base font-bold text-[#002b66] flex items-center gap-2">
-                            <span>🛰️</span>
+                            ${icon('activity', 'w-5 h-5 text-[#0070f2]')}
                             <span>${lang === 'ar' ? 'سجل حركة المركبات المباشر' : 'Live Vehicle Stream'}</span>
                         </h2>
-                        <span class="px-2 py-0.5 bg-[#e5f6eb] text-[#107e3e] text-xs rounded-full font-mono font-bold border border-[#b4e3c4]">
+                        <span class="px-2.5 py-0.5 bg-[#e5f6eb] text-[#107e3e] text-[11px] rounded-full font-mono font-bold border border-[#b4e3c4]">
                             LIVE
                         </span>
                     </div>
@@ -143,7 +146,7 @@ class ManagerController {
 
                 <!-- Table Content -->
                 <div class="overflow-x-auto bg-white">
-                    <table class="w-full text-left text-sm" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <table class="w-full text-sm ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                         <thead class="bg-[#f5f8fc] text-[#556b82] text-xs uppercase tracking-wider font-bold border-b border-[#d7e2ee]">
                             <tr>
                                 <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
@@ -169,6 +172,7 @@ class ManagerController {
         const vehicles = window.DB.getVehicles();
         const permits = window.DB.getPermits();
         const settings = window.DB.getSettings();
+        const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
 
         let filteredVehicles = vehicles.filter(v => {
             const insideLog = window.DB.isVehicleInside(v.id);
@@ -184,9 +188,12 @@ class ManagerController {
         if (filteredVehicles.length === 0) {
             return `
                 <tr>
-                    <td colspan="8" class="text-center py-10 text-[#556b82]">
-                        <div class="text-3xl mb-2">🔍</div>
-                        <p class="font-bold">${lang === 'ar' ? 'لا توجد مركبات أو تصاريح حالياً (لوحة التحكم نظيفة)' : 'No vehicles or permits found'}</p>
+                    <td colspan="8" class="text-center py-12 text-[#556b82]">
+                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-2.5">
+                            ${icon('search', 'w-6 h-6')}
+                        </div>
+                        <p class="font-bold text-sm text-[#1d2d3e]">${lang === 'ar' ? 'لا توجد مركبات أو تصاريح حالياً (لوحة التحكم نظيفة)' : 'No vehicles or permits found'}</p>
+                        <p class="text-xs text-[#556b82] mt-1">${lang === 'ar' ? 'اضغط على زر "إصدار تصريح سريع" للبدء' : 'Click "Quick Pass" to create your first gate entry pass'}</p>
                     </td>
                 </tr>
             `;
@@ -201,7 +208,7 @@ class ManagerController {
             let entryTimeText = '--';
 
             if (vehicle.status === 'blacklist') {
-                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-blacklisted">⛔ ${window.i18n.t('statusBanned')}</span>`;
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-blacklisted flex items-center gap-1 w-fit">${icon('ban', 'w-3 h-3 text-red-300')} <span>${window.i18n.t('statusBanned')}</span></span>`;
             } else if (insideLog) {
                 const entryTime = new Date(insideLog.timestamp);
                 entryTimeText = entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -209,16 +216,16 @@ class ManagerController {
                 const diffHours = (diffMinutes / 60).toFixed(1);
                 
                 if (diffMinutes >= ((settings.overstay_hours_threshold || 3) * 60)) {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-overstay">⚠️ ${window.i18n.t('statusOverstay')}</span>`;
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-overstay flex items-center gap-1 w-fit">${icon('alert', 'w-3 h-3 text-red-600')} <span>${window.i18n.t('statusOverstay')}</span></span>`;
                     durationText = `<span class="text-[#bb0000] font-bold font-mono">${diffHours} ${lang === 'ar' ? 'ساعة' : 'hrs'}</span>`;
                 } else {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-inside">🟢 ${window.i18n.t('statusInside')}</span>`;
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-inside flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-[#107e3e] animate-pulse"></span> <span>${window.i18n.t('statusInside')}</span></span>`;
                     durationText = `<span class="text-[#107e3e] font-bold font-mono">${diffMinutes < 60 ? `${diffMinutes} ${lang === 'ar' ? 'دقيقة' : 'min'}` : `${diffHours} ${lang === 'ar' ? 'ساعة' : 'hrs'}`}</span>`;
                 }
             } else if (permit && permit.status === 'active') {
-                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-active">🎫 ${window.i18n.t('statusAuthorized')}</span>`;
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-active flex items-center gap-1 w-fit">${icon('shield', 'w-3 h-3 text-[#0070f2]')} <span>${window.i18n.t('statusAuthorized')}</span></span>`;
             } else {
-                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-exited">⚪ ${window.i18n.t('statusExited')}</span>`;
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-exited flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${window.i18n.t('statusExited')}</span></span>`;
             }
 
             const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
@@ -226,48 +233,49 @@ class ManagerController {
             const destination = permit ? (lang === 'ar' ? permit.destination_ar : permit.destination_en) : 'المصنع الرئيسي';
 
             return `
-                <tr class="hover:bg-[#f5f8fc] transition-colors">
-                    <td class="py-3 px-4">
+                <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors">
+                    <td class="py-3.5 px-4">
                         ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'compact', vehicle.vehicle_type)}
                     </td>
-                    <td class="py-3 px-4">
+                    <td class="py-3.5 px-4">
                         <div class="font-bold text-[#1d2d3e]">${driverName}</div>
-                        <div class="text-xs text-[#0070f2] font-mono font-bold flex items-center gap-1">
-                            <span>📞</span>
+                        <div class="text-xs text-[#0070f2] font-mono font-bold flex items-center gap-1.5 mt-0.5">
+                            ${icon('phone', 'w-3 h-3 text-[#0070f2]')}
                             <span>${vehicle.driver_phone || 'لا يوجد هاتف'}</span>
                         </div>
                     </td>
-                    <td class="py-3 px-4 text-[#556b82] font-semibold">
+                    <td class="py-3.5 px-4 text-[#556b82] font-semibold">
                         ${companyName}
                     </td>
-                    <td class="py-3 px-4">
-                        <span class="px-2.5 py-0.5 bg-[#f0f4f8] rounded-md text-xs font-mono font-bold text-[#002b66] border border-[#d7e2ee]">
+                    <td class="py-3.5 px-4">
+                        <span class="px-2.5 py-1 bg-[#f0f4f8] rounded-lg text-xs font-mono font-bold text-[#002b66] border border-[#d7e2ee]">
                             ${destination}
                         </span>
                     </td>
-                    <td class="py-3 px-4 text-[#556b82] font-mono text-xs">
+                    <td class="py-3.5 px-4 text-[#556b82] font-mono text-xs">
                         ${entryTimeText}
                     </td>
-                    <td class="py-3 px-4">
+                    <td class="py-3.5 px-4">
                         ${durationText}
                     </td>
-                    <td class="py-3 px-4">
+                    <td class="py-3.5 px-4">
                         ${statusBadge}
                     </td>
-                    <td class="py-3 px-4 text-center">
+                    <td class="py-3.5 px-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
                             ${permit ? `
-                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${permit.id})" class="p-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1">
-                                    <span>🎫</span>
+                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${permit.id})" class="px-2.5 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                    ${icon('qrcode', 'w-3.5 h-3.5')}
                                     <span>كارت التصريح</span>
                                 </button>
                             ` : `
-                                <button type="button" title="إصدار تصريح" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="p-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold">
-                                    ⚡ تصريح
+                                <button type="button" title="إصدار تصريح" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                    ${icon('bolt', 'w-3.5 h-3.5')}
+                                    <span>تصريح</span>
                                 </button>
                             `}
-                            <button type="button" title="${vehicle.status === 'blacklist' ? 'إلغاء الحظر' : 'حظر المركبة'}" onclick="Manager.toggleBlacklist(${vehicle.id})" class="p-1.5 ${vehicle.status === 'blacklist' ? 'bg-[#e5f6eb] text-[#107e3e] border-[#b4e3c4]' : 'bg-[#ffebeb] text-[#bb0000] border-[#f6b3b3]'} hover:opacity-80 rounded-lg border text-xs">
-                                ${vehicle.status === 'blacklist' ? '🔓' : '⛔'}
+                            <button type="button" title="${vehicle.status === 'blacklist' ? 'إلغاء الحظر' : 'حظر المركبة'}" onclick="Manager.toggleBlacklist(${vehicle.id})" class="p-1.5 ${vehicle.status === 'blacklist' ? 'bg-[#e5f6eb] text-[#107e3e] border-[#b4e3c4]' : 'bg-[#ffebeb] text-[#bb0000] border-[#f6b3b3]'} hover:opacity-80 rounded-lg border text-xs shadow-sm">
+                                ${vehicle.status === 'blacklist' ? icon('unlock', 'w-3.5 h-3.5') : icon('ban', 'w-3.5 h-3.5')}
                             </button>
                         </div>
                     </td>
@@ -286,17 +294,18 @@ class ManagerController {
         if (!modalContainer) return;
         const lang = window.i18n.getLang();
         const settings = window.DB.getSettings();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
                     </button>
 
                     <div class="flex items-center gap-3 mb-5 border-b border-[#d7e2ee] pb-3">
-                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center text-2xl font-bold border border-[#b3d5fa]">
-                            ⚙️
+                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
+                            ${icon('settings', 'w-6 h-6')}
                         </div>
                         <div>
                             <h3 class="text-lg font-black text-[#002b66]">${lang === 'ar' ? 'إعدادات النظام ورقم واتساب الافتراضي' : 'System & Dispatch WhatsApp Settings'}</h3>
@@ -305,10 +314,10 @@ class ManagerController {
                     </div>
 
                     <form onsubmit="Manager.saveSettings(event)" class="space-y-4">
-                        <!-- Default WhatsApp Number -->
                         <div class="bg-[#f8fafc] p-4 rounded-2xl border-2 border-[#b0cfee]">
-                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1">
-                                📱 ${lang === 'ar' ? 'رقم واتساب الإدارة / البوابة الافتراضي (لإرسال كافة التصاريح تلقائياً):' : 'Default Dispatcher WhatsApp Number:'}
+                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5 flex items-center gap-1.5">
+                                ${icon('whatsapp', 'w-4 h-4 text-[#107e3e]')}
+                                <span>${lang === 'ar' ? 'رقم واتساب الإدارة / البوابة الافتراضي (لإرسال كافة التصاريح تلقائياً):' : 'Default Dispatcher WhatsApp Number:'}</span>
                             </label>
                             <input type="tel" id="setting-default-whatsapp" required value="${settings.default_whatsapp || '01012345678'}" placeholder="01012345678 أو +201012345678" class="w-full bg-white border-2 border-[#d7e2ee] rounded-xl px-4 py-2.5 text-[#1d2d3e] font-mono font-bold text-base focus:border-[#0070f2] focus:outline-none" />
                             <p class="text-[11px] text-[#0070f2] mt-1.5 font-semibold">
@@ -316,7 +325,6 @@ class ManagerController {
                             </p>
                         </div>
 
-                        <!-- Company & Gate Customization -->
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-bold text-[#556b82] mb-1">اسم المنشأة / الشركة</label>
@@ -333,12 +341,24 @@ class ManagerController {
                             <input type="number" id="setting-overstay" min="1" max="24" value="${settings.overstay_hours_threshold || 3}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]" />
                         </div>
 
+                        <!-- Danger Zone: Reset All Data -->
+                        <div class="bg-red-50 p-3.5 rounded-2xl border border-red-200 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-red-700">مسح وتصفير كافة البيانات</div>
+                                <div class="text-[10px] text-red-500 font-medium">حذف كافة التصاريح القديمة لبدء صفحة نظيفة</div>
+                            </div>
+                            <button type="button" onclick="Manager.resetAllData()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
+                                ${icon('trash', 'w-3.5 h-3.5')}
+                                <span>تصفير الآن</span>
+                            </button>
+                        </div>
+
                         <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
                             <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
                                 ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
                             </button>
-                            <button type="submit" class="px-6 py-2.5 sap-btn-primary text-xs flex items-center gap-1.5 shadow-md">
-                                <span>💾</span>
+                            <button type="submit" class="px-6 py-2.5 sap-btn-primary text-xs flex items-center gap-1.5 shadow-md font-bold">
+                                ${icon('save', 'w-4 h-4')}
                                 <span>${lang === 'ar' ? 'حفظ الإعدادات' : 'Save Settings'}</span>
                             </button>
                         </div>
@@ -346,6 +366,15 @@ class ManagerController {
                 </div>
             </div>
         `;
+    }
+
+    resetAllData() {
+        if (confirm("هل أنت متأكد من رغبتك في تصفير ومسح كافة التصاريح والمركبات؟")) {
+            window.DB.clearAllData();
+            document.getElementById('modal-container').innerHTML = '';
+            this.renderDashboard();
+            alert("تم مسح وتصفير كافة البيانات بنجاح!");
+        }
     }
 
     saveSettings(e) {
@@ -372,19 +401,20 @@ class ManagerController {
         if (!modalContainer) return;
         const lang = window.i18n.getLang();
         const settings = window.DB.getSettings();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         const vehicle = vehicleId ? window.DB.getVehicles().find(v => v.id === vehicleId) : null;
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
                     </button>
 
                     <div class="flex items-center gap-3 mb-5 border-b border-[#d7e2ee] pb-3">
-                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center text-2xl font-bold shadow-sm border border-[#b3d5fa]">
-                            ⚡
+                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
+                            ${icon('bolt', 'w-6 h-6 text-[#0070f2]')}
                         </div>
                         <div>
                             <h3 class="text-lg font-black text-[#002b66]">${lang === 'ar' ? 'إصدار تصريح دخول سريع' : 'Fast Vehicle Gate Pass'}</h3>
@@ -399,7 +429,7 @@ class ManagerController {
                             <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5 flex justify-between items-center">
                                 <span>1️⃣ ${lang === 'ar' ? 'رقم لوحة المركبة (مثال: ط ر ق ٩ ٨ ٢ ١):' : 'Vehicle Plate Number:'}</span>
                                 <button type="button" onclick="Manager.toggleKeypad('quick-keypad', 'quick-plate')" class="text-[#0070f2] hover:text-[#005cbd] text-xs font-bold flex items-center gap-1">
-                                    <span>⌨️</span>
+                                    ${icon('keyboard', 'w-3.5 h-3.5')}
                                     <span>${window.i18n.t('arabicKeyboard')}</span>
                                 </button>
                             </label>
@@ -410,7 +440,7 @@ class ManagerController {
                                 ${window.ArabicPlate.renderArabicKeypad('quick-plate')}
                             </div>
 
-                            <div class="mt-3 flex items-center justify-between bg-white p-2 rounded-xl border border-[#d7e2ee]">
+                            <div class="mt-3 flex items-center justify-between bg-white p-2.5 rounded-xl border border-[#d7e2ee]">
                                 <span class="text-xs text-[#556b82] font-bold">${lang === 'ar' ? 'معاينة اللوحة:' : 'Preview:'}</span>
                                 <div id="quick-plate-preview">
                                     ${window.ArabicPlate.renderEgyptianPlate(vehicle ? vehicle.plate_ar : 'ط ر ق ٩ ٨ ٢ ١', 'compact')}
@@ -424,7 +454,9 @@ class ManagerController {
                                 2️⃣ ${lang === 'ar' ? 'رقم هاتف / واتساب السائق (لإرسال كارت التصريح له):' : 'Driver Phone / WhatsApp:'}
                             </label>
                             <div class="relative">
-                                <span class="absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-3 text-[#0070f2] font-bold text-sm">📞</span>
+                                <span class="absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-3 text-[#0070f2] font-bold text-sm">
+                                    ${icon('phone', 'w-4 h-4')}
+                                </span>
                                 <input type="tel" id="quick-phone" required placeholder="01012345678 أو +201012345678" value="${vehicle ? vehicle.driver_phone : ''}" class="w-full bg-white border-2 border-[#d7e2ee] rounded-xl ${lang === 'ar' ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 text-[#1d2d3e] font-mono font-bold text-base focus:border-[#0070f2] focus:outline-none" />
                             </div>
                             <div class="mt-2 flex items-center justify-between text-[11px] text-[#556b82]">
@@ -433,7 +465,7 @@ class ManagerController {
                             </div>
                         </div>
 
-                        <!-- Optional Extra Details (Collapsible) -->
+                        <!-- Optional Extra Details -->
                         <details class="bg-[#f0f4f8] rounded-xl p-3 border border-[#d7e2ee] mb-5 text-xs">
                             <summary class="font-bold text-[#002b66] cursor-pointer hover:text-[#0070f2] flex items-center justify-between">
                                 <span>➕ ${lang === 'ar' ? 'تفاصيل إضافية اختيارية (اسم السائق، الشركة، الوجهة)' : 'Optional Extra Details'}</span>
@@ -465,8 +497,8 @@ class ManagerController {
                             <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2.5 sap-btn-secondary text-xs">
                                 ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
                             </button>
-                            <button type="submit" class="flex-1 py-3 sap-btn-primary text-sm flex items-center justify-center gap-2">
-                                <span>🎫</span>
+                            <button type="submit" class="flex-1 py-3 sap-btn-primary text-sm flex items-center justify-center gap-2 font-bold shadow-md">
+                                ${icon('qrcode', 'w-4 h-4')}
                                 <span>${lang === 'ar' ? 'توليد كارت التصريح والـ QR فوراً' : 'Generate Pass Card & QR'}</span>
                             </button>
                         </div>
@@ -543,6 +575,7 @@ class ManagerController {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
         const settings = window.DB.getSettings();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         const qrPayload = JSON.stringify({
             permit: permit.permit_code,
@@ -554,8 +587,8 @@ class ManagerController {
         const validDateText = new Date(permit.valid_until).toLocaleDateString([], { year: 'numeric', month: '2-digit', day: '2-digit' });
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto modal-backdrop">
-                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto modal-backdrop">
+                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="no-print absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
@@ -645,24 +678,24 @@ class ManagerController {
                     <div class="no-print flex flex-col gap-2.5">
                         
                         <!-- Send to Driver WhatsApp -->
-                        <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${validUntilText}')" class="w-full py-3 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
-                            <span>📲</span>
+                        <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${validUntilText}')" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-md text-sm flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5">
+                            ${icon('whatsapp', 'w-5 h-5 text-white')}
                             <span>${lang === 'ar' ? `إرسال كصورة لواتساب السائق (${vehicle.driver_phone || 'غير مسجل'})` : 'Send Image to Driver WhatsApp'}</span>
                         </button>
 
                         <!-- Send to Default Dispatcher Number -->
                         <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${settings.default_whatsapp || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${validUntilText}')" class="w-full py-2.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-bold rounded-xl shadow-sm text-xs flex items-center justify-center gap-2">
-                            <span>🏢</span>
+                            ${icon('building', 'w-4 h-4 text-white')}
                             <span>${lang === 'ar' ? `إرسال للرقم الافتراضي للبوابة / الإدارة (${settings.default_whatsapp})` : 'Send to Default Dispatcher'}</span>
                         </button>
 
                         <div class="grid grid-cols-2 gap-2">
                             <button type="button" onclick="Manager.printPass()" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5 font-bold">
-                                <span>🖨️</span>
+                                ${icon('printer', 'w-4 h-4')}
                                 <span>${lang === 'ar' ? 'طباعة تصريح A4 معتمد' : 'Print A4 Pass'}</span>
                             </button>
-                            <button type="button" onclick="Manager.downloadPassImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}')" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5">
-                                <span>📥</span>
+                            <button type="button" onclick="Manager.downloadPassImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}')" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5 font-bold">
+                                ${icon('download', 'w-4 h-4')}
                                 <span>${lang === 'ar' ? 'تحميل كصورة (PNG)' : 'Download Image'}</span>
                             </button>
                         </div>
@@ -671,15 +704,11 @@ class ManagerController {
             </div>
         `;
 
-        // Render QR Code immediately using QREngine
         if (window.QREngine) {
             window.QREngine.render('qrcode-canvas-box', qrPayload, { size: 160 });
         }
     }
 
-    /**
-     * Perfected Print Pass with Clean Orientation & Title
-     */
     printPass() {
         const oldTitle = document.title;
         document.title = `DOTRA_Gate_Permit_${Date.now()}`;
@@ -687,10 +716,6 @@ class ManagerController {
         document.title = oldTitle;
     }
 
-    /**
-     * Generate High-Quality Digital Pass Badge Canvas Image
-     * Bulletproof Vector Drawing with Direct QR Embedding (Never Taints Canvas)
-     */
     static createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -700,18 +725,15 @@ class ManagerController {
         canvas.width = width;
         canvas.height = height;
 
-        // 1. White Background
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, width, height);
 
-        // 2. Navy Blue Header (SAP Style)
         const headerGradient = ctx.createLinearGradient(0, 0, width, 0);
         headerGradient.addColorStop(0, "#002b66");
         headerGradient.addColorStop(1, "#004b99");
         ctx.fillStyle = headerGradient;
         ctx.fillRect(0, 0, width, 120);
 
-        // Header Title
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 26px 'Cairo', 'Tajawal', sans-serif";
         ctx.textAlign = "right";
@@ -721,7 +743,6 @@ class ManagerController {
         ctx.fillStyle = "#a5f3fc";
         ctx.fillText("DOTRA Group - Vehicle Gate Access Permit", width - 30, 84);
 
-        // Vector Logo Emblem on Left (Safe, Non-Tainting)
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
         ctx.arc(65, 60, 42, 0, Math.PI * 2);
@@ -735,7 +756,6 @@ class ManagerController {
         ctx.font = "bold 11px 'Cairo', sans-serif";
         ctx.fillText("دوترا", 65, 78);
 
-        // 3. Status Badge
         ctx.fillStyle = "#e5f6eb";
         ctx.strokeStyle = "#107e3e";
         ctx.lineWidth = 2;
@@ -749,7 +769,6 @@ class ManagerController {
         ctx.textAlign = "center";
         ctx.fillText("🟢 تصريح معتمد (AUTHORIZED)", 300, 167);
 
-        // 4. Egyptian License Plate Box
         const plateY = 205;
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#1e293b";
@@ -759,7 +778,6 @@ class ManagerController {
         ctx.fill();
         ctx.stroke();
 
-        // Egyptian Plate Top Red Band (نقل)
         ctx.fillStyle = "#dc2626";
         ctx.fillRect(112, plateY + 2, 376, 32);
         ctx.fillStyle = "#ffffff";
@@ -771,7 +789,6 @@ class ManagerController {
         ctx.textAlign = "right";
         ctx.fillText("مصر", 470, plateY + 23);
 
-        // Plate Numbers and Letters
         const parsed = window.ArabicPlate ? window.ArabicPlate.parsePlateParts(plate) : { numbers: '٩٨٢١', letters: 'ط ر ق' };
         const digits = window.ArabicPlate ? window.ArabicPlate.toEasternArabicDigits(parsed.numbers) : parsed.numbers;
 
@@ -789,7 +806,6 @@ class ManagerController {
 
         ctx.fillText(parsed.letters || 'ط ر ق', 400, plateY + 84);
 
-        // 5. Draw QR Code directly to Canvas Context via QREngine
         const qrPayload = JSON.stringify({
             permit: permitCode,
             plate: plate,
@@ -808,7 +824,6 @@ class ManagerController {
             window.QREngine.drawToCanvas(ctx, qrPayload, 205, 355, 190, '#002b66', '#ffffff');
         }
 
-        // 6. Summary Details Box
         const infoY = 580;
         ctx.fillStyle = "#f8fafc";
         ctx.strokeStyle = "#d7e2ee";
@@ -841,7 +856,6 @@ class ManagerController {
         ctx.fillStyle = "#b85500";
         ctx.fillText(validUntil, 380, infoY + 175);
 
-        // 7. Footer
         ctx.fillStyle = "#556b82";
         ctx.font = "bold 13px 'Cairo', sans-serif";
         ctx.textAlign = "center";
@@ -866,10 +880,8 @@ class ManagerController {
         const blob = Manager.dataURItoBlob(dataUrl);
         const file = new File([blob], `DOTRA_Gate_Pass_${permitCode}.png`, { type: 'image/png' });
 
-        // Trigger automatic download of the PNG image so the user has it ready
         Manager.downloadPassImage(permitCode, plate, phone);
 
-        // Native mobile share sheet (Shares file directly to WhatsApp if on Mobile)
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
@@ -883,7 +895,6 @@ class ManagerController {
             }
         }
 
-        // Open WhatsApp directly with pre-formatted message
         this.shareWhatsApp(permitCode, plate, phone);
     }
 

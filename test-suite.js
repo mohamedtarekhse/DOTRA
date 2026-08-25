@@ -1,5 +1,5 @@
-// Complete End-to-End Test Suite for DOTRA Gate Access System
-// التحقق الشامل من تكامل النظام والواجهة الأمامية والخلفية السحابية _worker.js وقاعدة البيانات
+// Complete End-to-End Test Suite for DOTRA Gate Access System (Enterprise UI & SVG Icon Edition)
+// التحقق الشامل من تكامل النظام ومكتبة الأيقونات والواجهة الأمامية والخلفية السحابية _worker.js
 
 import fs from 'fs';
 import path from 'path';
@@ -27,6 +27,7 @@ const requiredFiles = [
     'index.html',
     'assets/logo.jpg',
     'css/styles.css',
+    'js/icons.js',
     'js/qr-engine.js',
     'js/i18n.js',
     'js/arabic-plate.js',
@@ -104,8 +105,17 @@ global.document = {
     })
 };
 
-// 3. Test QR Engine with Arabic & Egyptian Characters
-console.log("\n[2] Testing QREngine UTF-8 Arabic Compatibility:");
+// 3. Test SVG Icon Library
+console.log("\n[2] Testing SVG Icon Library (js/icons.js):");
+const iconsCode = fs.readFileSync('js/icons.js', 'utf8');
+eval(iconsCode);
+
+assert(typeof window.Icons !== 'undefined', 'Icons library is defined');
+const truckSvg = window.Icons.get('truck', 'w-5 h-5');
+assert(truckSvg.includes('<svg') && truckSvg.includes('w-5 h-5'), 'Generated valid SVG for truck icon');
+
+// 4. Test QR Engine with Arabic & Egyptian Characters
+console.log("\n[3] Testing QREngine UTF-8 Arabic Compatibility:");
 const qrCodeContent = fs.readFileSync('js/qr-engine.js', 'utf8');
 eval(qrCodeContent);
 
@@ -129,8 +139,8 @@ const mockCtx = document.createElement('canvas').getContext('2d');
 const drawSuccess = window.QREngine.drawToCanvas(mockCtx, testPayloadArabic, 0, 0, 160);
 assert(drawSuccess === true, 'QREngine.drawToCanvas renders directly to canvas context');
 
-// 4. Test Egyptian Plate Engine
-console.log("\n[3] Testing Egyptian License Plate Engine:");
+// 5. Test Egyptian Plate Engine
+console.log("\n[4] Testing Egyptian License Plate Engine:");
 const plateCode = fs.readFileSync('js/arabic-plate.js', 'utf8');
 eval(plateCode);
 
@@ -143,8 +153,8 @@ const renderedTruckPlate = window.ArabicPlate.renderEgyptianPlate('ط ر ق ٩ �
 assert(renderedTruckPlate.includes('EGYPT') && renderedTruckPlate.includes('مصر'), 'Egyptian plate contains EGYPT & مصر');
 assert(renderedTruckPlate.includes('bg-red-600') && renderedTruckPlate.includes('نقل'), 'Truck plate has Red header and "نقل" text');
 
-// 5. Test Database & Zero Hardcoded Permits (Clean Slate)
-console.log("\n[4] Testing Database Layer (Clean Slate):");
+// 6. Test Database Layer (Clean Slate)
+console.log("\n[5] Testing Database Layer (Clean Slate):");
 const dbCode = fs.readFileSync('js/db.js', 'utf8');
 eval(dbCode);
 
@@ -154,16 +164,16 @@ assert(initialPermits.length === 0, `Initial hardcoded permits count is 0 (Clean
 const initialLogs = window.DB.getLogs();
 assert(initialLogs.length === 0, `Initial hardcoded logs count is 0 (Clean Slate)`);
 
-// 6. Test Settings Layer (Default WhatsApp)
-console.log("\n[5] Testing Settings & Dispatch WhatsApp:");
+// 7. Test Settings & Dispatch WhatsApp
+console.log("\n[6] Testing Settings & Dispatch WhatsApp:");
 const defaultSettings = window.DB.getSettings();
 assert(defaultSettings.default_whatsapp !== undefined, `Default WhatsApp setting exists: ${defaultSettings.default_whatsapp}`);
 
 const updatedSettings = window.DB.updateSettings({ default_whatsapp: '01011223344' });
 assert(updatedSettings.default_whatsapp === '01011223344', 'Default WhatsApp setting updated successfully');
 
-// 7. Test Manager & Officer Lifecycle
-console.log("\n[6] Testing Full Permit Lifecycle & Officer Gate Scanner:");
+// 8. Test Manager & Officer Lifecycle
+console.log("\n[7] Testing Full Permit Lifecycle & Officer Gate Scanner:");
 const authCode = fs.readFileSync('js/auth.js', 'utf8');
 eval(authCode);
 const i18nCode = fs.readFileSync('js/i18n.js', 'utf8');
@@ -211,12 +221,11 @@ const officerExit = window.DB.recordExit(freshTruck.id, 2, 'بوابة 1 دوت�
 assert(officerExit.exit_timestamp !== null, 'Officer recorded vehicle exit');
 assert(window.DB.isVehicleInside(freshTruck.id) === null, 'Vehicle marked as exited');
 
-// 8. Test Backend Worker API Integrity
-console.log("\n[7] Testing Cloudflare Worker Backend Routes (_worker.js):");
+// 9. Test Backend Worker API Integrity
+console.log("\n[8] Testing Cloudflare Worker Backend Routes (_worker.js):");
 const workerModule = await import('./_worker.js');
 const worker = workerModule.default;
 
-// Mock Request & DB for Worker
 const mockD1Results = [];
 const mockD1 = {
     prepare: (sql) => ({
@@ -229,12 +238,10 @@ const mockD1 = {
     })
 };
 
-// Test Worker GET /api/vehicles
 const reqVehicles = new Request('https://dotra.pages.dev/api/vehicles', { method: 'GET' });
 const resVehicles = await worker.fetch(reqVehicles, { DB: mockD1 });
 assert(resVehicles.status === 200, 'Worker GET /api/vehicles responded with HTTP 200');
 
-// Test Worker POST /api/permits
 const reqNewPermit = new Request('https://dotra.pages.dev/api/permits', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -248,7 +255,6 @@ const resNewPermit = await worker.fetch(reqNewPermit, { DB: mockD1 });
 const resNewPermitJson = await resNewPermit.json();
 assert(resNewPermit.status === 200 && resNewPermitJson.success === true, 'Worker POST /api/permits created permit successfully');
 
-// Test Worker POST /api/entry
 const reqEntry = new Request('https://dotra.pages.dev/api/entry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -258,7 +264,6 @@ const resEntry = await worker.fetch(reqEntry, { DB: mockD1 });
 const resEntryJson = await resEntry.json();
 assert(resEntry.status === 200 && resEntryJson.success === true, 'Worker POST /api/entry recorded entry successfully');
 
-// Test Worker POST /api/exit
 const reqExit = new Request('https://dotra.pages.dev/api/exit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

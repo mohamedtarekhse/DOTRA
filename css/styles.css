@@ -1,4 +1,4 @@
-/* SAP Fiori Blue & White Theme + Official A4 Gate Pass Print Styles */
+/* SAP Fiori Blue & White Theme + Official A4 Gate Pass Print Styles + Enterprise Micro-interactions */
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
@@ -6,7 +6,7 @@
     --font-latin: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
     
-    /* Official SAP Palette */
+    /* Official SAP Enterprise Palette */
     --sap-primary: #0070f2;
     --sap-primary-hover: #005cbd;
     --sap-primary-active: #004791;
@@ -19,7 +19,7 @@
     --sap-border: #d7e2ee;
     --sap-border-subtle: #e7eff7;
     
-    /* SAP Statuses */
+    /* SAP Status Colors */
     --sap-positive: #107e3e;
     --sap-positive-bg: #e5f6eb;
     --sap-critical: #bb0000;
@@ -36,6 +36,7 @@ body {
     color: var(--sap-text-main);
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
 }
 
 [dir="rtl"] body,
@@ -43,54 +44,70 @@ body {
     font-family: var(--font-arabic);
 }
 
-/* SAP Enterprise Cards & Panels */
+/* Glassmorphic SAP Navigation Header */
 .sap-header {
-    background: linear-gradient(135deg, #002b66 0%, #004b99 100%);
+    background: linear-gradient(135deg, rgba(0, 43, 102, 0.96) 0%, rgba(0, 75, 153, 0.94) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: #ffffff;
-    border-bottom: 2px solid #001940;
-    box-shadow: 0 4px 12px rgba(0, 43, 102, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 20px rgba(0, 43, 102, 0.18);
 }
 
+/* SAP Enterprise Cards with Micro-Elevation */
 .sap-card {
     background: #ffffff;
     border: 1px solid var(--sap-border);
-    border-radius: 12px;
+    border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0, 43, 102, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
-    transition: all 0.2s ease-in-out;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sap-card:hover {
     border-color: #b0cfee;
-    box-shadow: 0 6px 18px rgba(0, 112, 242, 0.08);
+    box-shadow: 0 8px 24px rgba(0, 112, 242, 0.1);
+    transform: translateY(-2px);
 }
 
 .sap-panel {
     background: #ffffff;
     border: 1px solid var(--sap-border);
-    border-radius: 14px;
-    box-shadow: 0 4px 14px rgba(0, 43, 102, 0.06);
+    border-radius: 18px;
+    box-shadow: 0 4px 16px rgba(0, 43, 102, 0.05);
+    transition: all 0.2s ease;
 }
 
-/* SAP Primary Buttons */
+/* Interactive Table Rows */
+.sap-table-row {
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sap-table-row:hover {
+    background-color: #f0f6fd !important;
+    transform: scale(1.002);
+}
+
+/* Primary Enterprise Buttons with Tactile Feedback */
 .sap-btn-primary {
-    background-color: var(--sap-primary);
+    background: linear-gradient(180deg, #007bf8 0%, #0070f2 100%);
     color: #ffffff;
     font-weight: 700;
-    border-radius: 8px;
-    border: 1px solid var(--sap-primary);
-    transition: all 0.15s ease;
-    box-shadow: 0 2px 4px rgba(0, 112, 242, 0.2);
+    border-radius: 10px;
+    border: 1px solid #005cbd;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(0, 112, 242, 0.25);
 }
 
 .sap-btn-primary:hover {
-    background-color: var(--sap-primary-hover);
-    box-shadow: 0 4px 8px rgba(0, 112, 242, 0.3);
+    background: linear-gradient(180deg, #006ee0 0%, #005cbd 100%);
+    box-shadow: 0 4px 12px rgba(0, 112, 242, 0.35);
     transform: translateY(-1px);
 }
 
 .sap-btn-primary:active {
-    background-color: var(--sap-primary-active);
-    transform: translateY(1px);
+    background: #004791;
+    transform: translateY(1px) scale(0.99);
+    box-shadow: 0 1px 3px rgba(0, 112, 242, 0.2);
 }
 
 .sap-btn-secondary {
@@ -98,16 +115,24 @@ body {
     color: var(--sap-primary);
     border: 1px solid var(--sap-border);
     font-weight: 700;
-    border-radius: 8px;
-    transition: all 0.15s ease;
+    border-radius: 10px;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .sap-btn-secondary:hover {
     background-color: var(--sap-info-bg);
-    border-color: var(--sap-primary);
+    border-color: #b3d5fa;
+    color: #005cbd;
+    transform: translateY(-1px);
 }
 
-/* SAP Status Badges */
+.sap-btn-secondary:active {
+    transform: translateY(1px);
+    background-color: #dbeaff;
+}
+
+/* Status Badges with Ambient Glow */
 .badge-inside {
     background-color: var(--sap-positive-bg);
     color: var(--sap-positive);
@@ -146,47 +171,61 @@ body {
 
 @keyframes sap-pulse {
     0%, 100% {
-        box-shadow: 0 0 0 0 rgba(187, 0, 0, 0.4);
+        box-shadow: 0 0 0 0 rgba(187, 0, 0, 0.35);
     }
     50% {
-        box-shadow: 0 0 0 4px rgba(187, 0, 0, 0);
+        box-shadow: 0 0 0 5px rgba(187, 0, 0, 0);
     }
 }
 
-/* Egyptian License Plate in SAP Light Theme */
-.egyptian-plate {
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-}
-
-/* Keypad Keys for SAP Theme */
+/* Keypad Keys for Touch & Mobile */
 .arabic-key {
     background: #ffffff;
     color: var(--sap-text-main);
     border: 1px solid var(--sap-border);
-    border-radius: 6px;
-    font-size: 17px;
-    font-weight: 700;
-    height: 42px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 800;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.12s ease;
     user-select: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .arabic-key:hover {
     background: var(--sap-primary);
     border-color: var(--sap-primary);
     color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 6px rgba(0, 112, 242, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 112, 242, 0.25);
 }
 
 .arabic-key:active {
-    transform: translateY(1px);
+    transform: translateY(1px) scale(0.96);
     background: var(--sap-primary-active);
+}
+
+/* Smooth UI Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scaleUp {
+    animation: scaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Custom Scrollbars */
@@ -205,27 +244,12 @@ body {
     background: var(--sap-primary);
 }
 
-/* QR Code Scanner Overlay */
+/* QR Scanner Frame & Laser Line */
 #qr-reader {
     width: 100% !important;
     border: none !important;
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
-}
-
-/* Tactile Touch Buttons */
-.touch-btn {
-    min-height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    border-radius: 10px;
-    transition: all 0.15s ease;
-}
-
-.touch-btn:active {
-    transform: scale(0.98);
 }
 
 /* ==========================================================================
@@ -237,7 +261,6 @@ body {
 }
 
 @media print {
-    /* Hide all web interface components */
     html, body {
         width: 100% !important;
         height: 100% !important;
@@ -284,7 +307,6 @@ body {
         align-items: center !important;
     }
 
-    /* Print Badge Card Container - Perfectly Centered on A4 */
     #printable-pass-card {
         display: block !important;
         width: 100% !important;
@@ -298,7 +320,6 @@ body {
         background: #ffffff !important;
     }
 
-    /* Ensure color fills and badges print crisply */
     * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;

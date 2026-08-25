@@ -1,5 +1,5 @@
 // Database Layer - Egyptian Standard Vehicles, Settings & Cloudflare D1 Sync
-// طبقة إدارة البيانات - قاعدة بيانات كلاود فلير D1 بدون أي تصاريح مسبقة (تصاريح جديدة ونظيفة 100%)
+// طبقة إدارة البيانات - تصفير تلقائي للذاكرة المؤقتة القديمة (Clean Slate Guaranteed)
 
 const SEED_USERS = [
     {
@@ -47,35 +47,42 @@ const SEED_SETTINGS = {
     overstay_hours_threshold: 3
 };
 
-const SEED_VEHICLES = [];
-
-// No Hardcoded Permits - Clean Slate
-const SEED_PERMITS = [];
-const SEED_LOGS = [];
-
 class DatabaseService {
     constructor() {
         this.initStorage();
     }
 
     initStorage() {
+        // Force-clean any old cached vehicle, permit or log entries from user browser
+        if (localStorage.getItem('gate_storage_v4_clean') !== 'true') {
+            localStorage.removeItem('gate_vehicles');
+            localStorage.removeItem('gate_permits');
+            localStorage.removeItem('gate_logs');
+            localStorage.setItem('gate_storage_v4_clean', 'true');
+        }
+
         if (!localStorage.getItem('gate_users')) {
             localStorage.setItem('gate_users', JSON.stringify(SEED_USERS));
         }
         if (!localStorage.getItem('gate_vehicles')) {
-            localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
+            localStorage.setItem('gate_vehicles', JSON.stringify([]));
         }
-        
-        // Ensure permits start empty (Clean Slate)
-        if (!localStorage.getItem('gate_permits_v2_clean')) {
-            localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
-            localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
-            localStorage.setItem('gate_permits_v2_clean', 'true');
+        if (!localStorage.getItem('gate_permits')) {
+            localStorage.setItem('gate_permits', JSON.stringify([]));
         }
-
+        if (!localStorage.getItem('gate_logs')) {
+            localStorage.setItem('gate_logs', JSON.stringify([]));
+        }
         if (!localStorage.getItem('gate_settings')) {
             localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
         }
+    }
+
+    clearAllData() {
+        localStorage.setItem('gate_vehicles', JSON.stringify([]));
+        localStorage.setItem('gate_permits', JSON.stringify([]));
+        localStorage.setItem('gate_logs', JSON.stringify([]));
+        return true;
     }
 
     getSettings() {
