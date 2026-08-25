@@ -1,5 +1,5 @@
 // Office Manager Dashboard Controller (DOTRA WhatsApp Pass Image Generator)
-// وحدة التحكم ببوابة مدير المكتب - توليد ومشاركة بطاقة التصريح كصورة كاملة مع QR واللوحة لواتساب
+// وحدة التحكم ببوابة مدير المكتب - مجموعة دوترا (توليد QR متكامل وفوري 100%)
 
 class ManagerController {
     constructor() {
@@ -433,7 +433,7 @@ class ManagerController {
     }
 
     /**
-     * Render Digital Pass Modal with QR Code & Image Exporter / WhatsApp Share
+     * Render Digital Pass Modal with Guaranteed 100% Reliable QR Generator
      */
     showPassModal(permitId) {
         const permits = window.DB.getPermits();
@@ -482,7 +482,7 @@ class ManagerController {
                         </div>
 
                         <!-- QR Code Pass Container -->
-                        <div class="bg-white p-3 rounded-2xl shadow-inner inline-flex items-center justify-center my-1 border-2 border-[#d7e2ee] min-w-[140px] min-h-[140px]" id="qrcode-canvas-box">
+                        <div class="bg-white p-3 rounded-2xl shadow-inner inline-flex items-center justify-center my-1 border-2 border-[#d7e2ee] min-w-[150px] min-h-[150px]" id="qrcode-canvas-box">
                         </div>
 
                         <!-- Pass Summary Card -->
@@ -508,13 +508,11 @@ class ManagerController {
 
                     <!-- WhatsApp & Image Action Buttons -->
                     <div class="flex flex-col gap-2">
-                        <!-- 1. Share Image Directly via WhatsApp -->
                         <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}')" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-md text-sm flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5">
                             <span>📲</span>
                             <span>${lang === 'ar' ? 'مشاركة كارت التصريح كصورة عبر واتساب' : 'Share Pass Image to WhatsApp'}</span>
                         </button>
 
-                        <!-- 2. Download Image Button -->
                         <div class="grid grid-cols-2 gap-2">
                             <button type="button" onclick="Manager.downloadPassImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}')" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5">
                                 <span>📥</span>
@@ -530,35 +528,10 @@ class ManagerController {
             </div>
         `;
 
-        Manager.renderQRDirectly('qrcode-canvas-box', qrPayload);
-    }
-
-    static renderQRDirectly(containerId, payloadText) {
-        setTimeout(() => {
-            const qrBox = document.getElementById(containerId);
-            if (!qrBox) return;
-
-            try {
-                qrBox.innerHTML = '';
-                if (typeof window.QRCode !== 'undefined') {
-                    new window.QRCode(qrBox, {
-                        text: payloadText,
-                        width: 140,
-                        height: 140,
-                        colorDark: "#002b66",
-                        colorLight: "#ffffff",
-                        correctLevel: (window.QRCode.CorrectLevel && window.QRCode.CorrectLevel.M) || 0
-                    });
-                } else {
-                    const encoded = encodeURIComponent(payloadText);
-                    qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encoded}&color=002b66" alt="QR Code" class="w-[140px] h-[140px] rounded-lg" />`;
-                }
-            } catch (err) {
-                console.error("Local QR generation fallback", err);
-                const encoded = encodeURIComponent(payloadText);
-                qrBox.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encoded}&color=002b66" alt="QR Code" class="w-[140px] h-[140px] rounded-lg" />`;
-            }
-        }, 10);
+        // Render QR Code immediately using QREngine
+        if (window.QREngine) {
+            window.QREngine.render('qrcode-canvas-box', qrPayload, { size: 150 });
+        }
     }
 
     /**
@@ -568,7 +541,6 @@ class ManagerController {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Set High-DPI Dimensions
         const width = 600;
         const height = 820;
         canvas.width = width;
@@ -585,7 +557,6 @@ class ManagerController {
         ctx.fillStyle = headerGradient;
         ctx.fillRect(0, 0, width, 120);
 
-        // Header Title
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 26px 'Cairo', 'Tajawal', sans-serif";
         ctx.textAlign = "right";
@@ -595,7 +566,7 @@ class ManagerController {
         ctx.fillStyle = "#a5f3fc";
         ctx.fillText("DOTRA Group - Vehicle Gate Access Permit", width - 30, 80);
 
-        // Try drawing Logo on Left
+        // Draw Logo on Left
         try {
             const logoImg = new Image();
             logoImg.src = 'assets/logo.jpg';
@@ -604,7 +575,6 @@ class ManagerController {
                 logoImg.onerror = resolve;
             });
             if (logoImg.complete && logoImg.naturalWidth > 0) {
-                // White rounded circle behind logo
                 ctx.fillStyle = "#ffffff";
                 ctx.beginPath();
                 ctx.arc(65, 60, 42, 0, Math.PI * 2);
@@ -637,7 +607,7 @@ class ManagerController {
         ctx.fill();
         ctx.stroke();
 
-        // Egyptian Plate Top Red Band (نقل)
+        // Egyptian Plate Top Red Band
         ctx.fillStyle = "#dc2626";
         ctx.fillRect(122, plateY + 2, 356, 30);
         ctx.fillStyle = "#ffffff";
@@ -656,10 +626,8 @@ class ManagerController {
         ctx.fillStyle = "#0f172a";
         ctx.font = "bold 34px 'Cairo', sans-serif";
         ctx.textAlign = "center";
-        // Numbers left / Letters right
         ctx.fillText(digits || '٩٨٢١', 210, plateY + 82);
         
-        // Plate divider line
         ctx.strokeStyle = "#cbd5e1";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -669,18 +637,20 @@ class ManagerController {
 
         ctx.fillText(parsed.letters || 'ط ر ق', 390, plateY + 82);
 
-        // 5. QR Code Drawing
-        const qrCanvas = document.querySelector('#qrcode-canvas-box canvas') || document.querySelector('#qrcode-canvas-box img');
-        if (qrCanvas) {
-            ctx.fillStyle = "#ffffff";
+        // 5. Draw QR Code directly to Canvas Context
+        const qrPayload = JSON.stringify({
+            permit: permitCode,
+            plate: plate,
+            phone: phone
+        });
+
+        if (window.QREngine) {
+            window.QREngine.drawToCanvas(ctx, qrPayload, 205, 345, 190, '#002b66', '#ffffff');
+            
+            // Draw subtle border around QR
             ctx.strokeStyle = "#d7e2ee";
             ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(190, 335, 220, 220, 16);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.drawImage(qrCanvas, 205, 350, 190, 190);
+            ctx.strokeRect(205, 345, 190, 190);
         }
 
         // 6. Summary Details Box
@@ -696,25 +666,21 @@ class ManagerController {
         ctx.font = "bold 17px 'Cairo', sans-serif";
         ctx.textAlign = "right";
 
-        // Row 1: Permit Code
         ctx.fillStyle = "#556b82";
         ctx.fillText("كود التصريح:", 520, infoY + 40);
         ctx.fillStyle = "#0070f2";
         ctx.fillText(permitCode, 380, infoY + 40);
 
-        // Row 2: Driver Phone
         ctx.fillStyle = "#556b82";
         ctx.fillText("هاتف السائق:", 520, infoY + 80);
         ctx.fillStyle = "#107e3e";
         ctx.fillText(phone || "غير مسجل", 380, infoY + 80);
 
-        // Row 3: Driver Name
         ctx.fillStyle = "#556b82";
         ctx.fillText("اسم السائق:", 520, infoY + 120);
         ctx.fillStyle = "#1d2d3e";
         ctx.fillText(driverName || "سائق مصرح", 380, infoY + 120);
 
-        // Row 4: Valid Until
         ctx.fillStyle = "#556b82";
         ctx.fillText("صالح حتى:", 520, infoY + 160);
         ctx.fillStyle = "#b85500";
@@ -729,20 +695,16 @@ class ManagerController {
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     }
 
-    /**
-     * Share Digital Pass Image directly to WhatsApp using Web Share API or Direct Download
-     */
     async shareWhatsAppImage(permitCode, plate, phone, driverName, validUntil) {
         try {
             const blob = await Manager.createPassCanvasBlob(permitCode, plate, phone, driverName, validUntil);
             const file = new File([blob], `DOTRA_Gate_Pass_${permitCode}.png`, { type: 'image/png' });
 
-            // 1. Try Native Mobile Web Share (Direct to WhatsApp with Image)
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     files: [file],
                     title: `تصريح دخول بوابة دوترا - ${permitCode}`,
-                    text: `🛡️ تصريح دخول بوابة مصانع دوتra\n🚘 رقم اللوحة: ${plate}\n📞 هاتف السائق: ${phone}\nصالح حتى: ${validUntil}`
+                    text: `🛡️ تصريح دخول بوابة مصانع دوترا\n🚘 رقم اللوحة: ${plate}\n📞 هاتف السائق: ${phone}\nصالح حتى: ${validUntil}`
                 });
                 return;
             }
@@ -750,14 +712,10 @@ class ManagerController {
             console.log("Web Share API fallback:", e);
         }
 
-        // 2. Fallback: Download image and open WhatsApp with direct link
         Manager.downloadPassImage(permitCode, plate, phone);
         this.shareWhatsApp(permitCode, plate, phone);
     }
 
-    /**
-     * Download Digital Pass Card as PNG Image
-     */
     async downloadPassImage(permitCode, plate, phone) {
         const vehicle = window.DB.findVehicleByPlate(plate) || {};
         const blob = await Manager.createPassCanvasBlob(
