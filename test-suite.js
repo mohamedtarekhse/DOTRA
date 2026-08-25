@@ -322,6 +322,18 @@ assert(tableHtml.includes('خالد'), 'Universal search by Officer name succeed
 window.Manager.clearUniversalSearch();
 assert(window.Manager.searchQuery === '', 'Universal search cleared successfully');
 
+// 6. Test Exited Filter Tab & Exit Timestamp Display
+window.Manager.setFilter('exited');
+const exitedRowsHtml = window.Manager.renderTableRows('ar');
+assert(exitedRowsHtml.includes('خروج:') && exitedRowsHtml.includes('مدة التواجد:'), 'Exited filter successfully displayed departed vehicles with exit date, time and duration');
+window.Manager.setFilter('all');
+
+// 7. Test Mobile Responsive Cards Renderer
+console.log("\n[9] Testing Mobile Responsive Card View (Manager Mobile Optimization):");
+const mobileCardsHtml = window.Manager.renderMobileCards('ar');
+assert(mobileCardsHtml.includes('السائق:') && mobileCardsHtml.includes('ط ر ق'), 'Mobile responsive cards generated properly for smartphone screens');
+assert(typeof window.DB.syncFromCloud === 'function', 'DatabaseService.syncFromCloud is defined');
+
 // 9. Test Backend Worker API Integrity
 console.log("\n[8] Testing Cloudflare Worker Backend Routes (_worker.js):");
 const workerModule = await import('./_worker.js');

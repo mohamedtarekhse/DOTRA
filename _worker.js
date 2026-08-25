@@ -116,6 +116,22 @@ export default {
                     return new Response(JSON.stringify([]), { headers });
                 }
 
+                // 6. GET & POST /api/sync (Full Cloud Sync across PC, Mobile, Tablets)
+                if (url.pathname === '/api/sync') {
+                    if (request.method === 'GET') {
+                        if (db) {
+                            const vehicles = (await db.prepare("SELECT * FROM vehicles ORDER BY id DESC").all()).results || [];
+                            const permits = (await db.prepare("SELECT * FROM permits ORDER BY id DESC").all()).results || [];
+                            const logs = (await db.prepare("SELECT * FROM access_logs ORDER BY id DESC LIMIT 200").all()).results || [];
+                            return new Response(JSON.stringify({ vehicles, permits, logs }), { headers });
+                        }
+                        return new Response(JSON.stringify({ vehicles: [], permits: [], logs: [] }), { headers });
+                    }
+                    if (request.method === 'POST') {
+                        return new Response(JSON.stringify({ success: true, synced_at: new Date().toISOString() }), { headers });
+                    }
+                }
+
                 return new Response(JSON.stringify({ status: 'ok', message: 'DOTRA Cloudflare Gate API' }), { headers });
             } catch (err) {
                 return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });

@@ -9,24 +9,30 @@ class ManagerController {
 
     handleUniversalSearch(query) {
         this.searchQuery = query || '';
-        if (typeof document !== 'undefined' && document.querySelector) {
-            const tableBody = document.querySelector('tbody');
-            if (tableBody) {
-                tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
+        if (typeof document !== 'undefined') {
+            if (document.querySelector) {
+                const tableBody = document.querySelector('tbody');
+                if (tableBody) tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
+            }
+            if (document.getElementById) {
+                const mobileList = document.getElementById('manager-mobile-cards-list');
+                if (mobileList) mobileList.innerHTML = this.renderMobileCards(window.i18n.getLang());
             }
         }
     }
 
     clearUniversalSearch() {
         this.searchQuery = '';
-        if (typeof document !== 'undefined' && document.getElementById) {
-            const input = document.getElementById('manager-universal-search');
-            if (input) input.value = '';
-        }
-        if (typeof document !== 'undefined' && document.querySelector) {
-            const tableBody = document.querySelector('tbody');
-            if (tableBody) {
-                tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
+        if (typeof document !== 'undefined') {
+            if (document.getElementById) {
+                const input = document.getElementById('manager-universal-search');
+                if (input) input.value = '';
+                const mobileList = document.getElementById('manager-mobile-cards-list');
+                if (mobileList) mobileList.innerHTML = this.renderMobileCards(window.i18n.getLang());
+            }
+            if (document.querySelector) {
+                const tableBody = document.querySelector('tbody');
+                if (tableBody) tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
             }
         }
     }
@@ -47,6 +53,9 @@ class ManagerController {
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
         const todayEntries = logs.filter(l => l.action_type === 'entry' && new Date(l.timestamp) >= todayStart).length;
+
+        const exitedLogs = logs.filter(l => l.action_type === 'exit' || (l.action_type === 'entry' && l.exit_timestamp));
+        const exitedToday = exitedLogs.filter(l => new Date(l.exit_timestamp || l.timestamp) >= todayStart).length;
 
         const overstayLogs = insideLogs.filter(l => {
             const durationHrs = (Date.now() - new Date(l.timestamp).getTime()) / 3600000;
@@ -104,14 +113,14 @@ class ManagerController {
 
                 <div class="sap-card p-5 border-t-4 border-t-[#0070f2] flex items-center justify-between">
                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
-                        <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricToday')}</p>
-                        <h3 class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${todayEntries}</h3>
-                        <p class="text-[11px] text-[#0070f2] mt-1 font-bold">
-                            ${lang === 'ar' ? 'حركة دخول عبر كافة البوابات' : 'Recorded entries'}
+                        <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${lang === 'ar' ? 'غادروا المصنع اليوم' : 'Exited Today'}</p>
+                        <h3 class="text-3xl font-black text-[#0070f2] mt-1 font-mono">${exitedToday}</h3>
+                        <p class="text-[11px] text-[#556b82] mt-1 font-bold">
+                            ${lang === 'ar' ? `إجمالي المغادرين: ${exitedLogs.length}` : `Total Exits: ${exitedLogs.length}`}
                         </p>
                     </div>
                     <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
-                        ${icon('activity', 'w-6 h-6')}
+                        ${icon('logout', 'w-6 h-6')}
                     </div>
                 </div>
 
@@ -175,7 +184,7 @@ class ManagerController {
                         ` : ''}
                     </div>
 
-                    <!-- Filter Tabs -->
+                    <!-- Filter Tabs including Exited List -->
                     <div class="flex items-center gap-1 bg-[#ffffff] p-1 rounded-xl border border-[#d7e2ee] text-xs flex-shrink-0">
                         <button type="button" onclick="Manager.setFilter('all')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'all' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
                             ${window.i18n.t('filterAll')}
@@ -183,14 +192,17 @@ class ManagerController {
                         <button type="button" onclick="Manager.setFilter('inside')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'inside' ? 'bg-[#107e3e] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
                             ${window.i18n.t('filterInside')} (${insideCount})
                         </button>
+                        <button type="button" onclick="Manager.setFilter('exited')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'exited' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            📤 ${lang === 'ar' ? 'سجل المغادرين' : 'Exited'} (${exitedLogs.length})
+                        </button>
                         <button type="button" onclick="Manager.setFilter('overstay')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'overstay' ? 'bg-[#bb0000] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
                             ${window.i18n.t('filterOverstay')} (${overstayLogs.length})
                         </button>
                     </div>
                 </div>
 
-                <!-- Table Content -->
-                <div class="overflow-x-auto bg-white">
+                <!-- Desktop Table View (Hidden on Small Phones) -->
+                <div class="hidden md:block overflow-x-auto bg-white">
                     <table class="w-full text-sm ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                         <thead class="bg-[#f5f8fc] text-[#556b82] text-xs uppercase tracking-wider font-bold border-b border-[#d7e2ee]">
                             <tr>
@@ -198,7 +210,7 @@ class ManagerController {
                                 <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع وحالة المركبة' : 'Last Location & Status'}</th>
                                 <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة' : 'Last Gate'}</th>
                                 <th class="py-3.5 px-4">${lang === 'ar' ? 'فرد الأمن المسجل' : 'Officer'}</th>
-                                <th class="py-3.5 px-4">${lang === 'ar' ? 'التوقيت والمدة' : 'Time & Duration'}</th>
+                                <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ ووقت الحركة والمدة' : 'Date, Time & Duration'}</th>
                                 <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
                                 <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
                             </tr>
@@ -208,8 +220,166 @@ class ManagerController {
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Mobile Responsive Cards View (Optimized for Mobile Screens) -->
+                <div class="block md:hidden p-3 bg-[#f8fafc] space-y-3" id="manager-mobile-cards-list">
+                    ${this.renderMobileCards(lang)}
+                </div>
             </div>
         `;
+    }
+
+    renderMobileCards(lang) {
+        const vehicles = window.DB.getVehicles();
+        const permits = window.DB.getPermits();
+        const logs = window.DB.getLogs();
+        const users = window.DB.getUsers();
+        const settings = window.DB.getSettings();
+        const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
+
+        const q = (this.searchQuery || '').trim().toLowerCase();
+
+        let filteredVehicles = vehicles.filter(vehicle => {
+            const insideLog = window.DB.isVehicleInside(vehicle.id);
+            const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
+            const hasExitedLog = vehicleLogs.some(l => l.action_type === 'exit' || l.exit_timestamp);
+
+            if (this.activeFilter === 'inside' && !insideLog) return false;
+            if (this.activeFilter === 'exited' && !hasExitedLog) return false;
+            if (this.activeFilter === 'overstay') {
+                if (!insideLog) return false;
+                const hrs = (Date.now() - new Date(insideLog.timestamp).getTime()) / 3600000;
+                if (hrs < (settings.overstay_hours_threshold || 3)) return false;
+            }
+
+            if (!q) return true;
+
+            const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
+            const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
+            const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
+            const officerName = lastOfficer ? `${lastOfficer.name_ar} ${lastOfficer.name_en}`.toLowerCase() : '';
+            const gateName = lastLog ? (lastLog.gate_name || '').toLowerCase() : '';
+            const timestampText = lastLog ? new Date(lastLog.timestamp).toLocaleString().toLowerCase() : '';
+            const destination = permit ? `${permit.destination_ar} ${permit.destination_en}`.toLowerCase() : '';
+            const pinCode = permit && permit.pin_code ? permit.pin_code.toLowerCase() : '';
+            const permitCode = permit && permit.permit_code ? permit.permit_code.toLowerCase() : '';
+            const driverName = `${vehicle.driver_name_ar || ''} ${vehicle.driver_name_en || ''}`.toLowerCase();
+            const plateAr = (vehicle.plate_ar || '').toLowerCase();
+            const plateEn = (vehicle.plate_en || '').toLowerCase();
+            const phone = (vehicle.driver_phone || '').toLowerCase();
+            const company = `${vehicle.company_ar || ''} ${vehicle.company_en || ''}`.toLowerCase();
+
+            return plateAr.includes(q) ||
+                   plateEn.includes(q) ||
+                   driverName.includes(q) ||
+                   phone.includes(q) ||
+                   company.includes(q) ||
+                   destination.includes(q) ||
+                   gateName.includes(q) ||
+                   officerName.includes(q) ||
+                   timestampText.includes(q) ||
+                   pinCode.includes(q) ||
+                   permitCode.includes(q);
+        });
+
+        if (filteredVehicles.length === 0) {
+            return `
+                <div class="sap-card p-6 text-center text-[#556b82] bg-white border border-[#d7e2ee]">
+                    <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-2.5 shadow-sm">
+                        ${icon('search', 'w-6 h-6')}
+                    </div>
+                    <p class="font-bold text-sm text-[#1d2d3e]">
+                        ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching results for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد حركات مسجلة حالياً' : 'No activity records found')}
+                    </p>
+                    <p class="text-xs text-[#556b82] mt-1">${lang === 'ar' ? 'اضغط على زر "إصدار تصريح سريع" بالأسفل أو بالأعلى للبدء' : 'Click Quick Pass to issue entry pass'}</p>
+                </div>
+            `;
+        }
+
+        return filteredVehicles.map(vehicle => {
+            const insideLog = window.DB.isVehicleInside(vehicle.id);
+            const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
+            const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
+            const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
+            const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
+            const officerDisplayName = lastOfficer ? (lang === 'ar' ? lastOfficer.name_ar : lastOfficer.name_en) : (lastLog ? `ضابط #${lastLog.officer_id}` : '--');
+            const lastGateName = lastLog ? lastLog.gate_name : '--';
+            
+            let statusBadge = '';
+            let timeInfoHtml = '';
+
+            if (vehicle.status === 'blacklist') {
+                statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs badge-blacklisted flex items-center gap-1 font-bold">${icon('ban', 'w-3 h-3 text-red-300')} <span>${window.i18n.t('statusBanned')}</span></span>`;
+            } else if (insideLog) {
+                const entryTime = new Date(insideLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const diffMinutes = Math.round((Date.now() - new Date(insideLog.timestamp).getTime()) / 60000);
+                statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-inside flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-[#107e3e] animate-pulse"></span> <span>${window.i18n.t('statusInside')}</span></span>`;
+                timeInfoHtml = `<div class="text-xs text-[#107e3e] font-bold">📥 دخلت: ${entryTime} (${diffMinutes} دقيقة)</div>`;
+            } else {
+                statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-exited flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : 'Exited'}</span></span>`;
+                const exitLog = vehicleLogs.slice().reverse().find(l => l.action_type === 'exit' || l.exit_timestamp);
+                if (exitLog) {
+                    const exitTimeStr = new Date(exitLog.exit_timestamp || exitLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    timeInfoHtml = `<div class="text-xs text-[#0070f2] font-bold">📤 خرجت: ${exitTimeStr} (المدة: ${exitLog.duration_minutes || 0} د)</div>`;
+                }
+            }
+
+            const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
+            const companyName = (lang === 'ar' ? vehicle.company_ar : vehicle.company_en) || 'عام';
+            const destination = permit ? (lang === 'ar' ? permit.destination_ar : permit.destination_en) : 'المستودع الرئيسي';
+
+            return `
+                <div class="sap-card p-4 bg-white border border-[#b0cfee] shadow-sm animate-fadeIn text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex items-center justify-between mb-2.5 border-b border-[#f0f4f8] pb-2">
+                        <div>
+                            ${statusBadge}
+                        </div>
+                        <div class="flex items-center gap-1">
+                            ${permit ? `
+                                <button type="button" onclick="Manager.showPassModal(${permit.id})" class="px-3 py-1 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                    ${icon('qrcode', 'w-3.5 h-3.5')}
+                                    <span>كارت التصريح</span>
+                                </button>
+                            ` : `
+                                <button type="button" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="px-3 py-1 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                    ${icon('bolt', 'w-3.5 h-3.5')}
+                                    <span>تصريح</span>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center mb-3">
+                        ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'compact', vehicle.vehicle_type)}
+                    </div>
+
+                    <div class="bg-[#f8fafc] rounded-xl p-2.5 border border-[#e7eff7] text-xs space-y-1.5 mb-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[#556b82] font-bold">السائق:</span>
+                            <span class="font-bold text-[#1d2d3e]">${driverName} (${companyName})</span>
+                        </div>
+                        ${vehicle.driver_phone ? `
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">الهاتف:</span>
+                                <a href="https://wa.me/${vehicle.driver_phone.replace(/[^0-9]/g, '')}" target="_blank" class="font-mono font-bold text-[#107e3e] flex items-center gap-1">
+                                    ${icon('whatsapp', 'w-3 h-3 text-[#107e3e]')}
+                                    <span>${vehicle.driver_phone}</span>
+                                </a>
+                            </div>
+                        ` : ''}
+                        <div class="flex justify-between items-center">
+                            <span class="text-[#556b82] font-bold">الموقع والوجهة:</span>
+                            <span class="font-bold text-[#002b66]">📍 ${destination}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-[#556b82] font-bold">آخر حركة:</span>
+                            <span class="font-mono font-bold text-[#556b82]">🚪 ${lastGateName} (👮 ${officerDisplayName})</span>
+                        </div>
+                        ${timeInfoHtml ? `<div class="pt-1 border-t border-[#e7eff7]">${timeInfoHtml}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     renderTableRows(lang) {
@@ -224,7 +394,11 @@ class ManagerController {
 
         let filteredVehicles = vehicles.filter(vehicle => {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
+            const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
+            const hasExitedLog = vehicleLogs.some(l => l.action_type === 'exit' || l.exit_timestamp);
+
             if (this.activeFilter === 'inside' && !insideLog) return false;
+            if (this.activeFilter === 'exited' && !hasExitedLog) return false;
             if (this.activeFilter === 'overstay') {
                 if (!insideLog) return false;
                 const hrs = (Date.now() - new Date(insideLog.timestamp).getTime()) / 3600000;
@@ -234,7 +408,6 @@ class ManagerController {
             if (!q) return true;
 
             const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
-            const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
             const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
             const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
             const officerName = lastOfficer ? `${lastOfficer.name_ar} ${lastOfficer.name_en}`.toLowerCase() : '';
@@ -309,13 +482,48 @@ class ManagerController {
             } else if (permit && permit.status === 'active') {
                 statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-active flex items-center gap-1 w-fit">${icon('shield', 'w-3 h-3 text-[#0070f2]')} <span>${window.i18n.t('statusAuthorized')}</span></span>`;
             } else {
-                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-exited flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${window.i18n.t('statusExited')}</span></span>`;
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-exited flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : window.i18n.t('statusExited')}</span></span>`;
             }
 
             const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
             const companyName = (lang === 'ar' ? vehicle.company_ar : vehicle.company_en) || 'عام';
             const destination = permit ? (lang === 'ar' ? permit.destination_ar : permit.destination_en) : 'المستودع الرئيسي';
-            const lastActionTime = lastLog ? new Date(lastLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+
+            // Find last exit event
+            const exitLog = vehicleLogs.slice().reverse().find(l => l.action_type === 'exit' || l.exit_timestamp);
+            let timeCellHtml = '';
+
+            if (insideLog) {
+                const entryDateStr = new Date(insideLog.timestamp).toLocaleDateString();
+                timeCellHtml = `
+                    <div class="font-bold text-[#107e3e] flex items-center gap-1">
+                        <span>📥 دخول:</span>
+                        <span>${entryDateStr} • ${entryTimeText}</span>
+                    </div>
+                    <div class="text-[11px] text-[#556b82] mt-0.5 font-bold">
+                        <span>⏱️ بالداخل:</span>
+                        <span>${durationText}</span>
+                    </div>
+                `;
+            } else if (exitLog) {
+                const exitTimeDate = new Date(exitLog.exit_timestamp || exitLog.timestamp);
+                const exitDateStr = exitTimeDate.toLocaleDateString();
+                const exitTimeStr = exitTimeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const durMin = exitLog.duration_minutes !== null && exitLog.duration_minutes !== undefined ? exitLog.duration_minutes : 0;
+                
+                timeCellHtml = `
+                    <div class="font-bold text-[#0070f2] flex items-center gap-1">
+                        <span>📤 خروج:</span>
+                        <span>${exitDateStr} • ${exitTimeStr}</span>
+                    </div>
+                    <div class="text-[11px] text-[#556b82] mt-0.5">
+                        <span>⏱️ مدة التواجد:</span>
+                        <b class="text-[#107e3e]">${durMin} ${lang === 'ar' ? 'دقيقة' : 'min'}</b>
+                    </div>
+                `;
+            } else {
+                timeCellHtml = `<span class="text-[#556b82] font-mono">--</span>`;
+            }
 
             return `
                 <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors">
@@ -342,8 +550,7 @@ class ManagerController {
                         </div>
                     </td>
                     <td class="py-3.5 px-4 text-xs font-mono">
-                        <div class="font-bold text-[#0070f2]">${lastActionTime}</div>
-                        <div class="text-[11px] text-[#556b82]">${durationText}</div>
+                        ${timeCellHtml}
                     </td>
                     <td class="py-3.5 px-4">
                         <div class="font-bold text-[#1d2d3e] text-xs">${driverName}</div>

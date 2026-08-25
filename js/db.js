@@ -98,6 +98,51 @@ class DatabaseService {
         if (!localStorage.getItem('gate_settings')) {
             localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
         }
+
+        this.syncFromCloud();
+    }
+
+    async syncFromCloud() {
+        try {
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+            if (typeof fetch === 'undefined') return;
+            const res = await fetch('/api/sync');
+            if (res && res.ok) {
+                const data = await res.json();
+                if (data.vehicles && data.vehicles.length > 0) {
+                    const localVehicles = this.getVehicles();
+                    const mergedVehicles = [...localVehicles];
+                    data.vehicles.forEach(cv => {
+                        if (!mergedVehicles.some(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar)) {
+                            mergedVehicles.push(cv);
+                        }
+                    });
+                    localStorage.setItem('gate_vehicles', JSON.stringify(mergedVehicles));
+                }
+                if (data.permits && data.permits.length > 0) {
+                    const localPermits = this.getPermits();
+                    const mergedPermits = [...localPermits];
+                    data.permits.forEach(cp => {
+                        if (!mergedPermits.some(lp => lp.id === cp.id || lp.permit_code === cp.permit_code)) {
+                            mergedPermits.push(cp);
+                        }
+                    });
+                    localStorage.setItem('gate_permits', JSON.stringify(mergedPermits));
+                }
+                if (data.logs && data.logs.length > 0) {
+                    const localLogs = this.getLogs();
+                    const mergedLogs = [...localLogs];
+                    data.logs.forEach(cl => {
+                        if (!mergedLogs.some(ll => ll.id === cl.id)) {
+                            mergedLogs.push(cl);
+                        }
+                    });
+                    localStorage.setItem('gate_logs', JSON.stringify(mergedLogs));
+                }
+            }
+        } catch (err) {
+            // Offline or fallback mode
+        }
     }
 
     clearAllData() {
