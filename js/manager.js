@@ -1,5 +1,5 @@
-// Office Manager Dashboard Controller (DOTRA WhatsApp Pass Image Generator)
-// وحدة التحكم ببوابة مدير المكتب - مجموعة دوترا (توليد QR متكامل وفوري 100%)
+// Office Manager Dashboard Controller (Settings & Official A4 Print Layout Edition)
+// وحدة التحكم ببوابة مدير المكتب - مجموعة دوترا (صفحة الإعدادات وتنسيق طباعة A4 الرسمي)
 
 class ManagerController {
     constructor() {
@@ -14,6 +14,7 @@ class ManagerController {
         const vehicles = window.DB.getVehicles();
         const permits = window.DB.getPermits();
         const logs = window.DB.getLogs();
+        const settings = window.DB.getSettings();
 
         const insideLogs = logs.filter(l => l.action_type === 'entry' && !l.exit_timestamp);
         const insideCount = insideLogs.length;
@@ -24,7 +25,7 @@ class ManagerController {
 
         const overstayLogs = insideLogs.filter(l => {
             const durationHrs = (Date.now() - new Date(l.timestamp).getTime()) / 3600000;
-            return durationHrs >= 3;
+            return durationHrs >= (settings.overstay_hours_threshold || 3);
         });
 
         const activePermits = permits.filter(p => p.status === 'active').length;
@@ -38,15 +39,19 @@ class ManagerController {
                         <span>${lang === 'ar' ? 'لوحة تحكم مدير العمليات وتصاريح البوابات' : 'Operations & Gate Permits Dashboard'}</span>
                     </h1>
                     <p class="text-xs text-[#556b82] mt-1 font-medium">
-                        ${lang === 'ar' ? 'نظام تصاريح بوابات مصانع مجموعة دوترا - إرسال كروت التصاريح كصور عبر واتساب' : 'DOTRA Gate System - Send Pass Badges with QR & Plate to WhatsApp'}
+                        ${lang === 'ar' ? 'نظام تصاريح بوابات مصانع مجموعة دوترا - إرسال فوري لواتساب وطباعة معتمدة A4' : 'DOTRA Gate System - WhatsApp Dispatch & Official A4 Pass Printing'}
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2.5">
                     <button type="button" onclick="Manager.openQuickPermitModal()" class="sap-btn-primary px-5 py-2.5 flex items-center gap-2 text-sm shadow-md">
                         <span class="text-lg font-bold leading-none">⚡</span>
-                        <span>${lang === 'ar' ? 'إصدار تصريح سريع (لوحة + هاتف)' : 'Quick Pass (Plate + Phone)'}</span>
+                        <span>${lang === 'ar' ? 'إصدار تصريح سريع' : 'Quick Pass'}</span>
                     </button>
-                    <button type="button" onclick="Manager.exportCSV()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-2 text-sm shadow-sm">
+                    <button type="button" onclick="Manager.openSettingsModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="إعدادات النظام ورقم واتساب الافتراضي">
+                        <span>⚙️</span>
+                        <span>${lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
+                    </button>
+                    <button type="button" onclick="Manager.exportCSV()" class="sap-btn-secondary px-3 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="تصدير إكسل">
                         <span>📥</span>
                         <span class="hidden sm:inline">${window.i18n.t('exportCsv')}</span>
                     </button>
@@ -87,7 +92,7 @@ class ManagerController {
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricOverstay')}</p>
                         <h3 class="text-3xl font-black text-[#bb0000] mt-1 font-mono">${overstayLogs.length}</h3>
                         <p class="text-[11px] text-[#bb0000] mt-1 font-bold">
-                            ${overstayLogs.length > 0 ? (lang === 'ar' ? 'تجاوزوا مدة البقاء (>3 س)' : 'Overstayed (>3 hrs)') : (lang === 'ar' ? 'لا توجد تجاوزات' : 'Zero violations')}
+                            ${overstayLogs.length > 0 ? (lang === 'ar' ? `تجاوزوا مدة البقاء (>${settings.overstay_hours_threshold || 3} س)` : 'Overstayed') : (lang === 'ar' ? 'لا توجد تجاوزات' : 'Zero violations')}
                         </p>
                     </div>
                     <div class="w-12 h-12 rounded-xl bg-[#ffebeb] text-[#bb0000] flex items-center justify-center text-2xl font-bold">
@@ -163,6 +168,7 @@ class ManagerController {
     renderTableRows(lang) {
         const vehicles = window.DB.getVehicles();
         const permits = window.DB.getPermits();
+        const settings = window.DB.getSettings();
 
         let filteredVehicles = vehicles.filter(v => {
             const insideLog = window.DB.isVehicleInside(v.id);
@@ -170,7 +176,7 @@ class ManagerController {
             if (this.activeFilter === 'overstay') {
                 if (!insideLog) return false;
                 const hrs = (Date.now() - new Date(insideLog.timestamp).getTime()) / 3600000;
-                return hrs >= 3;
+                return hrs >= (settings.overstay_hours_threshold || 3);
             }
             return true;
         });
@@ -202,7 +208,7 @@ class ManagerController {
                 const diffMinutes = Math.round((Date.now() - entryTime.getTime()) / 60000);
                 const diffHours = (diffMinutes / 60).toFixed(1);
                 
-                if (diffMinutes >= 180) {
+                if (diffMinutes >= ((settings.overstay_hours_threshold || 3) * 60)) {
                     statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-overstay">⚠️ ${window.i18n.t('statusOverstay')}</span>`;
                     durationText = `<span class="text-[#bb0000] font-bold font-mono">${diffHours} ${lang === 'ar' ? 'ساعة' : 'hrs'}</span>`;
                 } else {
@@ -251,12 +257,12 @@ class ManagerController {
                     <td class="py-3 px-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
                             ${permit ? `
-                                <button type="button" title="${window.i18n.t('printPass')}" onclick="Manager.showPassModal(${permit.id})" class="p-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1">
+                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${permit.id})" class="p-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1">
                                     <span>🎫</span>
                                     <span>كارت التصريح</span>
                                 </button>
                             ` : `
-                                <button type="button" title="${window.i18n.t('issueNewPermit')}" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="p-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold">
+                                <button type="button" title="إصدار تصريح" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="p-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold">
                                     ⚡ تصريح
                                 </button>
                             `}
@@ -275,10 +281,97 @@ class ManagerController {
         this.renderDashboard();
     }
 
+    openSettingsModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const settings = window.DB.getSettings();
+
+        modalContainer.innerHTML = `
+            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
+                        ✕
+                    </button>
+
+                    <div class="flex items-center gap-3 mb-5 border-b border-[#d7e2ee] pb-3">
+                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center text-2xl font-bold border border-[#b3d5fa]">
+                            ⚙️
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-[#002b66]">${lang === 'ar' ? 'إعدادات النظام ورقم واتساب الافتراضي' : 'System & Dispatch WhatsApp Settings'}</h3>
+                            <p class="text-xs text-[#556b82] font-semibold">${lang === 'ar' ? 'تحديد الرقم الافتراضي لإرسال كافة طلبات وتصاريح الدخول تلقائياً' : 'Configure default number for all automated permit notifications'}</p>
+                        </div>
+                    </div>
+
+                    <form onsubmit="Manager.saveSettings(event)" class="space-y-4">
+                        <!-- Default WhatsApp Number -->
+                        <div class="bg-[#f8fafc] p-4 rounded-2xl border-2 border-[#b0cfee]">
+                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1">
+                                📱 ${lang === 'ar' ? 'رقم واتساب الإدارة / البوابة الافتراضي (لإرسال كافة التصاريح تلقائياً):' : 'Default Dispatcher WhatsApp Number:'}
+                            </label>
+                            <input type="tel" id="setting-default-whatsapp" required value="${settings.default_whatsapp || '01012345678'}" placeholder="01012345678 أو +201012345678" class="w-full bg-white border-2 border-[#d7e2ee] rounded-xl px-4 py-2.5 text-[#1d2d3e] font-mono font-bold text-base focus:border-[#0070f2] focus:outline-none" />
+                            <p class="text-[11px] text-[#0070f2] mt-1.5 font-semibold">
+                                ${lang === 'ar' ? '💡 سيتم إرسال نسخة من كل تصريح إلكتروني لهذا الرقم فور إصداره' : 'All created passes will be automatically routed to this number'}
+                            </p>
+                        </div>
+
+                        <!-- Company & Gate Customization -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-[#556b82] mb-1">اسم المنشأة / الشركة</label>
+                                <input type="text" id="setting-company" value="${settings.company_name_ar || 'مجموعة دوترا'}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#556b82] mb-1">اسم البوابة الرئيسية</label>
+                                <input type="text" id="setting-gate" value="${settings.gate_name_ar || 'بوابة مصانع دوترا الرئيسية'}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-[#556b82] mb-1">تنبيه تجاوز المدة (بالساعات)</label>
+                            <input type="number" id="setting-overstay" min="1" max="24" value="${settings.overstay_hours_threshold || 3}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]" />
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                                ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 sap-btn-primary text-xs flex items-center gap-1.5 shadow-md">
+                                <span>💾</span>
+                                <span>${lang === 'ar' ? 'حفظ الإعدادات' : 'Save Settings'}</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    saveSettings(e) {
+        e.preventDefault();
+        const whatsapp = document.getElementById('setting-default-whatsapp').value.trim();
+        const company = document.getElementById('setting-company').value.trim();
+        const gate = document.getElementById('setting-gate').value.trim();
+        const overstay = parseInt(document.getElementById('setting-overstay').value) || 3;
+
+        window.DB.updateSettings({
+            default_whatsapp: whatsapp,
+            company_name_ar: company,
+            gate_name_ar: gate,
+            overstay_hours_threshold: overstay
+        });
+
+        document.getElementById('modal-container').innerHTML = '';
+        alert(window.i18n.getLang() === 'ar' ? 'تم حفظ الإعدادات ورقم واتساب الافتراضي بنجاح' : 'Settings saved successfully');
+        this.renderDashboard();
+    }
+
     openQuickPermitModal(vehicleId = null) {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
         const lang = window.i18n.getLang();
+        const settings = window.DB.getSettings();
 
         const vehicle = vehicleId ? window.DB.getVehicles().find(v => v.id === vehicleId) : null;
 
@@ -333,6 +426,10 @@ class ManagerController {
                             <div class="relative">
                                 <span class="absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-3 text-[#0070f2] font-bold text-sm">📞</span>
                                 <input type="tel" id="quick-phone" required placeholder="01012345678 أو +201012345678" value="${vehicle ? vehicle.driver_phone : ''}" class="w-full bg-white border-2 border-[#d7e2ee] rounded-xl ${lang === 'ar' ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-3 text-[#1d2d3e] font-mono font-bold text-base focus:border-[#0070f2] focus:outline-none" />
+                            </div>
+                            <div class="mt-2 flex items-center justify-between text-[11px] text-[#556b82]">
+                                <span>الرقم الافتراضي للإدارة: <b class="font-mono text-[#0070f2]">${settings.default_whatsapp}</b></span>
+                                <button type="button" onclick="Manager.openSettingsModal()" class="text-[#0070f2] hover:underline font-bold">تغيير</button>
                             </div>
                         </div>
 
@@ -433,7 +530,7 @@ class ManagerController {
     }
 
     /**
-     * Render Digital Pass Modal with Guaranteed 100% Reliable QR Generator
+     * Render Digital Pass Modal + Standard A4 Print Template
      */
     showPassModal(permitId) {
         const permits = window.DB.getPermits();
@@ -445,6 +542,7 @@ class ManagerController {
         const lang = window.i18n.getLang();
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
+        const settings = window.DB.getSettings();
 
         const qrPayload = JSON.stringify({
             permit: permit.permit_code,
@@ -452,75 +550,120 @@ class ManagerController {
             phone: vehicle.driver_phone
         });
 
+        const validUntilText = new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const validDateText = new Date(permit.valid_until).toLocaleDateString([], { year: 'numeric', month: '2-digit', day: '2-digit' });
+
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-md rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                    <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
+            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto modal-backdrop">
+                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-fadeIn bg-white" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    
+                    <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="no-print absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
                     </button>
 
-                    <!-- Printable & Exportable Badge Container -->
-                    <div id="printable-pass-card" class="bg-white p-4 rounded-2xl border border-[#d7e2ee] shadow-sm text-center mb-4">
+                    <!-- Official Standard A4 Printable Document Container -->
+                    <div id="printable-pass-card" class="bg-white p-5 rounded-2xl border border-[#d7e2ee] shadow-sm text-center mb-4">
                         
-                        <!-- Header with Logo -->
-                        <div class="flex items-center justify-between border-b border-[#e7eff7] pb-2 mb-3">
-                            <div class="flex items-center gap-2">
-                                <img src="assets/logo.jpg" alt="DOTRA" class="h-9 w-auto object-contain" />
-                                <div class="text-right" dir="rtl">
-                                    <div class="font-black text-sm text-[#002b66]">مجموعة دوترا</div>
-                                    <div class="text-[9px] text-[#556b82] font-semibold">تصريح دخول البوابة الإلكتروني</div>
+                        <!-- Official DOTRA Header (Print Optimized) -->
+                        <div class="flex items-center justify-between border-b-2 border-[#002b66] pb-3 mb-4 text-right" dir="rtl">
+                            <div class="flex items-center gap-3">
+                                <img src="assets/logo.jpg" alt="DOTRA" class="h-12 w-auto object-contain" />
+                                <div>
+                                    <div class="font-black text-base text-[#002b66]">${settings.company_name_ar || 'مجموعة دوترا للصناعات'}</div>
+                                    <div class="text-[11px] text-[#556b82] font-bold">إدارة الأمن والسلامة المهنية • تصريح دخول البوابة الرسمي</div>
                                 </div>
                             </div>
-                            <span class="px-2.5 py-0.5 bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] rounded-full text-[10px] font-black">
-                                🟢 مصرح بالدخول
-                            </span>
+                            <div class="text-left" dir="ltr">
+                                <span class="inline-block px-3 py-1 bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] rounded-full text-xs font-black">
+                                    🟢 AUTHORIZED
+                                </span>
+                                <div class="text-[10px] text-[#556b82] font-mono mt-1">${permit.permit_code}</div>
+                            </div>
                         </div>
 
-                        <!-- Egyptian Plate View -->
-                        <div class="mb-3 flex justify-center">
+                        <!-- Egyptian License Plate Badge (Centered) -->
+                        <div class="mb-4 flex justify-center">
                             ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'normal', vehicle.vehicle_type)}
                         </div>
 
-                        <!-- QR Code Pass Container -->
+                        <!-- QR Code Container (Large & Centered) -->
                         <div class="bg-white p-3 rounded-2xl shadow-inner inline-flex items-center justify-center my-1 border-2 border-[#d7e2ee] min-w-[150px] min-h-[150px]" id="qrcode-canvas-box">
                         </div>
 
-                        <!-- Pass Summary Card -->
-                        <div class="bg-[#f8fafc] rounded-xl p-3 border border-[#d7e2ee] text-xs text-right mt-2 space-y-1" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                            <div class="flex justify-between border-b border-[#e7eff7] pb-1">
-                                <span class="text-[#556b82] font-bold">رقم التصريح:</span>
-                                <span class="font-mono font-black text-[#0070f2]">${permit.permit_code}</span>
+                        <!-- Tabular Permit Details (High Clarity Table for Print) -->
+                        <div class="bg-[#f8fafc] rounded-xl p-4 border border-[#d7e2ee] text-xs text-right mt-3 space-y-2" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                            <div class="grid grid-cols-2 gap-2 border-b border-[#e7eff7] pb-1.5">
+                                <div>
+                                    <span class="text-[#556b82] font-bold">رقم التصريح: </span>
+                                    <span class="font-mono font-black text-[#0070f2]">${permit.permit_code}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[#556b82] font-bold">تاريخ وساعة الصلاحية: </span>
+                                    <span class="font-bold text-[#b85500] font-mono">${validDateText} - ${validUntilText}</span>
+                                </div>
                             </div>
-                            <div class="flex justify-between border-b border-[#e7eff7] pb-1">
-                                <span class="text-[#556b82] font-bold">هاتف السائق:</span>
-                                <span class="font-mono font-black text-[#107e3e]">${vehicle.driver_phone || 'غير مسجل'}</span>
+
+                            <div class="grid grid-cols-2 gap-2 border-b border-[#e7eff7] pb-1.5">
+                                <div>
+                                    <span class="text-[#556b82] font-bold">اسم السائق: </span>
+                                    <span class="font-bold text-[#1d2d3e]">${vehicle.driver_name_ar || 'سائق مصرح'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[#556b82] font-bold">هاتف السائق: </span>
+                                    <span class="font-mono font-black text-[#107e3e]">${vehicle.driver_phone || 'غير مسجل'}</span>
+                                </div>
                             </div>
-                            <div class="flex justify-between border-b border-[#e7eff7] pb-1">
-                                <span class="text-[#556b82] font-bold">${window.i18n.t('driverName')}:</span>
-                                <span class="font-bold text-[#1d2d3e]">${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}</span>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span class="text-[#556b82] font-bold">الشركة / الجهة: </span>
+                                    <span class="font-semibold text-[#1d2d3e]">${vehicle.company_ar || 'توريدات عامة'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[#556b82] font-bold">الوجهة بالمصنع: </span>
+                                    <span class="font-semibold text-[#002b66]">${permit.destination_ar || 'المستودع الرئيسي'}</span>
+                                </div>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-[#556b82] font-bold">صالح حتى:</span>
-                                <span class="font-bold text-[#b85500] font-mono">${new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+
+                        <!-- Official Signature Boxes (Appears on Print) -->
+                        <div class="print-signature-box hidden text-xs text-right" dir="rtl">
+                            <div class="p-3 border border-[#cbd5e1] rounded-lg">
+                                <div class="font-bold text-[#002b66] mb-8">توقيع واعتماد ضابط أمن البوابة:</div>
+                                <div class="border-b border-dashed border-[#94a3b8]"></div>
+                                <div class="text-[10px] text-[#64748b] mt-1">الاسم / الختم الرسمي</div>
+                            </div>
+                            <div class="p-3 border border-[#cbd5e1] rounded-lg">
+                                <div class="font-bold text-[#002b66] mb-8">توقيع واستلام سائق المركبة:</div>
+                                <div class="border-b border-dashed border-[#94a3b8]"></div>
+                                <div class="text-[10px] text-[#64748b] mt-1">الالتزام بلائحة السلامة والسرعة المحددة</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- WhatsApp & Image Action Buttons -->
-                    <div class="flex flex-col gap-2">
-                        <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}')" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-md text-sm flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5">
+                    <!-- Screen Action Buttons (Hidden on Print) -->
+                    <div class="no-print flex flex-col gap-2.5">
+                        
+                        <!-- Send to Driver WhatsApp -->
+                        <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${validUntilText}')" class="w-full py-3 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-md text-sm flex items-center justify-center gap-2">
                             <span>📲</span>
-                            <span>${lang === 'ar' ? 'مشاركة كارت التصريح كصورة عبر واتساب' : 'Share Pass Image to WhatsApp'}</span>
+                            <span>${lang === 'ar' ? `إرسال كصورة لواتساب السائق (${vehicle.driver_phone || 'غير مسجل'})` : 'Send Image to Driver WhatsApp'}</span>
+                        </button>
+
+                        <!-- Send to Default Dispatcher Number -->
+                        <button type="button" onclick="Manager.shareWhatsAppImage('${permit.permit_code}', '${vehicle.plate_ar}', '${settings.default_whatsapp || ''}', '${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}', '${validUntilText}')" class="w-full py-2.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-bold rounded-xl shadow-sm text-xs flex items-center justify-center gap-2">
+                            <span>🏢</span>
+                            <span>${lang === 'ar' ? `إرسال للرقم الافتراضي للبوابة / الإدارة (${settings.default_whatsapp})` : 'Send to Default Dispatcher'}</span>
                         </button>
 
                         <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="window.print()" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5 font-bold">
+                                <span>🖨️</span>
+                                <span>${lang === 'ar' ? 'طباعة تصريح A4 معتمد' : 'Print A4 Pass'}</span>
+                            </button>
                             <button type="button" onclick="Manager.downloadPassImage('${permit.permit_code}', '${vehicle.plate_ar}', '${vehicle.driver_phone || ''}')" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5">
                                 <span>📥</span>
                                 <span>${lang === 'ar' ? 'تحميل كصورة (PNG)' : 'Download Image'}</span>
-                            </button>
-                            <button type="button" onclick="window.print()" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5">
-                                <span>🖨️</span>
-                                <span>${window.i18n.t('printPass')}</span>
                             </button>
                         </div>
                     </div>
@@ -534,9 +677,6 @@ class ManagerController {
         }
     }
 
-    /**
-     * Generate High-Quality Digital Pass Badge Canvas Image (with DOTRA Logo, Egyptian Plate, QR & Details)
-     */
     static async createPassCanvasBlob(permitCode, plate, phone, driverName, validUntil) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -546,11 +686,9 @@ class ManagerController {
         canvas.width = width;
         canvas.height = height;
 
-        // 1. Background
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, width, height);
 
-        // 2. Top Header Navy Banner (SAP Blue)
         const headerGradient = ctx.createLinearGradient(0, 0, width, 0);
         headerGradient.addColorStop(0, "#002b66");
         headerGradient.addColorStop(1, "#004b99");
@@ -566,7 +704,6 @@ class ManagerController {
         ctx.fillStyle = "#a5f3fc";
         ctx.fillText("DOTRA Group - Vehicle Gate Access Permit", width - 30, 80);
 
-        // Draw Logo on Left
         try {
             const logoImg = new Image();
             logoImg.src = 'assets/logo.jpg';
@@ -583,7 +720,6 @@ class ManagerController {
             }
         } catch (e) {}
 
-        // 3. Status Badge
         ctx.fillStyle = "#e5f6eb";
         ctx.strokeStyle = "#107e3e";
         ctx.lineWidth = 2;
@@ -597,7 +733,6 @@ class ManagerController {
         ctx.textAlign = "center";
         ctx.fillText("🟢 تصريح معتمد (AUTHORIZED)", 300, 166);
 
-        // 4. Egyptian License Plate Box
         const plateY = 205;
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = "#1e293b";
@@ -607,7 +742,6 @@ class ManagerController {
         ctx.fill();
         ctx.stroke();
 
-        // Egyptian Plate Top Red Band
         ctx.fillStyle = "#dc2626";
         ctx.fillRect(122, plateY + 2, 356, 30);
         ctx.fillStyle = "#ffffff";
@@ -619,7 +753,6 @@ class ManagerController {
         ctx.textAlign = "right";
         ctx.fillText("مصر", 460, plateY + 22);
 
-        // Plate Numbers and Letters
         const parsed = window.ArabicPlate.parsePlateParts(plate);
         const digits = window.ArabicPlate.toEasternArabicDigits(parsed.numbers);
 
@@ -637,7 +770,6 @@ class ManagerController {
 
         ctx.fillText(parsed.letters || 'ط ر ق', 390, plateY + 82);
 
-        // 5. Draw QR Code directly to Canvas Context
         const qrPayload = JSON.stringify({
             permit: permitCode,
             plate: plate,
@@ -646,14 +778,11 @@ class ManagerController {
 
         if (window.QREngine) {
             window.QREngine.drawToCanvas(ctx, qrPayload, 205, 345, 190, '#002b66', '#ffffff');
-            
-            // Draw subtle border around QR
             ctx.strokeStyle = "#d7e2ee";
             ctx.lineWidth = 2;
             ctx.strokeRect(205, 345, 190, 190);
         }
 
-        // 6. Summary Details Box
         const infoY = 575;
         ctx.fillStyle = "#f8fafc";
         ctx.strokeStyle = "#d7e2ee";
@@ -686,7 +815,6 @@ class ManagerController {
         ctx.fillStyle = "#b85500";
         ctx.fillText(validUntil, 380, infoY + 160);
 
-        // 7. Footer
         ctx.fillStyle = "#556b82";
         ctx.font = "bold 13px 'Cairo', sans-serif";
         ctx.textAlign = "center";
@@ -704,7 +832,7 @@ class ManagerController {
                 await navigator.share({
                     files: [file],
                     title: `تصريح دخول بوابة دوترا - ${permitCode}`,
-                    text: `🛡️ تصريح دخول بوابة مصانع دوترا\n🚘 رقم اللوحة: ${plate}\n📞 هاتف السائق: ${phone}\nصالح حتى: ${validUntil}`
+                    text: `🛡️ تصريح دخول بوابة مصانع دوترا\n🚘 رقم اللوحة: ${plate}\n📞 هاتف: ${phone}\nصالح حتى: ${validUntil}`
                 });
                 return;
             }

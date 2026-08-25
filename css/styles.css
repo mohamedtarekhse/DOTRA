@@ -1,4 +1,4 @@
-/* SAP Fiori Blue & White Theme (نظام الثيم المؤسسي أزرق وأبيض - نمط ساب) */
+/* SAP Fiori Blue & White Theme + Official A4 Gate Pass Print Styles */
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
@@ -226,4 +226,73 @@ body {
 
 .touch-btn:active {
     transform: scale(0.98);
+}
+
+/* ==========================================================================
+   OFFICIAL A4 GATE PASS PRINT LAYOUT (تنسيق الطباعة القياسي A4 للتصاريح)
+   ========================================================================== */
+@media print {
+    /* Hide all web UI elements */
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #app-header,
+    footer,
+    #main-content,
+    .no-print,
+    button,
+    .sap-header {
+        display: none !important;
+    }
+
+    #modal-container {
+        position: static !important;
+        display: block !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    .modal-backdrop,
+    .glass-panel,
+    .sap-panel {
+        position: static !important;
+        max-width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+    }
+
+    /* Print-Only Container Setup */
+    #printable-pass-card {
+        display: block !important;
+        width: 100% !important;
+        max-width: 760px !important;
+        margin: 0 auto !important;
+        padding: 25px 35px !important;
+        border: 2px solid #002b66 !important;
+        border-radius: 12px !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+    }
+
+    /* Force background colors on print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .print-signature-box {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 20px !important;
+        margin-top: 25px !important;
+        padding-top: 15px !important;
+        border-top: 2px dashed #94a3b8 !important;
+    }
 }

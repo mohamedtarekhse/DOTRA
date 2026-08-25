@@ -1,5 +1,5 @@
-// Database Layer - Egyptian Standard Vehicles & Cloudflare D1 Sync
-// طبقة إدارة البيانات - قاعدة بيانات كلاود فلير D1 مع دعم لوحات المرور المصرية
+// Database Layer - Egyptian Standard Vehicles, Settings & Cloudflare D1 Sync
+// طبقة إدارة البيانات - قاعدة بيانات كلاود فلير D1 مع إدارة إعدادات النظام والرقم الافتراضي لواتساب
 
 const SEED_USERS = [
     {
@@ -22,7 +22,7 @@ const SEED_USERS = [
         name_ar: 'أمين الشرطة / طارق مصطفى',
         name_en: 'Officer Tariq Mostafa',
         role: 'officer',
-        gate_assigned: 'بوابة 1 الرئيسية (Gate 1 Main)'
+        gate_assigned: 'بوابة 1 الرئيسية - دوترا'
     },
     {
         id: 3,
@@ -33,9 +33,19 @@ const SEED_USERS = [
         name_ar: 'أمين الشرطة / خالد الشناوي',
         name_en: 'Officer Khalid El-Shenawy',
         role: 'officer',
-        gate_assigned: 'بوابة 2 الشحن والجمارك (Gate 2 Cargo)'
+        gate_assigned: 'بوابة 2 الشحن والجمارك - دوترا'
     }
 ];
+
+const SEED_SETTINGS = {
+    default_whatsapp: '01012345678', // Default factory dispatcher WhatsApp number
+    company_name_ar: 'مجموعة دوترا',
+    company_name_en: 'DOTRA Group',
+    gate_name_ar: 'بوابة مصانع دوترا الرئيسية',
+    gate_name_en: 'DOTRA Main Factory Gate',
+    auto_send_default: true,
+    overstay_hours_threshold: 3
+};
 
 const SEED_VEHICLES = [
     {
@@ -138,7 +148,7 @@ const SEED_PERMITS = [
         purpose_en: 'Industrial diesel refill',
         cargo_details: '30,000 لتر سولار صناعي',
         valid_from: new Date(Date.now() - 5 * 3600000).toISOString(),
-        valid_until: new Date(Date.now() - 1 * 3600000).toISOString(), // Overstayed
+        valid_until: new Date(Date.now() - 1 * 3600000).toISOString(),
         status: 'active'
     }
 ];
@@ -149,7 +159,7 @@ const SEED_LOGS = [
         vehicle_id: 1,
         permit_id: 1,
         officer_id: 2,
-        gate_name: 'بوابة 1 الرئيسية (Gate 1)',
+        gate_name: 'بوابة 1 الرئيسية - دوترا',
         action_type: 'entry',
         timestamp: new Date(Date.now() - 1.5 * 3600000).toISOString(),
         exit_timestamp: null,
@@ -161,7 +171,7 @@ const SEED_LOGS = [
         vehicle_id: 3,
         permit_id: 3,
         officer_id: 3,
-        gate_name: 'بوابة 2 الشحن (Gate 2)',
+        gate_name: 'بوابة 2 الشحن - دوترا',
         action_type: 'entry',
         timestamp: new Date(Date.now() - 4.5 * 3600000).toISOString(),
         exit_timestamp: null,
@@ -176,14 +186,32 @@ class DatabaseService {
     }
 
     initStorage() {
-        // Force refresh seed data to Egyptian standard if previously stored
-        const storedVehicles = localStorage.getItem('gate_vehicles');
-        if (!storedVehicles || storedVehicles.includes('أ ب ج 9 8 2 1')) {
+        if (!localStorage.getItem('gate_users')) {
             localStorage.setItem('gate_users', JSON.stringify(SEED_USERS));
+        }
+        if (!localStorage.getItem('gate_vehicles')) {
             localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
+        }
+        if (!localStorage.getItem('gate_permits')) {
             localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
+        }
+        if (!localStorage.getItem('gate_logs')) {
             localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
         }
+        if (!localStorage.getItem('gate_settings')) {
+            localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
+        }
+    }
+
+    getSettings() {
+        return JSON.parse(localStorage.getItem('gate_settings') || JSON.stringify(SEED_SETTINGS));
+    }
+
+    updateSettings(newSettings) {
+        const current = this.getSettings();
+        const updated = { ...current, ...newSettings };
+        localStorage.setItem('gate_settings', JSON.stringify(updated));
+        return updated;
     }
 
     getUsers() {

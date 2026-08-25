@@ -1,5 +1,5 @@
-// Main Application Bootstrapper & Routing (DOTRA Edition - SAP Blue & White Theme)
-// المحرك الرئيسي للتطبيق - مجموعة دوترا (نمط ساب أزرق وأبيض)
+// Main Application Bootstrapper & Routing (DOTRA Edition - Production Clean Login)
+// المحرك الرئيسي للتطبيق - مجموعة دوترا (شاشة تسجيل دخول نظيفة واحترافية)
 
 class AppController {
     constructor() {
@@ -97,8 +97,8 @@ class AppController {
         const lang = window.i18n.getLang();
 
         container.innerHTML = `
-            <div class="max-w-md mx-auto my-6 px-4 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                <div class="sap-panel p-7 rounded-3xl border border-[#d7e2ee] shadow-xl relative overflow-hidden bg-white">
+            <div class="max-w-md mx-auto my-8 px-4 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                <div class="sap-panel p-8 rounded-3xl border border-[#d7e2ee] shadow-xl relative overflow-hidden bg-white">
                     
                     <!-- DOTRA Logo Banner in Login Card -->
                     <div class="text-center mb-6">
@@ -126,11 +126,11 @@ class AppController {
                         <form onsubmit="App.handleManagerLogin(event)" class="space-y-4">
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('emailLabel')}</label>
-                                <input type="email" id="login-email" required value="manager@factory.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
+                                <input type="email" id="login-email" required placeholder="manager@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('passwordLabel')}</label>
-                                <input type="password" id="login-password" required value="Manager@2026" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
+                                <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
                             </div>
                             <button type="submit" class="w-full py-3.5 sap-btn-primary text-sm shadow-md flex items-center justify-center gap-2 mt-2">
                                 <span>🏢</span>
@@ -142,14 +142,11 @@ class AppController {
                         <form onsubmit="App.handleOfficerLogin(event)" class="space-y-4">
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('badgeLabel')}</label>
-                                <select id="login-badge" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm font-mono focus:border-[#0070f2] focus:bg-white focus:outline-none font-bold">
-                                    <option value="GT-01">GT-01 (أمين الشرطة طارق - بوابة 1 دوترا)</option>
-                                    <option value="GT-02">GT-02 (أمين الشرطة خالد - بوابة 2 دوترا)</option>
-                                </select>
+                                <input type="text" id="login-badge" required placeholder="GT-01" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm font-mono uppercase font-bold focus:border-[#0070f2] focus:bg-white focus:outline-none" />
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('pinLabel')}</label>
-                                <input type="password" id="login-pin" required maxlength="4" placeholder="••••" value="1234" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-center text-xl tracking-widest font-mono font-bold focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                                <input type="password" id="login-pin" required maxlength="4" placeholder="••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-center text-xl tracking-widest font-mono font-bold focus:border-[#0070f2] focus:bg-white focus:outline-none" />
                             </div>
                             <button type="submit" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-bold rounded-xl text-sm shadow-md flex items-center justify-center gap-2 mt-2">
                                 <span>👮</span>
@@ -157,24 +154,6 @@ class AppController {
                             </button>
                         </form>
                     `}
-
-                    <!-- Demo Credentials Helper Box -->
-                    <div class="mt-6 pt-4 border-t border-[#d7e2ee] text-[11px] text-[#556b82]">
-                        <div class="font-bold text-[#1d2d3e] mb-2 flex items-center gap-1">
-                            <span>💡</span>
-                            <span>${lang === 'ar' ? 'حسابات التجربة السريعة (اضغط للدخول فوراً):' : 'Pre-configured Test Accounts:'}</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button type="button" onclick="App.quickLogin('manager')" class="p-2.5 bg-[#f5f8fc] hover:bg-[#ebf3fb] border border-[#d7e2ee] hover:border-[#0070f2] rounded-xl text-left text-[#1d2d3e] transition-all" dir="ltr">
-                                <div class="font-bold text-[#0070f2]">🏢 Manager</div>
-                                <div class="text-[10px] text-[#556b82]">manager@factory.com</div>
-                            </button>
-                            <button type="button" onclick="App.quickLogin('officer')" class="p-2.5 bg-[#f5f8fc] hover:bg-[#e5f6eb] border border-[#d7e2ee] hover:border-[#107e3e] rounded-xl text-left text-[#1d2d3e] transition-all" dir="ltr">
-                                <div class="font-bold text-[#107e3e]">👮 Gate Officer</div>
-                                <div class="text-[10px] text-[#556b82]">Badge: GT-01 (PIN: 1234)</div>
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         `;
@@ -211,17 +190,6 @@ class AppController {
         } else {
             alert(res.message);
         }
-    }
-
-    quickLogin(role) {
-        if (role === 'manager') {
-            window.Auth.loginManager('manager@factory.com', 'Manager@2026');
-            this.currentView = 'manager';
-        } else {
-            window.Auth.loginOfficer('GT-01', '1234');
-            this.currentView = 'officer';
-        }
-        this.renderApp();
     }
 
     refreshUI() {
