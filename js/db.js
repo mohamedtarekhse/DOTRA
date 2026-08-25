@@ -224,39 +224,55 @@ class DatabaseService {
             if (res && res.ok) {
                 const data = await res.json();
                 let changed = false;
-                if (data.vehicles && data.vehicles.length > 0) {
+
+                if (data.vehicles && Array.isArray(data.vehicles) && data.vehicles.length > 0) {
                     const localVehicles = this.getVehicles();
                     const mergedVehicles = [...localVehicles];
                     data.vehicles.forEach(cv => {
-                        if (!mergedVehicles.some(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar)) {
+                        const existingIdx = mergedVehicles.findIndex(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar);
+                        if (existingIdx === -1) {
                             mergedVehicles.push(cv);
+                            changed = true;
+                        } else if (mergedVehicles[existingIdx].status !== cv.status) {
+                            mergedVehicles[existingIdx] = { ...mergedVehicles[existingIdx], ...cv };
                             changed = true;
                         }
                     });
                     if (changed) localStorage.setItem('gate_vehicles', JSON.stringify(mergedVehicles));
                 }
-                if (data.permits && data.permits.length > 0) {
+
+                if (data.permits && Array.isArray(data.permits) && data.permits.length > 0) {
                     const localPermits = this.getPermits();
                     const mergedPermits = [...localPermits];
                     data.permits.forEach(cp => {
-                        if (!mergedPermits.some(lp => lp.id === cp.id || lp.permit_code === cp.permit_code)) {
+                        const existingIdx = mergedPermits.findIndex(lp => lp.id === cp.id || lp.permit_code === cp.permit_code);
+                        if (existingIdx === -1) {
                             mergedPermits.push(cp);
+                            changed = true;
+                        } else if (mergedPermits[existingIdx].status !== cp.status) {
+                            mergedPermits[existingIdx] = { ...mergedPermits[existingIdx], ...cp };
                             changed = true;
                         }
                     });
                     if (changed) localStorage.setItem('gate_permits', JSON.stringify(mergedPermits));
                 }
-                if (data.logs && data.logs.length > 0) {
+
+                if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
                     const localLogs = this.getLogs();
                     const mergedLogs = [...localLogs];
                     data.logs.forEach(cl => {
-                        if (!mergedLogs.some(ll => ll.id === cl.id)) {
+                        const existingIdx = mergedLogs.findIndex(ll => ll.id === cl.id);
+                        if (existingIdx === -1) {
                             mergedLogs.push(cl);
+                            changed = true;
+                        } else if (mergedLogs[existingIdx].exit_timestamp !== cl.exit_timestamp) {
+                            mergedLogs[existingIdx] = { ...mergedLogs[existingIdx], ...cl };
                             changed = true;
                         }
                     });
                     if (changed) localStorage.setItem('gate_logs', JSON.stringify(mergedLogs));
                 }
+
                 return changed;
             }
         } catch (err) {
@@ -549,6 +565,7 @@ class DatabaseService {
             gate_name: gateName,
             remarks: remarks
         });
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
 
         return newLog;
     }
@@ -581,6 +598,7 @@ class DatabaseService {
             });
 
             this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
+            this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
             return entryLog;
         } else {
             const newExitLog = {
@@ -606,6 +624,7 @@ class DatabaseService {
             });
 
             this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
+            this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
             return newExitLog;
         }
     }
@@ -652,6 +671,7 @@ class DatabaseService {
         vehicles.push(newVehicle);
         localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
         this.pushToCloud('/api/vehicles', newVehicle);
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return newVehicle;
     }
 
@@ -680,6 +700,7 @@ class DatabaseService {
         });
 
         this.pushToCloud('/api/permits', newPermit);
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return newPermit;
     }
 
@@ -695,6 +716,7 @@ class DatabaseService {
                 status: status
             });
             this.pushToCloud('/api/vehicles', vehicle);
+            this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         }
         return vehicle;
     }
