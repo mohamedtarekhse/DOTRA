@@ -21,16 +21,32 @@ class AppController {
         window.addEventListener('online', () => this.updateNetworkBadge());
         window.addEventListener('offline', () => this.updateNetworkBadge());
 
-        // Real-time synchronization across officer terminals / tabs
+        // 1. Instant Real-time synchronization across local tabs/windows (<1ms)
         window.addEventListener('storage', (e) => {
             if (e.key && e.key.startsWith('gate_')) {
-                if (this.currentView === 'manager') {
+                if (this.currentView === 'manager' && window.Manager) {
                     window.Manager.renderDashboard();
-                } else if (this.currentView === 'officer') {
+                } else if (this.currentView === 'officer' && window.Officer) {
                     window.Officer.renderTerminal();
                 }
             }
         });
+
+        // 2. Continuous Cloud Synchronization across PC, Mobile, and Gate Terminals
+        if (typeof setInterval !== 'undefined') {
+            setInterval(async () => {
+                if (typeof navigator !== 'undefined' && navigator.onLine && window.DB && typeof window.DB.syncFromCloud === 'function') {
+                    const hasUpdates = await window.DB.syncFromCloud();
+                    if (hasUpdates) {
+                        if (this.currentView === 'manager' && window.Manager) {
+                            window.Manager.renderDashboard();
+                        } else if (this.currentView === 'officer' && window.Officer) {
+                            window.Officer.renderTerminal();
+                        }
+                    }
+                }
+            }, 3000);
+        }
 
         this.renderApp();
     }

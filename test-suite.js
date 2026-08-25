@@ -159,21 +159,21 @@ const renderedTruckPlate = window.ArabicPlate.renderEgyptianPlate('ط ر ق ٩ �
 assert(renderedTruckPlate.includes('EGYPT') && renderedTruckPlate.includes('مصر'), 'Egyptian plate contains EGYPT & مصر');
 assert(renderedTruckPlate.includes('bg-red-600') && renderedTruckPlate.includes('نقل'), 'Truck plate has Red header and "نقل" text');
 
-// 6. Test Database Layer (Persistent Standard Seeds)
-console.log("\n[5] Testing Database Layer (Persistent Standard Seeds):");
+// 6. Test Database Layer (Clean Production Slate - No Hardcoded Dummy Data)
+console.log("\n[5] Testing Database Layer (Clean Production Slate - No Hardcoded Entries):");
 const dbCode = fs.readFileSync('js/db.js', 'utf8');
 eval(dbCode);
 
 const initialVehicles = window.DB.getVehicles();
-assert(initialVehicles.length >= 4, `Persistent vehicles loaded: ${initialVehicles.length}`);
+assert(initialVehicles.length === 0, `Initial vehicles count is 0 (Clean Production Slate)`);
 
 const initialPermits = window.DB.getPermits();
-assert(initialPermits.length >= 2, `Persistent permits loaded on startup/cache clear: ${initialPermits.length}`);
+assert(initialPermits.length === 0, `Initial permits count is 0 (Clean Production Slate)`);
 
 const initialLogs = window.DB.getLogs();
-assert(initialLogs.length >= 2, `Persistent logs loaded on startup/cache clear: ${initialLogs.length}`);
+assert(initialLogs.length === 0, `Initial logs count is 0 (Clean Production Slate)`);
 
-assert(typeof window.DB.loadDemoData === 'function', 'DatabaseService.loadDemoData is available');
+assert(typeof window.DB.loadDemoData === 'function', 'DatabaseService.loadDemoData is available on demand');
 
 // 7. Test Settings & Dispatch WhatsApp
 console.log("\n[6] Testing Settings & Dispatch WhatsApp:");
@@ -312,9 +312,9 @@ assert(window.DB.isVehicleInside(freshTruck.id) === null, 'Third visit: Vehicle 
 
 // 5. Test Manager Universal Search & Location Tracking by Multi-Criteria
 console.log("\n[8] Testing Manager Universal Multi-Criteria Search & Location Tracker:");
-window.Manager.handleUniversalSearch('ط ر ق');
+window.Manager.handleUniversalSearch('ن م ر');
 let tableHtml = window.Manager.renderTableRows('ar');
-assert(tableHtml.includes('ط ر ق'), 'Universal search by License Plate letters succeeded');
+assert(tableHtml.includes('ن م ر'), 'Universal search by License Plate letters succeeded');
 
 window.Manager.handleUniversalSearch('بوابة 4');
 tableHtml = window.Manager.renderTableRows('ar');
@@ -333,10 +333,10 @@ const exitedRowsHtml = window.Manager.renderTableRows('ar');
 assert(exitedRowsHtml.includes('خروج:') && exitedRowsHtml.includes('مدة التواجد:'), 'Exited filter successfully displayed departed vehicles with exit date, time and duration');
 window.Manager.setFilter('all');
 
-// 7. Test Mobile Responsive Cards Renderer
+// 7. Test Mobile Responsive Cards Renderer (Manager Mobile View)
 console.log("\n[9] Testing Mobile Responsive Card View (Manager Mobile Optimization):");
 const mobileCardsHtml = window.Manager.renderMobileCards('ar');
-assert(mobileCardsHtml.includes('السائق:') && mobileCardsHtml.includes('ط ر ق'), 'Mobile responsive cards generated properly for smartphone screens');
+assert(mobileCardsHtml.includes('السائق:') && mobileCardsHtml.includes('ن م ر'), 'Mobile responsive cards generated properly for smartphone screens');
 assert(typeof window.DB.syncFromCloud === 'function', 'DatabaseService.syncFromCloud is defined');
 
 // 9. Test Backend Worker API Integrity
@@ -390,6 +390,23 @@ const reqExit = new Request('https://dotra.pages.dev/api/exit', {
 const resExit = await worker.fetch(reqExit, { DB: mockD1 });
 const resExitJson = await resExit.json();
 assert(resExit.status === 200 && resExitJson.success === true, 'Worker POST /api/exit recorded exit successfully');
+
+// Test Worker Cloud Sync Endpoints
+const reqGetSync = new Request('https://dotra.pages.dev/api/sync', { method: 'GET' });
+const resGetSync = await worker.fetch(reqGetSync, { DB: mockD1 });
+const resGetSyncJson = await resGetSync.json();
+assert(resGetSync.status === 200 && Array.isArray(resGetSyncJson.vehicles), 'Worker GET /api/sync returned valid cloud dataset');
+
+const reqPostSync = new Request('https://dotra.pages.dev/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ vehicles: [], permits: [], logs: [] })
+});
+const resPostSync = await worker.fetch(reqPostSync, { DB: mockD1 });
+const resPostSyncJson = await resPostSync.json();
+assert(resPostSync.status === 200 && resPostSyncJson.success === true, 'Worker POST /api/sync accepted cloud dataset synchronization');
+
+assert(typeof window.DB.pushToCloud === 'function', 'DatabaseService.pushToCloud is defined and ready');
 
 // Summary
 console.log("\n=================================================");

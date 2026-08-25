@@ -284,14 +284,22 @@ class ManagerController {
 
         if (filteredVehicles.length === 0) {
             return `
-                <div class="sap-card p-6 text-center text-[#556b82] bg-white border border-[#d7e2ee]">
-                    <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-2.5 shadow-sm">
-                        ${icon('search', 'w-6 h-6')}
+                <div class="sap-card p-6 text-center text-[#556b82] bg-white border border-[#d7e2ee] shadow-sm">
+                    <div class="w-14 h-14 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 border border-[#b3d5fa] shadow-sm">
+                        ${icon('truck', 'w-7 h-7')}
                     </div>
-                    <p class="font-bold text-sm text-[#1d2d3e]">
-                        ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching results for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد حركات مسجلة حالياً' : 'No activity records found')}
+                    <p class="font-black text-sm text-[#1d2d3e]">
+                        ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching results for "${this.searchQuery}"`) : (lang === 'ar' ? 'قاعدة البيانات جاهزة - لا توجد حركات مسجلة' : 'Database Ready - No entries recorded')}
                     </p>
-                    <p class="text-xs text-[#556b82] mt-1">${lang === 'ar' ? 'اضغط على زر "إصدار تصريح سريع" بالأسفل أو بالأعلى للبدء' : 'Click Quick Pass to issue entry pass'}</p>
+                    <p class="text-xs text-[#556b82] mt-1 font-medium">
+                        ${this.searchQuery ? (lang === 'ar' ? 'تأكد من كتابة رقم اللوحة أو اسم الضابط بشكل صحيح' : 'Check search criteria') : (lang === 'ar' ? 'اضغط أدناه لإصدار تصريح دخول فوري' : 'Tap below to issue instant pass')}
+                    </p>
+                    ${!this.searchQuery ? `
+                        <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 w-full py-2.5 sap-btn-primary text-xs font-bold shadow-md flex items-center justify-center gap-2">
+                            ${icon('bolt', 'w-4 h-4 text-amber-300')}
+                            <span>${lang === 'ar' ? 'إصدار أول تصريح الآن' : 'Issue First Pass Now'}</span>
+                        </button>
+                    ` : ''}
                 </div>
             `;
         }
@@ -439,13 +447,21 @@ class ManagerController {
             return `
                 <tr>
                     <td colspan="7" class="text-center py-12 text-[#556b82]">
-                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-2.5">
-                            ${icon('search', 'w-6 h-6')}
+                        <div class="w-14 h-14 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 border border-[#b3d5fa] shadow-sm">
+                            ${icon('truck', 'w-7 h-7')}
                         </div>
-                        <p class="font-bold text-sm text-[#1d2d3e]">
-                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching results for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد حركات مسجلة حالياً' : 'No activity records found')}
+                        <p class="font-black text-base text-[#1d2d3e]">
+                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching results for "${this.searchQuery}"`) : (lang === 'ar' ? 'قاعدة البيانات جاهزة - لا توجد حركات مسجلة حالياً' : 'Database Ready - No entries recorded')}
                         </p>
-                        <p class="text-xs text-[#556b82] mt-1">${lang === 'ar' ? 'تأكد من كتابة رقم اللوحة، اسم الضابط، البوابة أو الوقت بشكل صحيح' : 'Try searching by plate, officer, gate, or time'}</p>
+                        <p class="text-xs text-[#556b82] mt-1 font-medium">
+                            ${this.searchQuery ? (lang === 'ar' ? 'تأكد من كتابة رقم اللوحة، اسم الضابط، البوابة أو الوقت بشكل صحيح' : 'Check your search query') : (lang === 'ar' ? 'ابدأ بإصدار تصريح دخول أو خروج جديد لأي شاحنة أو زائر' : 'Start by issuing a new pass for any vehicle')}
+                        </p>
+                        ${!this.searchQuery ? `
+                            <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 inline-flex items-center gap-2 px-5 py-2.5 sap-btn-primary text-xs font-bold shadow-md">
+                                ${icon('bolt', 'w-4 h-4 text-amber-300')}
+                                <span>${lang === 'ar' ? 'إصدار أول تصريح الآن' : 'Issue First Pass Now'}</span>
+                            </button>
+                        ` : ''}
                     </td>
                 </tr>
             `;

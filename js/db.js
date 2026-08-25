@@ -193,14 +193,14 @@ class DatabaseService {
         if (!localStorage.getItem('gate_destinations')) {
             localStorage.setItem('gate_destinations', JSON.stringify(SEED_DESTINATIONS));
         }
-        if (!localStorage.getItem('gate_vehicles') || JSON.parse(localStorage.getItem('gate_vehicles') || '[]').length === 0) {
-            localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
+        if (!localStorage.getItem('gate_vehicles')) {
+            localStorage.setItem('gate_vehicles', JSON.stringify([]));
         }
-        if (!localStorage.getItem('gate_permits') || JSON.parse(localStorage.getItem('gate_permits') || '[]').length === 0) {
-            localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
+        if (!localStorage.getItem('gate_permits')) {
+            localStorage.setItem('gate_permits', JSON.stringify([]));
         }
-        if (!localStorage.getItem('gate_logs') || JSON.parse(localStorage.getItem('gate_logs') || '[]').length === 0) {
-            localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
+        if (!localStorage.getItem('gate_logs')) {
+            localStorage.setItem('gate_logs', JSON.stringify([]));
         }
         if (!localStorage.getItem('gate_settings')) {
             localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
@@ -218,20 +218,22 @@ class DatabaseService {
 
     async syncFromCloud() {
         try {
-            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-            if (typeof fetch === 'undefined') return;
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+            if (typeof fetch === 'undefined') return false;
             const res = await fetch('/api/sync');
             if (res && res.ok) {
                 const data = await res.json();
+                let changed = false;
                 if (data.vehicles && data.vehicles.length > 0) {
                     const localVehicles = this.getVehicles();
                     const mergedVehicles = [...localVehicles];
                     data.vehicles.forEach(cv => {
                         if (!mergedVehicles.some(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar)) {
                             mergedVehicles.push(cv);
+                            changed = true;
                         }
                     });
-                    localStorage.setItem('gate_vehicles', JSON.stringify(mergedVehicles));
+                    if (changed) localStorage.setItem('gate_vehicles', JSON.stringify(mergedVehicles));
                 }
                 if (data.permits && data.permits.length > 0) {
                     const localPermits = this.getPermits();
@@ -239,9 +241,10 @@ class DatabaseService {
                     data.permits.forEach(cp => {
                         if (!mergedPermits.some(lp => lp.id === cp.id || lp.permit_code === cp.permit_code)) {
                             mergedPermits.push(cp);
+                            changed = true;
                         }
                     });
-                    localStorage.setItem('gate_permits', JSON.stringify(mergedPermits));
+                    if (changed) localStorage.setItem('gate_permits', JSON.stringify(mergedPermits));
                 }
                 if (data.logs && data.logs.length > 0) {
                     const localLogs = this.getLogs();
@@ -249,14 +252,17 @@ class DatabaseService {
                     data.logs.forEach(cl => {
                         if (!mergedLogs.some(ll => ll.id === cl.id)) {
                             mergedLogs.push(cl);
+                            changed = true;
                         }
                     });
-                    localStorage.setItem('gate_logs', JSON.stringify(mergedLogs));
+                    if (changed) localStorage.setItem('gate_logs', JSON.stringify(mergedLogs));
                 }
+                return changed;
             }
         } catch (err) {
             // Offline or fallback mode
         }
+        return false;
     }
 
     clearAllData() {
@@ -511,6 +517,14 @@ class DatabaseService {
             this.saveVehiclePhoto(vehicleId, photoUrl);
         }
 
+        this.pushToCloud('/api/entry', {
+            vehicle_id: vehicleId,
+            permit_id: permitId || null,
+            officer_id: officerId,
+            gate_name: gateName,
+            remarks: remarks
+        });
+
         return newLog;
     }
 
@@ -533,6 +547,7 @@ class DatabaseService {
             }
             
             localStorage.setItem('gate_logs', JSON.stringify(logs));
+            this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
             return entryLog;
         } else {
             const newExitLog = {
@@ -550,6 +565,7 @@ class DatabaseService {
             };
             logs.push(newExitLog);
             localStorage.setItem('gate_logs', JSON.stringify(logs));
+            this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
             return newExitLog;
         }
     }
@@ -573,6 +589,20 @@ class DatabaseService {
         return newLog;
     }
 
+    async pushToCloud(endpoint, data) {
+        try {
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+            if (typeof fetch === 'undefined') return;
+            await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        } catch (e) {
+            // Background sync resilience
+        }
+    }
+
     addVehicle(vehicleData) {
         const vehicles = this.getVehicles();
         const newVehicle = {
@@ -581,6 +611,7 @@ class DatabaseService {
         };
         vehicles.push(newVehicle);
         localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
+        this.pushToCloud('/api/vehicles', newVehicle);
         return newVehicle;
     }
 
@@ -599,6 +630,7 @@ class DatabaseService {
         };
         permits.push(newPermit);
         localStorage.setItem('gate_permits', JSON.stringify(permits));
+        this.pushToCloud('/api/permits', newPermit);
         return newPermit;
     }
 
@@ -609,6 +641,7 @@ class DatabaseService {
             vehicle.status = status;
             vehicle.blacklist_reason = blacklistReason;
             localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
+            this.pushToCloud('/api/vehicles', vehicle);
         }
         return vehicle;
     }
