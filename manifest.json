@@ -1,0 +1,19 @@
+{
+  "name": "مجموعة دوترا | نظام تصاريح البوابات",
+  "short_name": "بوابات دوترا",
+  "description": "نظام تصاريح بوابات المركبات ومراقبة الدخول والخروج لمصانع دوترا (يعمل بدون إنترنت)",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#002b66",
+  "theme_color": "#002b66",
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "assets/logo.jpg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

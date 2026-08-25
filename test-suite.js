@@ -25,6 +25,8 @@ function assert(condition, message) {
 console.log("\n[1] Verifying Core Files & Brand Assets:");
 const requiredFiles = [
     'index.html',
+    'manifest.json',
+    'sw.js',
     'assets/logo.jpg',
     'css/styles.css',
     'js/icons.js',
@@ -47,6 +49,10 @@ requiredFiles.forEach(file => {
     const exists = fs.existsSync(path.join('.', file));
     assert(exists, `File exists: ${file}`);
 });
+
+// Verify manifest.json schema
+const manifestContent = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+assert(manifestContent.display === 'standalone' && manifestContent.name.includes('دوترا'), 'PWA manifest.json is valid and standalone enabled');
 
 // 2. Mock Browser Environment
 global.localStorage = {
@@ -281,15 +287,40 @@ const exitPassDataUri = window.Manager.createPassCanvasDataUrl(
 );
 assert(exitPassDataUri && exitPassDataUri.startsWith('data:image/png'), 'Exit Pass PNG DataURL with PIN generated safely');
 
-// Officer Scans QR and Records Entry
-const officerEntry = window.DB.recordEntry(freshTruck.id, latestExitPermit.id, 2, 'بوابة 1 دوترا', 'دخول معتمد');
-assert(officerEntry.action_type === 'entry', 'Officer recorded vehicle entry');
-assert(window.DB.isVehicleInside(freshTruck.id) !== null, 'Vehicle currently active inside factory');
+// 1. Initial State: Vehicle outside -> Officer 1 at Gate 1 records Entry
+assert(window.DB.isVehicleInside(freshTruck.id) === null, 'Initially vehicle is outside factory');
+const samplePhoto = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBD';
+const officer1Entry = window.DB.recordEntry(freshTruck.id, latestExitPermit.id, 2, 'بوابة 1 الرئيسية - دوترا', 'دخول معتمد شحنة أولى', samplePhoto);
+assert(officer1Entry.action_type === 'entry' && officer1Entry.gate_name === 'بوابة 1 الرئيسية - دوترا', 'Officer 1 at Gate 1 recorded vehicle entry');
 
-// Officer Records Exit for Material Pass
-const officerExit = window.DB.recordExit(freshTruck.id, 2, 'بوابة 1 دوترا', 'خروج بضائع مصرحة');
-assert(officerExit.exit_timestamp !== null, 'Officer recorded vehicle exit with goods released');
-assert(window.DB.isVehicleInside(freshTruck.id) === null, 'Vehicle marked as exited');
+// 2. Shared Database Check: Officer 2 at Gate 4 sees vehicle is inside
+const insideStateForOfficer2 = window.DB.isVehicleInside(freshTruck.id);
+assert(insideStateForOfficer2 !== null && insideStateForOfficer2.gate_name === 'بوابة 1 الرئيسية - دوترا', 'Officer 2 at Gate 4 sees vehicle currently inside from Gate 1');
+
+// 3. Second visit to any gate: Officer 2 at Gate 4 records Exit
+const officer2Exit = window.DB.recordExit(freshTruck.id, 3, 'بوابة 4 خروج الإنتاج والشاحنات', 'خروج نظامي بضائع تامة');
+assert(officer2Exit.exit_timestamp !== null && officer2Exit.remarks.includes('بوابة 4'), 'Officer 2 at Gate 4 recorded vehicle exit in unified database');
+assert(window.DB.isVehicleInside(freshTruck.id) === null, 'Vehicle successfully marked as outside');
+
+// 4. Third visit: Vehicle returns -> Automatically defaults back to Entry
+assert(window.DB.isVehicleInside(freshTruck.id) === null, 'Third visit: Vehicle is outside, ready for next entry cycle');
+
+// 5. Test Manager Universal Search & Location Tracking by Multi-Criteria
+console.log("\n[8] Testing Manager Universal Multi-Criteria Search & Location Tracker:");
+window.Manager.handleUniversalSearch('ط ر ق');
+let tableHtml = window.Manager.renderTableRows('ar');
+assert(tableHtml.includes('ط ر ق'), 'Universal search by License Plate letters succeeded');
+
+window.Manager.handleUniversalSearch('بوابة 4');
+tableHtml = window.Manager.renderTableRows('ar');
+assert(tableHtml.includes('بوابة 4'), 'Universal search by Gate name succeeded');
+
+window.Manager.handleUniversalSearch('خالد');
+tableHtml = window.Manager.renderTableRows('ar');
+assert(tableHtml.includes('خالد'), 'Universal search by Officer name succeeded');
+
+window.Manager.clearUniversalSearch();
+assert(window.Manager.searchQuery === '', 'Universal search cleared successfully');
 
 // 9. Test Backend Worker API Integrity
 console.log("\n[8] Testing Cloudflare Worker Backend Routes (_worker.js):");

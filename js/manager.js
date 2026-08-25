@@ -4,6 +4,31 @@
 class ManagerController {
     constructor() {
         this.activeFilter = 'all';
+        this.searchQuery = '';
+    }
+
+    handleUniversalSearch(query) {
+        this.searchQuery = query || '';
+        if (typeof document !== 'undefined' && document.querySelector) {
+            const tableBody = document.querySelector('tbody');
+            if (tableBody) {
+                tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
+            }
+        }
+    }
+
+    clearUniversalSearch() {
+        this.searchQuery = '';
+        if (typeof document !== 'undefined' && document.getElementById) {
+            const input = document.getElementById('manager-universal-search');
+            if (input) input.value = '';
+        }
+        if (typeof document !== 'undefined' && document.querySelector) {
+            const tableBody = document.querySelector('tbody');
+            if (tableBody) {
+                tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
+            }
+        }
     }
 
     renderDashboard() {
@@ -117,21 +142,41 @@ class ManagerController {
                 </div>
             </div>
 
-            <!-- SAP Live Vehicle Activity Table -->
+            <!-- SAP Live Vehicle Activity & Location Tracking Table -->
             <div class="sap-panel overflow-hidden shadow-md">
-                <div class="p-4 bg-[#f8fafc] border-b border-[#d7e2ee] flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                    <div class="flex items-center gap-2">
+                <div class="p-4 bg-[#f8fafc] border-b border-[#d7e2ee] flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+                    <div class="flex items-center gap-2 flex-shrink-0">
                         <h2 class="text-base font-bold text-[#002b66] flex items-center gap-2">
                             ${icon('activity', 'w-5 h-5 text-[#0070f2]')}
-                            <span>${lang === 'ar' ? 'سجل حركة المركبات المباشر' : 'Live Vehicle Stream'}</span>
+                            <span>${lang === 'ar' ? 'سجل وتتبع حركة ومواقع المركبات' : 'Vehicle Stream & Location Tracker'}</span>
                         </h2>
                         <span class="px-2.5 py-0.5 bg-[#e5f6eb] text-[#107e3e] text-[11px] rounded-full font-mono font-bold border border-[#b4e3c4]">
                             LIVE
                         </span>
                     </div>
 
+                    <!-- Universal Multi-Criteria Search Input (Plate, Officer, Gate, Time, Destination) -->
+                    <div class="relative flex-1 max-w-lg">
+                        <span class="absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-2.5 text-[#556b82]">
+                            ${icon('search', 'w-4 h-4 text-[#0070f2]')}
+                        </span>
+                        <input 
+                            type="text" 
+                            id="manager-universal-search"
+                            value="${this.searchQuery || ''}"
+                            placeholder="${lang === 'ar' ? '🔍 ابحث باللوحة، اسم الضابط، البوابة، التوقيت، أو الوجهة لمعرفة آخر موقع...' : 'Search plate, officer, gate, time, or location...'}" 
+                            class="w-full bg-white border border-[#b0cfee] rounded-xl ${lang === 'ar' ? 'pr-9 pl-8' : 'pl-9 pr-8'} py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none shadow-sm transition-all"
+                            oninput="Manager.handleUniversalSearch(this.value)"
+                        />
+                        ${this.searchQuery ? `
+                            <button type="button" onclick="Manager.clearUniversalSearch()" class="absolute ${lang === 'ar' ? 'left-2.5' : 'right-2.5'} top-2 text-[#556b82] hover:text-red-600 text-xs font-bold">
+                                ✕
+                            </button>
+                        ` : ''}
+                    </div>
+
                     <!-- Filter Tabs -->
-                    <div class="flex items-center gap-1 bg-[#ffffff] p-1 rounded-xl border border-[#d7e2ee] text-xs">
+                    <div class="flex items-center gap-1 bg-[#ffffff] p-1 rounded-xl border border-[#d7e2ee] text-xs flex-shrink-0">
                         <button type="button" onclick="Manager.setFilter('all')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'all' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
                             ${window.i18n.t('filterAll')}
                         </button>
@@ -150,12 +195,11 @@ class ManagerController {
                         <thead class="bg-[#f5f8fc] text-[#556b82] text-xs uppercase tracking-wider font-bold border-b border-[#d7e2ee]">
                             <tr>
                                 <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
-                                <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('driverPhone')}</th>
-                                <th class="py-3.5 px-4">${window.i18n.t('company')}</th>
-                                <th class="py-3.5 px-4">${window.i18n.t('destination')}</th>
-                                <th class="py-3.5 px-4">${window.i18n.t('timeEntered')}</th>
-                                <th class="py-3.5 px-4">${window.i18n.t('durationInside')}</th>
-                                <th class="py-3.5 px-4">${window.i18n.t('status')}</th>
+                                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع وحالة المركبة' : 'Last Location & Status'}</th>
+                                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة' : 'Last Gate'}</th>
+                                <th class="py-3.5 px-4">${lang === 'ar' ? 'فرد الأمن المسجل' : 'Officer'}</th>
+                                <th class="py-3.5 px-4">${lang === 'ar' ? 'التوقيت والمدة' : 'Time & Duration'}</th>
+                                <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
                                 <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
                             </tr>
                         </thead>
@@ -171,29 +215,64 @@ class ManagerController {
     renderTableRows(lang) {
         const vehicles = window.DB.getVehicles();
         const permits = window.DB.getPermits();
+        const logs = window.DB.getLogs();
+        const users = window.DB.getUsers();
         const settings = window.DB.getSettings();
         const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
 
-        let filteredVehicles = vehicles.filter(v => {
-            const insideLog = window.DB.isVehicleInside(v.id);
-            if (this.activeFilter === 'inside') return insideLog !== null;
+        const q = (this.searchQuery || '').trim().toLowerCase();
+
+        let filteredVehicles = vehicles.filter(vehicle => {
+            const insideLog = window.DB.isVehicleInside(vehicle.id);
+            if (this.activeFilter === 'inside' && !insideLog) return false;
             if (this.activeFilter === 'overstay') {
                 if (!insideLog) return false;
                 const hrs = (Date.now() - new Date(insideLog.timestamp).getTime()) / 3600000;
-                return hrs >= (settings.overstay_hours_threshold || 3);
+                if (hrs < (settings.overstay_hours_threshold || 3)) return false;
             }
-            return true;
+
+            if (!q) return true;
+
+            const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
+            const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
+            const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
+            const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
+            const officerName = lastOfficer ? `${lastOfficer.name_ar} ${lastOfficer.name_en}`.toLowerCase() : '';
+            const gateName = lastLog ? (lastLog.gate_name || '').toLowerCase() : '';
+            const timestampText = lastLog ? new Date(lastLog.timestamp).toLocaleString().toLowerCase() : '';
+            const destination = permit ? `${permit.destination_ar} ${permit.destination_en}`.toLowerCase() : '';
+            const pinCode = permit && permit.pin_code ? permit.pin_code.toLowerCase() : '';
+            const permitCode = permit && permit.permit_code ? permit.permit_code.toLowerCase() : '';
+            const driverName = `${vehicle.driver_name_ar || ''} ${vehicle.driver_name_en || ''}`.toLowerCase();
+            const plateAr = (vehicle.plate_ar || '').toLowerCase();
+            const plateEn = (vehicle.plate_en || '').toLowerCase();
+            const phone = (vehicle.driver_phone || '').toLowerCase();
+            const company = `${vehicle.company_ar || ''} ${vehicle.company_en || ''}`.toLowerCase();
+
+            return plateAr.includes(q) ||
+                   plateEn.includes(q) ||
+                   driverName.includes(q) ||
+                   phone.includes(q) ||
+                   company.includes(q) ||
+                   destination.includes(q) ||
+                   gateName.includes(q) ||
+                   officerName.includes(q) ||
+                   timestampText.includes(q) ||
+                   pinCode.includes(q) ||
+                   permitCode.includes(q);
         });
 
         if (filteredVehicles.length === 0) {
             return `
                 <tr>
-                    <td colspan="8" class="text-center py-12 text-[#556b82]">
+                    <td colspan="7" class="text-center py-12 text-[#556b82]">
                         <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-2.5">
                             ${icon('search', 'w-6 h-6')}
                         </div>
-                        <p class="font-bold text-sm text-[#1d2d3e]">${lang === 'ar' ? 'لا توجد مركبات أو تصاريح حالياً (لوحة التحكم نظيفة)' : 'No vehicles or permits found'}</p>
-                        <p class="text-xs text-[#556b82] mt-1">${lang === 'ar' ? 'اضغط على زر "إصدار تصريح سريع" للبدء' : 'Click "Quick Pass" to create your first gate entry pass'}</p>
+                        <p class="font-bold text-sm text-[#1d2d3e]">
+                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching results for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد حركات مسجلة حالياً' : 'No activity records found')}
+                        </p>
+                        <p class="text-xs text-[#556b82] mt-1">${lang === 'ar' ? 'تأكد من كتابة رقم اللوحة، اسم الضابط، البوابة أو الوقت بشكل صحيح' : 'Try searching by plate, officer, gate, or time'}</p>
                     </td>
                 </tr>
             `;
@@ -202,6 +281,11 @@ class ManagerController {
         return filteredVehicles.map(vehicle => {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
             const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
+            const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
+            const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
+            const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
+            const officerDisplayName = lastOfficer ? (lang === 'ar' ? lastOfficer.name_ar : lastOfficer.name_en) : (lastLog ? `ضابط #${lastLog.officer_id}` : '--');
+            const lastGateName = lastLog ? lastLog.gate_name : '--';
             
             let statusBadge = '';
             let durationText = '--';
@@ -230,7 +314,8 @@ class ManagerController {
 
             const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
             const companyName = (lang === 'ar' ? vehicle.company_ar : vehicle.company_en) || 'عام';
-            const destination = permit ? (lang === 'ar' ? permit.destination_ar : permit.destination_en) : 'المصنع الرئيسي';
+            const destination = permit ? (lang === 'ar' ? permit.destination_ar : permit.destination_en) : 'المستودع الرئيسي';
+            const lastActionTime = lastLog ? new Date(lastLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
 
             return `
                 <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors">
@@ -238,38 +323,41 @@ class ManagerController {
                         ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'compact', vehicle.vehicle_type)}
                     </td>
                     <td class="py-3.5 px-4">
-                        <div class="font-bold text-[#1d2d3e]">${driverName}</div>
-                        <div class="text-xs text-[#0070f2] font-mono font-bold flex items-center gap-1.5 mt-0.5">
-                            ${icon('phone', 'w-3 h-3 text-[#0070f2]')}
-                            <span>${vehicle.driver_phone || 'لا يوجد هاتف'}</span>
+                        <div class="flex flex-col gap-1">
+                            ${statusBadge}
+                            <span class="text-xs font-bold text-[#002b66]">
+                                📍 ${destination}
+                            </span>
                         </div>
-                    </td>
-                    <td class="py-3.5 px-4 text-[#556b82] font-semibold">
-                        ${companyName}
                     </td>
                     <td class="py-3.5 px-4">
                         <span class="px-2.5 py-1 bg-[#f0f4f8] rounded-lg text-xs font-mono font-bold text-[#002b66] border border-[#d7e2ee]">
-                            ${destination}
+                            🚪 ${lastGateName}
                         </span>
                     </td>
-                    <td class="py-3.5 px-4 text-[#556b82] font-mono text-xs">
-                        ${entryTimeText}
+                    <td class="py-3.5 px-4 text-xs font-bold text-[#1d2d3e]">
+                        <div class="flex items-center gap-1.5">
+                            <span>👮</span>
+                            <span>${officerDisplayName}</span>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-xs font-mono">
+                        <div class="font-bold text-[#0070f2]">${lastActionTime}</div>
+                        <div class="text-[11px] text-[#556b82]">${durationText}</div>
                     </td>
                     <td class="py-3.5 px-4">
-                        ${durationText}
-                    </td>
-                    <td class="py-3.5 px-4">
-                        ${statusBadge}
+                        <div class="font-bold text-[#1d2d3e] text-xs">${driverName}</div>
+                        <div class="text-[11px] text-[#556b82] font-semibold">${companyName}</div>
                     </td>
                     <td class="py-3.5 px-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
                             ${permit ? `
-                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${permit.id})" class="px-2.5 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${permit.id})" class="px-2 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1 shadow-sm">
                                     ${icon('qrcode', 'w-3.5 h-3.5')}
-                                    <span>كارت التصريح</span>
+                                    <span>كارت</span>
                                 </button>
                             ` : `
-                                <button type="button" title="إصدار تصريح" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                <button type="button" title="إصدار تصريح" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="px-2 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold flex items-center gap-1 shadow-sm">
                                     ${icon('bolt', 'w-3.5 h-3.5')}
                                     <span>تصريح</span>
                                 </button>

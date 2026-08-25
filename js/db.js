@@ -292,7 +292,45 @@ class DatabaseService {
         return null;
     }
 
-    recordEntry(vehicleId, permitId, officerId, gateName, remarks = '') {
+    compressImage(file, maxWidth = 800, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            if (!file) return resolve(null);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = event => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const elem = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                    elem.width = width;
+                    elem.height = height;
+                    const ctx = elem.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(elem.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = error => reject(error);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    saveVehiclePhoto(vehicleId, photoUrl) {
+        const vehicles = this.getVehicles();
+        const vehicle = vehicles.find(v => v.id === vehicleId);
+        if (vehicle && photoUrl) {
+            vehicle.photo_url = photoUrl;
+            localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
+        }
+        return vehicle;
+    }
+
+    recordEntry(vehicleId, permitId, officerId, gateName, remarks = '', photoUrl = null) {
         const logs = this.getLogs();
         const newLog = {
             id: Date.now(),
@@ -304,14 +342,20 @@ class DatabaseService {
             timestamp: new Date().toISOString(),
             exit_timestamp: null,
             duration_minutes: null,
-            remarks: remarks
+            remarks: remarks,
+            photo_url: photoUrl || null
         };
         logs.push(newLog);
         localStorage.setItem('gate_logs', JSON.stringify(logs));
+
+        if (photoUrl) {
+            this.saveVehiclePhoto(vehicleId, photoUrl);
+        }
+
         return newLog;
     }
 
-    recordExit(vehicleId, officerId, gateName, remarks = '') {
+    recordExit(vehicleId, officerId, gateName, remarks = '', photoUrl = null) {
         const logs = this.getLogs();
         const activeEntryIndex = logs.slice().reverse().findIndex(l => l.vehicle_id === vehicleId && l.action_type === 'entry' && !l.exit_timestamp);
         
@@ -325,6 +369,9 @@ class DatabaseService {
             entryLog.exit_timestamp = exitTime.toISOString();
             entryLog.duration_minutes = durationMin;
             entryLog.remarks = (entryLog.remarks ? entryLog.remarks + ' | ' : '') + `خروج عبر ${gateName}`;
+            if (photoUrl) {
+                entryLog.exit_photo_url = photoUrl;
+            }
             
             localStorage.setItem('gate_logs', JSON.stringify(logs));
             return entryLog;
@@ -339,7 +386,8 @@ class DatabaseService {
                 timestamp: new Date().toISOString(),
                 exit_timestamp: new Date().toISOString(),
                 duration_minutes: 0,
-                remarks: remarks || 'تسجيل خروج مباشر'
+                remarks: remarks || 'تسجيل خروج مباشر',
+                photo_url: photoUrl || null
             };
             logs.push(newExitLog);
             localStorage.setItem('gate_logs', JSON.stringify(logs));

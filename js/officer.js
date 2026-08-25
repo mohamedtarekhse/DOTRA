@@ -67,12 +67,21 @@ class OfficerController {
                         ${window.ArabicPlate.renderArabicKeypad('officer-plate-input')}
                     </div>
 
-                    <!-- Scan QR Camera Button -->
-                    <div class="mt-3">
-                        <button type="button" id="scan-qr-btn" onclick="Officer.toggleCameraScanner()" class="w-full py-3 sap-btn-primary text-sm flex items-center justify-center gap-2 shadow-sm font-bold">
+                    <!-- Scan QR Camera & Snap Photo Buttons -->
+                    <div class="grid grid-cols-2 gap-2 mt-3">
+                        <button type="button" id="scan-qr-btn" onclick="Officer.toggleCameraScanner()" class="py-3 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold">
                             ${icon('camera', 'w-4 h-4')}
                             <span id="scan-qr-text">${window.i18n.t('openScanner')}</span>
                         </button>
+                        <label class="py-3 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] rounded-xl text-xs flex items-center justify-center gap-1.5 font-bold cursor-pointer transition-all shadow-sm">
+                            <span>📸</span>
+                            <span>${lang === 'ar' ? 'تصوير الشاحنة / اللوحة' : 'Snap Vehicle Photo'}</span>
+                            <input type="file" id="officer-camera-file" accept="image/*" capture="environment" onchange="Officer.handlePhotoCapture(event)" class="hidden" />
+                        </label>
+                    </div>
+
+                    <!-- Captured Photo Preview Container -->
+                    <div id="captured-photo-preview" class="hidden mt-3 p-2.5 bg-[#f0fdf4] rounded-xl border border-[#b4e3c4] flex items-center justify-between">
                     </div>
 
                     <!-- Camera Viewport Container -->
@@ -103,6 +112,42 @@ class OfficerController {
         `;
     }
 
+    async handlePhotoCapture(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        try {
+            const photoDataUrl = await window.DB.compressImage(file, 800, 0.75);
+            this.currentCapturedPhoto = photoDataUrl;
+            
+            const previewBox = document.getElementById('captured-photo-preview');
+            if (previewBox) {
+                previewBox.classList.remove('hidden');
+                previewBox.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <img src="${photoDataUrl}" class="w-12 h-12 object-cover rounded-lg border-2 border-[#107e3e] shadow-sm" />
+                        <div class="text-right">
+                            <div class="text-xs font-bold text-[#002b66]">تم توثيق الصورة بنجاح 📸</div>
+                            <div class="text-[10px] text-[#556b82]">سيتم إرفاقها مع سجل الدخول والخروج</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="Officer.removeCapturedPhoto()" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1">
+                        حذف ✕
+                    </button>
+                `;
+            }
+        } catch (err) {
+            console.error('Photo capture error:', err);
+        }
+    }
+
+    removeCapturedPhoto() {
+        this.currentCapturedPhoto = null;
+        const previewBox = document.getElementById('captured-photo-preview');
+        if (previewBox) previewBox.classList.add('hidden');
+        const input = document.getElementById('officer-camera-file');
+        if (input) input.value = '';
+    }
+
     renderDefaultPrompt(lang) {
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
         return `
@@ -114,7 +159,7 @@ class OfficerController {
                     ${lang === 'ar' ? 'في انتظار فحص لوحة مركبة أو كود PIN' : 'Waiting to Verify Vehicle or PIN'}
                 </h3>
                 <p class="text-xs text-[#556b82] max-w-xs mx-auto">
-                    ${lang === 'ar' ? 'اكتب رقم اللوحة أو كود التصريح السريع (5 أرقام) أو امسح الـ QR' : 'Type license plate, 5-digit PIN or scan QR code'}
+                    ${lang === 'ar' ? 'اكتب رقم اللوحة أو كود التصريح السريع (5 أرقام) أو امسح الـ QR أو التقط صورة بالكاميرا' : 'Type license plate, 5-digit PIN, scan QR code or snap photo'}
                 </p>
             </div>
         `;
@@ -216,19 +261,36 @@ class OfficerController {
             `;
         } else if (insideLog) {
             const entryTime = new Date(insideLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const durationMinutes = Math.max(1, Math.round((new Date() - new Date(insideLog.timestamp)) / 60000));
+            const entryGate = insideLog.gate_name || 'البوابة الرئيسية';
+
             decisionBadge = `
-                <div class="p-3 bg-[#e5f6eb] text-[#107e3e] rounded-xl border border-[#b4e3c4] mb-3 text-center">
-                    <div class="text-sm font-black flex items-center justify-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-[#107e3e] animate-pulse"></span>
-                        <span>🟢 ${window.i18n.t('statusInside')} (دخلت: ${entryTime})</span>
+                <div class="p-3.5 bg-[#ebf3fb] text-[#002b66] rounded-2xl border-2 border-[#b3d5fa] mb-3 text-center">
+                    <div class="text-sm font-black flex items-center justify-center gap-1.5 text-[#107e3e]">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e] animate-pulse"></span>
+                        <span>🟢 المركبة داخل المصنع حالياً (إجراء تلقائي: خروج)</span>
                     </div>
+                    <div class="text-xs text-[#556b82] font-semibold mt-1">
+                        دخلت عبر: <b class="text-[#002b66]">${entryGate}</b> الساعة <b class="font-mono text-[#0070f2]">${entryTime}</b> (المدة بالداخل: ${durationMinutes} دقيقة)
+                    </div>
+                    ${permit && permit.pin_code ? `
+                        <div class="mt-1.5 inline-block bg-white px-3 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-xs text-[#002b66]">
+                            🔑 كود التصريح: ${permit.pin_code}
+                        </div>
+                    ` : ''}
                 </div>
             `;
             actionButtons = `
-                <button type="button" onclick="Officer.recordAction('exit')" class="w-full py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
-                    ${icon('logout', 'w-4 h-4')}
-                    <span>${window.i18n.t('recordExitBtn')}</span>
-                </button>
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" onclick="Officer.recordAction('exit')" class="col-span-2 py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
+                        ${icon('logout', 'w-5 h-5')}
+                        <span>${lang === 'ar' ? '📤 تأكيد تسجيل الخروج' : 'Record Exit'}</span>
+                    </button>
+                    <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3]">
+                        ${icon('ban', 'w-4 h-4')}
+                        <span>منع / تفتيش</span>
+                    </button>
+                </div>
             `;
         } else if (permit && permit.status === 'active') {
             const isExit = permit.permit_type === 'exit';
@@ -271,14 +333,14 @@ class OfficerController {
                     </div>
                 `;
                 actionButtons = `
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="Officer.recordAction('entry')" class="py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
-                            ${icon('check', 'w-4 h-4')}
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" onclick="Officer.recordAction('entry')" class="col-span-2 py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
+                            ${icon('check', 'w-5 h-5')}
                             <span>${window.i18n.t('authorizeEntryBtn')}</span>
                         </button>
-                        <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3]">
-                            ${icon('ban', 'w-3.5 h-3.5')}
-                            <span>${window.i18n.t('denyEntryBtn')}</span>
+                        <button type="button" onclick="Officer.recordAction('exit', 'خروج مباشر')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] font-bold rounded-xl text-xs flex items-center justify-center gap-1">
+                            ${icon('logout', 'w-3.5 h-3.5')}
+                            <span>تسجيل خروج</span>
                         </button>
                     </div>
                 `;
@@ -287,17 +349,25 @@ class OfficerController {
             decisionBadge = `
                 <div class="p-3 bg-[#fff1e5] text-[#b85500] rounded-xl border border-[#ffd8b3] mb-3 text-center">
                     <div class="text-sm font-black">
-                        ⚪ ${lang === 'ar' ? 'مركبة مسجلة بدون تصريح نشط' : 'Registered without active permit'}
+                        ⚪ ${lang === 'ar' ? 'مركبة مسجلة خارج المصنع (اختر الإجراء)' : 'Vehicle outside factory'}
                     </div>
                 </div>
             `;
             actionButtons = `
-                <button type="button" onclick="Officer.openWalkinWithPlate('${vehicle.plate_ar}')" class="w-full py-3.5 sap-btn-primary text-sm flex items-center justify-center gap-2 shadow-md">
-                    ${icon('bolt', 'w-4 h-4')}
-                    <span>${lang === 'ar' ? 'إصدار تصريح دخول فوري' : 'Issue Walk-in Permit'}</span>
-                </button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="Officer.openWalkinWithPlate('${vehicle.plate_ar}')" class="py-3.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-md font-bold">
+                        ${icon('bolt', 'w-4 h-4')}
+                        <span>${lang === 'ar' ? '📥 تسجيل دخول فوري' : 'Instant Entry'}</span>
+                    </button>
+                    <button type="button" onclick="Officer.recordAction('exit', 'خروج مباشر بدون تصريح')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] text-xs flex items-center justify-center gap-1.5 font-bold rounded-xl shadow-sm">
+                        ${icon('logout', 'w-4 h-4')}
+                        <span>${lang === 'ar' ? '📤 تسجيل خروج مباشر' : 'Direct Exit'}</span>
+                    </button>
+                </div>
             `;
         }
+
+        const vehiclePhoto = this.currentCapturedPhoto || vehicle.photo_url;
 
         resultContainer.innerHTML = `
             <div class="sap-panel p-5 border-2 border-[#b0cfee] shadow-lg animate-scaleUp bg-white">
@@ -308,8 +378,18 @@ class OfficerController {
                     ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'normal', vehicle.vehicle_type)}
                 </div>
 
+                ${vehiclePhoto ? `
+                    <div class="mb-3 p-2 bg-[#f0fdf4] rounded-xl border border-[#b4e3c4] flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <img src="${vehiclePhoto}" class="w-10 h-10 object-cover rounded-lg border border-[#107e3e]" />
+                            <span class="text-xs text-[#107e3e] font-bold">📸 صورة المركبة موثقة</span>
+                        </div>
+                        <a href="${vehiclePhoto}" target="_blank" class="text-xs text-[#0070f2] hover:underline font-bold">عرض بالحجم الكامل ↗</a>
+                    </div>
+                ` : ''}
+
                 <!-- Driver & Cargo Details -->
-                <div class="bg-[#f8fafc] rounded-xl p-3 border border-[#d7e2ee] text-xs space-y-1.5 mb-4 text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                <div class="bg-[#f8fafc] rounded-xl p-3 border border-[#d7e2ee] text-xs space-y-1.5 mb-3 text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between border-b border-[#e7eff7] pb-1">
                         <span class="text-[#556b82] font-bold">${window.i18n.t('driverName')}:</span>
                         <span class="font-bold text-[#1d2d3e]">${lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en}</span>
@@ -328,24 +408,43 @@ class OfficerController {
                     </div>
                 </div>
 
+                <!-- Quick Manual WhatsApp Send with Mobile Data -->
+                ${vehicle.driver_phone ? `
+                    <div class="mb-3">
+                        <button type="button" onclick="Officer.shareWhatsAppStatus('${vehicle.plate_ar}', '${vehicle.driver_phone}', '${permit ? permit.permit_code : ''}', '${permit ? permit.pin_code : ''}')" class="w-full py-2 bg-[#e5f6eb] hover:bg-[#d0f0db] text-[#107e3e] border border-[#b4e3c4] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
+                            ${icon('whatsapp', 'w-4 h-4 text-[#107e3e]')}
+                            <span>إرسال تفاصيل التصريح لواتساب السائق عبر باقة الموبايل</span>
+                        </button>
+                    </div>
+                ` : ''}
+
                 <!-- Action Button Group -->
                 ${actionButtons}
             </div>
         `;
     }
 
+    shareWhatsAppStatus(plate, phone, permitCode = '', pinCode = '') {
+        const text = encodeURIComponent(`🛡️ بوابة مصانع دوترا\n🚘 رقم اللوحة: ${plate}\n${permitCode ? `رقم التصريح: ${permitCode}\n` : ''}${pinCode ? `🔑 كود التحقق السريع: ${pinCode}\n` : ''}تم تسجيل وتوثيق الإجراء على البوابة.`);
+        const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
+        const url = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone}?text=${text}` : `https://api.whatsapp.com/send?text=${text}`;
+        window.open(url, '_blank');
+    }
+
     recordAction(action, reason = '') {
         if (!this.selectedVehicle) return;
         const user = window.Auth.getCurrentUser() || { id: 2, gate_assigned: 'Gate 1' };
+        const photoUrl = this.currentCapturedPhoto || null;
 
         if (action === 'entry') {
-            window.DB.recordEntry(this.selectedVehicle.id, this.selectedPermit ? this.selectedPermit.id : null, user.id, user.gate_assigned, 'دخول مصرح');
+            window.DB.recordEntry(this.selectedVehicle.id, this.selectedPermit ? this.selectedPermit.id : null, user.id, user.gate_assigned, 'دخول مصرح', photoUrl);
         } else if (action === 'exit') {
-            window.DB.recordExit(this.selectedVehicle.id, user.id, user.gate_assigned, 'خروج نظامي');
+            window.DB.recordExit(this.selectedVehicle.id, user.id, user.gate_assigned, 'خروج نظامي', photoUrl);
         } else if (action === 'denied') {
             window.DB.recordDenied(this.selectedVehicle.id, user.id, user.gate_assigned, reason);
         }
 
+        this.currentCapturedPhoto = null;
         this.renderTerminal();
     }
 

@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>مجموعة دوترا | نظام تصاريح بوابات المركبات</title>
     
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#002b66">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="بوابات دوترا">
+    <link rel="apple-touch-icon" href="assets/logo.jpg">
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -60,10 +67,10 @@
                 <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e]"></span>
                 <span class="font-semibold text-[#1d2d3e]">DOTRA Group Gate Access Control</span>
                 <span class="text-[#d7e2ee]">|</span>
-                <span>SAP Enterprise Fiori Edition</span>
+                <span>SAP Enterprise Fiori Edition (Offline Enabled)</span>
             </div>
             <div class="font-mono text-[11px] text-[#556b82]">
-                <span>Cloudflare Workers & D1 Engine</span>
+                <span id="pwa-status-badge">⚡ Offline Ready (PWA Cache)</span>
             </div>
         </div>
     </footer>
@@ -77,5 +84,16 @@
     <script src="js/manager.js"></script>
     <script src="js/officer.js"></script>
     <script src="js/app.js"></script>
+
+    <!-- Service Worker Registration for 100% Offline Mode -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('🛡️ DOTRA Offline Service Worker Registered:', reg.scope))
+                    .catch(err => console.log('SW registration note:', err));
+            });
+        }
+    </script>
 </body>
 </html>

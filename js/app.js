@@ -18,13 +18,49 @@ class AppController {
             this.currentView = 'login';
         }
 
+        window.addEventListener('online', () => this.updateNetworkBadge());
+        window.addEventListener('offline', () => this.updateNetworkBadge());
+
+        // Real-time synchronization across officer terminals / tabs
+        window.addEventListener('storage', (e) => {
+            if (e.key && e.key.startsWith('gate_')) {
+                if (this.currentView === 'manager') {
+                    window.Manager.renderDashboard();
+                } else if (this.currentView === 'officer') {
+                    window.Officer.renderTerminal();
+                }
+            }
+        });
+
         this.renderApp();
+    }
+
+    updateNetworkBadge() {
+        const badge = document.getElementById('network-status-badge');
+        if (!badge) return;
+        const isOnline = navigator.onLine;
+        const lang = window.i18n.getLang();
+
+        if (isOnline) {
+            badge.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+            badge.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>${lang === 'ar' ? 'متصل' : 'Online'}</span>
+            `;
+        } else {
+            badge.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30';
+            badge.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                <span>${lang === 'ar' ? 'أوفلاين (محلي)' : 'Offline (Local)'}</span>
+            `;
+        }
     }
 
     renderApp() {
         const headerContainer = document.getElementById('app-header');
         const user = window.Auth.getCurrentUser();
         const lang = window.i18n.getLang();
+        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
         if (headerContainer) {
             headerContainer.innerHTML = `
@@ -51,25 +87,32 @@ class AppController {
                             </div>
                         </div>
 
-                        <!-- Right Actions: Language & User Profile -->
-                        <div class="flex items-center gap-3">
+                        <!-- Right Actions: Language, Offline Indicator & User Profile -->
+                        <div class="flex items-center gap-2.5">
+                            
+                            <!-- Network Status Badge -->
+                            <div id="network-status-badge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${isOnline ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'bg-amber-500/20 text-amber-300 border border-amber-400/30'}">
+                                <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}"></span>
+                                <span>${isOnline ? (lang === 'ar' ? 'متصل' : 'Online') : (lang === 'ar' ? 'أوفلاين (محلي)' : 'Offline (Local)')}</span>
+                            </div>
+
                             <!-- Language Toggle -->
                             <div class="flex items-center bg-[#001940] border border-blue-900 p-0.5 rounded-xl text-xs font-bold shadow-inner">
-                                <button type="button" id="lang-btn-ar" onclick="window.i18n.setLanguage('ar')" class="px-2.5 py-1 rounded-lg transition-all ${lang === 'ar' ? 'bg-[#0070f2] text-white shadow' : 'text-blue-200 hover:text-white'}">
+                                <button type="button" id="lang-btn-ar" onclick="window.i18n.setLanguage('ar')" class="px-2 py-1 rounded-lg transition-all ${lang === 'ar' ? 'bg-[#0070f2] text-white shadow' : 'text-blue-200 hover:text-white'}">
                                     العربية
                                 </button>
-                                <button type="button" id="lang-btn-en" onclick="window.i18n.setLanguage('en')" class="px-2.5 py-1 rounded-lg transition-all ${lang === 'en' ? 'bg-[#0070f2] text-white shadow' : 'text-blue-200 hover:text-white'}">
+                                <button type="button" id="lang-btn-en" onclick="window.i18n.setLanguage('en')" class="px-2 py-1 rounded-lg transition-all ${lang === 'en' ? 'bg-[#0070f2] text-white shadow' : 'text-blue-200 hover:text-white'}">
                                     EN
                                 </button>
                             </div>
 
                             ${user ? `
                                 <!-- User Profile Badge -->
-                                <div class="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 border border-white/20 py-1 px-3 rounded-xl text-xs backdrop-blur-md shadow-sm">
-                                    <span class="text-lg">${user.role === 'manager' ? '🏢' : '👮'}</span>
+                                <div class="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 py-1 px-2.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
+                                    <span class="text-base">${user.role === 'manager' ? '🏢' : '👮'}</span>
                                     <div class="hidden sm:block ${lang === 'ar' ? 'text-right' : 'text-left'}">
                                         <div class="font-bold text-white text-xs">${lang === 'ar' ? user.name_ar : user.name_en}</div>
-                                        <div class="text-[10px] text-emerald-300 font-mono font-bold">${user.role === 'manager' ? 'OPERATIONS MANAGER' : user.badge_id}</div>
+                                        <div class="text-[10px] text-emerald-300 font-mono font-bold">${user.role === 'manager' ? 'MANAGER' : user.badge_id}</div>
                                     </div>
                                     <button type="button" onclick="window.Auth.logout()" title="${window.i18n.t('logout')}" class="mr-1 text-red-200 hover:text-white p-1 rounded font-bold">
                                         🚪
