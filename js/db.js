@@ -495,6 +495,22 @@ class DatabaseService {
         return vehicle;
     }
 
+    announce(type, data) {
+        try {
+            if (typeof BroadcastChannel !== 'undefined') {
+                if (!this.broadcastChannel) {
+                    this.broadcastChannel = new BroadcastChannel('dotra_gate_live_announcements');
+                }
+                this.broadcastChannel.postMessage({ type, timestamp: Date.now(), ...data });
+            }
+            if (typeof window !== 'undefined' && window.App && typeof window.App.handleLiveAnnouncement === 'function') {
+                window.App.handleLiveAnnouncement({ type, timestamp: Date.now(), ...data });
+            }
+        } catch (e) {
+            // broadcast fallback
+        }
+    }
+
     recordEntry(vehicleId, permitId, officerId, gateName, remarks = '', photoUrl = null) {
         const logs = this.getLogs();
         const newLog = {
@@ -517,6 +533,15 @@ class DatabaseService {
             this.saveVehiclePhoto(vehicleId, photoUrl);
         }
 
+        const vehicle = this.getVehicles().find(v => v.id === vehicleId);
+        const officer = this.getUsers().find(u => u.id === officerId);
+
+        this.announce('VEHICLE_ENTRY', {
+            plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
+            gate: gateName,
+            officer: officer ? officer.name_ar : 'حارس البوابة'
+        });
+
         this.pushToCloud('/api/entry', {
             vehicle_id: vehicleId,
             permit_id: permitId || null,
@@ -531,6 +556,7 @@ class DatabaseService {
     recordExit(vehicleId, officerId, gateName, remarks = '', photoUrl = null) {
         const logs = this.getLogs();
         const activeEntryIndex = logs.slice().reverse().findIndex(l => l.vehicle_id === vehicleId && l.action_type === 'entry' && !l.exit_timestamp);
+        const vehicle = this.getVehicles().find(v => v.id === vehicleId);
         
         if (activeEntryIndex !== -1) {
             const actualIndex = logs.length - 1 - activeEntryIndex;
@@ -547,6 +573,13 @@ class DatabaseService {
             }
             
             localStorage.setItem('gate_logs', JSON.stringify(logs));
+
+            this.announce('VEHICLE_EXIT', {
+                plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
+                gate: gateName,
+                duration: durationMin
+            });
+
             this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
             return entryLog;
         } else {
@@ -565,6 +598,13 @@ class DatabaseService {
             };
             logs.push(newExitLog);
             localStorage.setItem('gate_logs', JSON.stringify(logs));
+
+            this.announce('VEHICLE_EXIT', {
+                plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
+                gate: gateName,
+                duration: 0
+            });
+
             this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
             return newExitLog;
         }
@@ -630,6 +670,15 @@ class DatabaseService {
         };
         permits.push(newPermit);
         localStorage.setItem('gate_permits', JSON.stringify(permits));
+
+        const vehicle = this.getVehicles().find(v => v.id === newPermit.vehicle_id);
+
+        this.announce('PERMIT_CREATED', {
+            plate: permitData.plate || (vehicle ? vehicle.plate_ar : 'مركبة جديدة'),
+            pin: newPermit.pin_code,
+            destination: newPermit.destination_ar || 'المستودع'
+        });
+
         this.pushToCloud('/api/permits', newPermit);
         return newPermit;
     }
@@ -641,6 +690,10 @@ class DatabaseService {
             vehicle.status = status;
             vehicle.blacklist_reason = blacklistReason;
             localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
+            this.announce('BLACKLIST_UPDATED', {
+                plate: vehicle.plate_ar || 'المركبة',
+                status: status
+            });
             this.pushToCloud('/api/vehicles', vehicle);
         }
         return vehicle;

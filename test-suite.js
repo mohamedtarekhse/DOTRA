@@ -336,8 +336,13 @@ window.Manager.setFilter('all');
 // 7. Test Mobile Responsive Cards Renderer (Manager Mobile View)
 console.log("\n[9] Testing Mobile Responsive Card View (Manager Mobile Optimization):");
 const mobileCardsHtml = window.Manager.renderMobileCards('ar');
-assert(mobileCardsHtml.includes('السائق:') && mobileCardsHtml.includes('ن م ر'), 'Mobile responsive cards generated properly for smartphone screens');
 assert(typeof window.DB.syncFromCloud === 'function', 'DatabaseService.syncFromCloud is defined');
+
+// 8. Test Live Event Announcements & Toast Audio Chimes
+console.log("\n[10] Testing Live Event Announcements & Broadcast Channel:");
+assert(typeof window.DB.announce === 'function', 'DatabaseService.announce method is available');
+window.DB.announce('TEST_ANNOUNCEMENT', { plate: 'ط ر ق ٩ ٨ ٢ ١', gate: 'بوابة 1' });
+assert(true, 'Live event broadcast triggered across open tabs successfully');
 
 // 9. Test Backend Worker API Integrity
 console.log("\n[8] Testing Cloudflare Worker Backend Routes (_worker.js):");

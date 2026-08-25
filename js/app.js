@@ -32,7 +32,18 @@ class AppController {
             }
         });
 
-        // 2. Continuous Cloud Synchronization across PC, Mobile, and Gate Terminals
+        // 2. Real-time Live Event Announcements Broadcast Channel
+        if (typeof BroadcastChannel !== 'undefined') {
+            this.channel = new BroadcastChannel('dotra_gate_live_announcements');
+            this.channel.onmessage = (event) => {
+                const data = event.data;
+                if (data && data.type) {
+                    this.handleLiveAnnouncement(data);
+                }
+            };
+        }
+
+        // 3. Continuous Cloud Synchronization across PC, Mobile, and Gate Terminals
         if (typeof setInterval !== 'undefined') {
             setInterval(async () => {
                 if (typeof navigator !== 'undefined' && navigator.onLine && window.DB && typeof window.DB.syncFromCloud === 'function') {
@@ -49,6 +60,127 @@ class AppController {
         }
 
         this.renderApp();
+    }
+
+    handleLiveAnnouncement(data) {
+        const lang = window.i18n.getLang();
+        if (data.type === 'PERMIT_CREATED') {
+            this.showToast(
+                lang === 'ar' ? '🎫 تم إصدار تصريح جديد' : 'New Pass Issued',
+                lang === 'ar' ? `تصريح للمركبة: ${data.plate} • كود التحقق: ${data.pin}` : `Pass created for ${data.plate} (PIN: ${data.pin})`,
+                'info',
+                'shield'
+            );
+        } else if (data.type === 'VEHICLE_ENTRY') {
+            this.showToast(
+                lang === 'ar' ? '📥 تسجيل دخول شاحنة' : 'Vehicle Entry Recorded',
+                lang === 'ar' ? `دخلت ${data.plate} عبر ${data.gate} (👮 ${data.officer})` : `Vehicle ${data.plate} entered via ${data.gate}`,
+                'success',
+                'truck'
+            );
+        } else if (data.type === 'VEHICLE_EXIT') {
+            this.showToast(
+                lang === 'ar' ? '📤 تسجيل خروج شاحنة' : 'Vehicle Exit Recorded',
+                lang === 'ar' ? `غادرت ${data.plate} عبر ${data.gate} (⏱️ المدة: ${data.duration} دقيقة)` : `Vehicle ${data.plate} exited via ${data.gate} (${data.duration} min)`,
+                'warning',
+                'logout'
+            );
+        } else if (data.type === 'BLACKLIST_UPDATED') {
+            this.showToast(
+                lang === 'ar' ? '⛔ تحديث القائمة السوداء' : 'Security Alert',
+                lang === 'ar' ? `تم تحديث حالة أمان المركبة ${data.plate}` : `Security status updated for ${data.plate}`,
+                'error',
+                'ban'
+            );
+        }
+
+        // Re-render current view with updated state
+        if (this.currentView === 'manager' && window.Manager) {
+            window.Manager.renderDashboard();
+        } else if (this.currentView === 'officer' && window.Officer) {
+            window.Officer.renderTerminal();
+        }
+    }
+
+    playChime(type = 'info') {
+        try {
+            if (typeof window === 'undefined' || !window.AudioContext && !window.webkitAudioContext) return;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            const now = ctx.currentTime;
+            if (type === 'success') {
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+            } else if (type === 'warning') {
+                osc.frequency.setValueAtTime(659.25, now); // E5
+                osc.frequency.exponentialRampToValueAtTime(523.25, now + 0.2); // C5
+            } else if (type === 'error') {
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(330, now + 0.25);
+            } else {
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.15); // E5
+            }
+
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+            osc.start(now);
+            osc.stop(now + 0.35);
+        } catch (e) {
+            // Audio context policy fallback
+        }
+    }
+
+    showToast(title, message, type = 'info', iconName = 'bell') {
+        this.playChime(type);
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const colors = {
+            info: { bg: 'bg-[#002b66]', border: 'border-[#0070f2]', text: 'text-white', badge: 'bg-[#0070f2]' },
+            success: { bg: 'bg-[#003816]', border: 'border-[#107e3e]', text: 'text-white', badge: 'bg-[#107e3e]' },
+            warning: { bg: 'bg-[#3d1e00]', border: 'border-[#b85500]', text: 'text-white', badge: 'bg-[#b85500]' },
+            error: { bg: 'bg-[#400000]', border: 'border-[#bb0000]', text: 'text-white', badge: 'bg-[#bb0000]' }
+        };
+        const c = colors[type] || colors.info;
+        const iconHtml = window.Icons ? window.Icons.get(iconName, 'w-4 h-4 text-white') : '🔔';
+
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl ${c.bg} border-2 ${c.border} shadow-2xl animate-scaleUp text-right backdrop-blur-md`;
+        toast.dir = window.i18n.getLang() === 'ar' ? 'rtl' : 'ltr';
+        toast.innerHTML = `
+            <div class="p-2 rounded-xl ${c.badge} flex-shrink-0 shadow-sm">
+                ${iconHtml}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="font-black text-xs ${c.text} flex items-center justify-between">
+                    <span>${title}</span>
+                    <span class="text-[9px] font-mono opacity-70">الآن</span>
+                </div>
+                <div class="text-[11px] text-slate-200 mt-0.5 leading-snug font-medium break-words">
+                    ${message}
+                </div>
+            </div>
+            <button type="button" onclick="this.parentElement.remove()" class="text-white/60 hover:text-white text-xs font-bold p-1">
+                ✕
+            </button>
+        `;
+
+        container.appendChild(toast);
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 4500);
     }
 
     updateNetworkBadge() {
