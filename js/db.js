@@ -447,6 +447,42 @@ class DatabaseService {
         return permits.find(p => p.vehicle_id === vehicle.id && p.status === 'active');
     }
 
+    getEnrichedPermits() {
+        const permits = this.getPermits();
+        const vehicles = this.getVehicles();
+        const logs = this.getLogs();
+        const users = this.getUsers();
+
+        return permits.map(permit => {
+            const vehicle = vehicles.find(v => v.id === permit.vehicle_id) || {
+                id: permit.vehicle_id,
+                plate_ar: permit.plate || 'ط ر ق ٩ ٨ ٢ ١',
+                plate_en: 'TRQ 9821',
+                vehicle_type: 'truckHeavy',
+                driver_name_ar: 'سائق مصرح',
+                driver_name_en: 'Authorized Driver',
+                driver_phone: '',
+                company_ar: 'توريدات عامة',
+                company_en: 'General Supplies',
+                status: 'visitor'
+            };
+            const permitLogs = logs.filter(l => l.permit_id === permit.id || l.vehicle_id === vehicle.id);
+            const entryLog = permitLogs.find(l => l.action_type === 'entry');
+            const exitLog = permitLogs.find(l => l.action_type === 'exit' || l.exit_timestamp);
+            const officer = entryLog ? users.find(u => u.id === entryLog.officer_id) : null;
+            const createdByUser = users.find(u => u.id === permit.created_by) || users[0];
+
+            return {
+                ...permit,
+                vehicle,
+                entryLog,
+                exitLog,
+                officer,
+                createdByUser
+            };
+        });
+    }
+
     expireExistingPermitsForVehicle(vehicleId) {
         const permits = this.getPermits();
         let updated = false;

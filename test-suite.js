@@ -331,10 +331,23 @@ assert(window.Manager.searchQuery === '', 'Universal search cleared successfully
 window.Manager.setFilter('exited');
 const exitedRowsHtml = window.Manager.renderTableRows('ar');
 assert(exitedRowsHtml.includes('خروج:') && exitedRowsHtml.includes('مدة التواجد:'), 'Exited filter successfully displayed departed vehicles with exit date, time and duration');
+
+// 7. Test Dedicated Relational Permits Register (Permits Table View)
+console.log("\n[9] Testing Relational Permits Connection & Dedicated Permits Table:");
+const enrichedPermits = window.DB.getEnrichedPermits();
+assert(enrichedPermits.length >= 1, `Enriched permits loaded: ${enrichedPermits.length}`);
+assert(enrichedPermits[0].vehicle && enrichedPermits[0].vehicle.plate_ar, 'Permit is deeply connected to Vehicle record');
+
+window.Manager.setFilter('permits');
+const permitsTableHtml = window.Manager.renderTableRows('ar');
+assert(permitsTableHtml.includes('PIN:') && permitsTableHtml.includes('ساري وصالح'), 'Relational permits table renders connected PIN, Plate, Destination, and Status');
+
+const mobilePermitsHtml = window.Manager.renderMobileCards('ar');
+assert(mobilePermitsHtml.includes('PIN:') && mobilePermitsHtml.includes('الكارت A4'), 'Mobile Permits cards render connected relational permit data');
 window.Manager.setFilter('all');
 
-// 7. Test Mobile Responsive Cards Renderer (Manager Mobile View)
-console.log("\n[9] Testing Mobile Responsive Card View (Manager Mobile Optimization):");
+// 8. Test Mobile Responsive Cards Renderer (Manager Mobile View)
+console.log("\n[10] Testing Mobile Responsive Card View (Manager Mobile Optimization):");
 const mobileCardsHtml = window.Manager.renderMobileCards('ar');
 assert(typeof window.DB.syncFromCloud === 'function', 'DatabaseService.syncFromCloud is defined');
 

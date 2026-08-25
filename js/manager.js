@@ -184,19 +184,22 @@ class ManagerController {
                         ` : ''}
                     </div>
 
-                    <!-- Filter Tabs including Exited List -->
-                    <div class="flex items-center gap-1 bg-[#ffffff] p-1 rounded-xl border border-[#d7e2ee] text-xs flex-shrink-0">
+                    <!-- Filter Tabs including Permits List and Exited List -->
+                    <div class="flex items-center gap-1 bg-[#ffffff] p-1 rounded-xl border border-[#d7e2ee] text-xs flex-shrink-0 flex-wrap">
                         <button type="button" onclick="Manager.setFilter('all')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'all' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            ${window.i18n.t('filterAll')}
+                            🚛 ${lang === 'ar' ? 'حركة المركبات' : 'Vehicles'}
+                        </button>
+                        <button type="button" onclick="Manager.setFilter('permits')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'permits' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            🎫 ${lang === 'ar' ? 'جدول التصاريح' : 'Permits'} (${permits.length})
                         </button>
                         <button type="button" onclick="Manager.setFilter('inside')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'inside' ? 'bg-[#107e3e] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            ${window.i18n.t('filterInside')} (${insideCount})
+                            🟢 ${lang === 'ar' ? 'بالداخل' : 'Inside'} (${insideCount})
                         </button>
                         <button type="button" onclick="Manager.setFilter('exited')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'exited' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            📤 ${lang === 'ar' ? 'سجل المغادرين' : 'Exited'} (${exitedLogs.length})
+                            📤 ${lang === 'ar' ? 'المغادرين' : 'Exited'} (${exitedLogs.length})
                         </button>
                         <button type="button" onclick="Manager.setFilter('overstay')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'overstay' ? 'bg-[#bb0000] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            ${window.i18n.t('filterOverstay')} (${overstayLogs.length})
+                            ⚠️ ${lang === 'ar' ? 'متجاوزون' : 'Overstay'} (${overstayLogs.length})
                         </button>
                     </div>
                 </div>
@@ -205,15 +208,27 @@ class ManagerController {
                 <div class="hidden md:block overflow-x-auto bg-white">
                     <table class="w-full text-sm ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                         <thead class="bg-[#f5f8fc] text-[#556b82] text-xs uppercase tracking-wider font-bold border-b border-[#d7e2ee]">
-                            <tr>
-                                <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
-                                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع وحالة المركبة' : 'Last Location & Status'}</th>
-                                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة' : 'Last Gate'}</th>
-                                <th class="py-3.5 px-4">${lang === 'ar' ? 'فرد الأمن المسجل' : 'Officer'}</th>
-                                <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ ووقت الحركة والمدة' : 'Date, Time & Duration'}</th>
-                                <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
-                                <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
-                            </tr>
+                            ${this.activeFilter === 'permits' ? `
+                                <tr>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'كود التصريح ورمز PIN' : 'Permit Code & PIN'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'لوحة الشاحنة' : 'Plate Number'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'نوع التصريح والوجهة' : 'Type & Destination'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'السائق والجهة / الواتساب' : 'Driver / WhatsApp'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التصريح' : 'Permit Status'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ الإصدار وحركة البوابة' : 'Issued Date & Gate'}</th>
+                                    <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
+                                </tr>
+                            ` : `
+                                <tr>
+                                    <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع وحالة المركبة' : 'Last Location & Status'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة' : 'Last Gate'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'فرد الأمن المسجل' : 'Officer'}</th>
+                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ ووقت الحركة والمدة' : 'Date, Time & Duration'}</th>
+                                    <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
+                                    <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
+                                </tr>
+                            `}
                         </thead>
                         <tbody class="divide-y divide-[#e7eff7] font-medium">
                             ${this.renderTableRows(lang)}
@@ -239,6 +254,111 @@ class ManagerController {
 
         const q = (this.searchQuery || '').trim().toLowerCase();
 
+        // 1. Relational Permits Mobile Cards
+        if (this.activeFilter === 'permits') {
+            const enrichedPermits = window.DB.getEnrichedPermits();
+            let filteredPermits = enrichedPermits.filter(p => {
+                if (!q) return true;
+                const matchCode = (p.permit_code || '').toLowerCase().includes(q);
+                const matchPin = (p.pin_code || '').toLowerCase().includes(q);
+                const matchPlateAr = (p.vehicle?.plate_ar || '').toLowerCase().includes(q);
+                const matchPlateEn = (p.vehicle?.plate_en || '').toLowerCase().includes(q);
+                const matchDriver = (p.vehicle?.driver_name_ar || '').toLowerCase().includes(q);
+                const matchPhone = (p.vehicle?.driver_phone || '').toLowerCase().includes(q);
+                const matchDest = (`${p.destination_ar || ''} ${p.destination_en || ''}`).toLowerCase().includes(q);
+                const matchInvoice = (p.invoice_no || '').toLowerCase().includes(q);
+                return matchCode || matchPin || matchPlateAr || matchPlateEn || matchDriver || matchPhone || matchDest || matchInvoice;
+            });
+
+            if (filteredPermits.length === 0) {
+                return `
+                    <div class="sap-card p-6 text-center text-[#556b82] bg-white border border-[#d7e2ee] shadow-sm">
+                        <div class="w-14 h-14 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 border border-[#b3d5fa] shadow-sm">
+                            ${icon('shield', 'w-7 h-7')}
+                        </div>
+                        <p class="font-black text-sm text-[#1d2d3e]">
+                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على تصاريح تطابق: "${this.searchQuery}"` : `No matching permits for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد تصاريح مصدرة حالياً' : 'No passes issued yet')}
+                        </p>
+                        ${!this.searchQuery ? `
+                            <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 w-full py-2.5 sap-btn-primary text-xs font-bold shadow-md flex items-center justify-center gap-2">
+                                ${icon('bolt', 'w-4 h-4 text-amber-300')}
+                                <span>${lang === 'ar' ? 'إصدار أول تصريح الآن' : 'Issue First Pass Now'}</span>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            return filteredPermits.map(p => {
+                const isEntry = p.permit_type === 'entry';
+                const isExit = p.permit_type === 'exit';
+                const typeTag = isEntry 
+                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] font-bold">📥 دخول</span>`
+                    : (isExit ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 خروج</span>` : `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
+                
+                let statusTag = '';
+                if (p.status === 'active') {
+                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">🟢 ساري</span>`;
+                } else if (p.status === 'used') {
+                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold border border-blue-300">🔵 تم الاستخدام</span>`;
+                } else {
+                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-bold border border-slate-300">⏳ ملغي</span>`;
+                }
+
+                return `
+                    <div class="sap-card p-4 bg-white border border-[#d7e2ee] rounded-2xl shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-[#e7eff7] pb-2">
+                            <div>
+                                <div class="font-mono font-black text-xs text-[#0070f2]">${p.permit_code}</div>
+                                <div class="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-md bg-[#001940] text-amber-300 font-mono font-black text-[11px]">
+                                    <span>PIN:</span>
+                                    <span>${p.pin_code}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-end gap-1">
+                                ${statusTag}
+                                ${typeTag}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            ${window.ArabicPlate.renderEgyptianPlate(p.vehicle.plate_ar, 'compact', p.vehicle.vehicle_type)}
+                            <button type="button" onclick="Manager.showPassModal(${p.id})" class="px-3 py-1.5 bg-[#ebf3fb] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                ${icon('qrcode', 'w-3.5 h-3.5')}
+                                <span>الكارت A4</span>
+                            </button>
+                        </div>
+
+                        <div class="bg-[#f8fafc] p-2.5 rounded-xl border border-[#e7eff7] text-xs space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">السائق:</span>
+                                <span class="font-bold text-[#1d2d3e]">${p.vehicle.driver_name_ar}</span>
+                            </div>
+                            ${p.vehicle.driver_phone ? `
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[#556b82] font-bold">واتساب:</span>
+                                    <a href="https://wa.me/2${p.vehicle.driver_phone.replace(/\D/g, '')}" target="_blank" class="text-[#107e3e] font-mono font-bold hover:underline">
+                                        📱 ${p.vehicle.driver_phone}
+                                    </a>
+                                </div>
+                            ` : ''}
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">الوجهة:</span>
+                                <span class="font-bold text-[#002b66]">📍 ${p.destination_ar}</span>
+                            </div>
+                            ${p.invoice_no ? `
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[#556b82] font-bold">إذن الصرف:</span>
+                                    <span class="font-mono font-bold text-[#107e3e]">📄 ${p.invoice_no}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 2. Vehicles Activity Mobile Cards
         let filteredVehicles = vehicles.filter(vehicle => {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
             const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
@@ -400,6 +520,110 @@ class ManagerController {
 
         const q = (this.searchQuery || '').trim().toLowerCase();
 
+        // 1. Relational Permits View
+        if (this.activeFilter === 'permits') {
+            const enrichedPermits = window.DB.getEnrichedPermits();
+            let filteredPermits = enrichedPermits.filter(p => {
+                if (!q) return true;
+                const matchCode = (p.permit_code || '').toLowerCase().includes(q);
+                const matchPin = (p.pin_code || '').toLowerCase().includes(q);
+                const matchPlateAr = (p.vehicle?.plate_ar || '').toLowerCase().includes(q);
+                const matchPlateEn = (p.vehicle?.plate_en || '').toLowerCase().includes(q);
+                const matchDriver = (p.vehicle?.driver_name_ar || '').toLowerCase().includes(q);
+                const matchPhone = (p.vehicle?.driver_phone || '').toLowerCase().includes(q);
+                const matchDest = (`${p.destination_ar || ''} ${p.destination_en || ''}`).toLowerCase().includes(q);
+                const matchInvoice = (p.invoice_no || '').toLowerCase().includes(q);
+                return matchCode || matchPin || matchPlateAr || matchPlateEn || matchDriver || matchPhone || matchDest || matchInvoice;
+            });
+
+            if (filteredPermits.length === 0) {
+                return `
+                    <tr>
+                        <td colspan="7" class="text-center py-12 text-[#556b82]">
+                            <div class="w-14 h-14 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 border border-[#b3d5fa] shadow-sm">
+                                ${icon('shield', 'w-7 h-7')}
+                            </div>
+                            <p class="font-black text-base text-[#1d2d3e]">
+                                ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على تصاريح تطابق: "${this.searchQuery}"` : `No matching permits for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد تصاريح مصدرة حالياً' : 'No passes issued yet')}
+                            </p>
+                            ${!this.searchQuery ? `
+                                <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 inline-flex items-center gap-2 px-5 py-2.5 sap-btn-primary text-xs font-bold shadow-md">
+                                    ${icon('bolt', 'w-4 h-4 text-amber-300')}
+                                    <span>${lang === 'ar' ? 'إصدار أول تصريح الآن' : 'Issue First Pass Now'}</span>
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }
+
+            return filteredPermits.map(p => {
+                const isEntry = p.permit_type === 'entry';
+                const isExit = p.permit_type === 'exit';
+                const typeTag = isEntry 
+                    ? `<span class="px-2.5 py-1 rounded-full text-xs bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] font-bold">📥 تصريح دخول</span>`
+                    : (isExit ? `<span class="px-2.5 py-1 rounded-full text-xs bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 تصريح خروج</span>` : `<span class="px-2.5 py-1 rounded-full text-xs bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
+                
+                let statusTag = '';
+                if (p.status === 'active') {
+                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>ساري وصالح</span></span>`;
+                } else if (p.status === 'used') {
+                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-blue-100 text-blue-800 font-bold border border-blue-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> <span>تم الاستخدام</span></span>`;
+                } else {
+                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-700 font-bold border border-slate-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>ملغي / مستبدل</span></span>`;
+                }
+
+                const createdDate = new Date(p.valid_from || p.id).toLocaleDateString();
+                const createdTime = new Date(p.valid_from || p.id).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors">
+                        <td class="py-3.5 px-4">
+                            <div class="font-mono font-black text-sm text-[#0070f2]">${p.permit_code}</div>
+                            <div class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-lg bg-[#001940] text-amber-300 font-mono font-black text-xs shadow-inner">
+                                <span>PIN:</span>
+                                <span class="tracking-widest">${p.pin_code}</span>
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            ${window.ArabicPlate.renderEgyptianPlate(p.vehicle.plate_ar, 'compact', p.vehicle.vehicle_type)}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="flex flex-col gap-1">
+                                ${typeTag}
+                                <span class="text-xs font-bold text-[#002b66] mt-0.5">📍 ${p.destination_ar}</span>
+                                ${p.invoice_no ? `<span class="text-[11px] text-[#107e3e] font-mono font-bold">📄 إذن: ${p.invoice_no}</span>` : ''}
+                            </div>
+                        </td>
+                        <td class="py-3.5 px-4">
+                            <div class="font-bold text-[#1d2d3e] text-xs">${p.vehicle.driver_name_ar}</div>
+                            <div class="text-[11px] text-[#556b82] font-semibold">${p.vehicle.company_ar}</div>
+                            ${p.vehicle.driver_phone ? `
+                                <a href="https://wa.me/2${p.vehicle.driver_phone.replace(/\D/g, '')}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-[#107e3e] hover:underline font-mono font-bold mt-1">
+                                    <span>📱 ${p.vehicle.driver_phone}</span>
+                                </a>
+                            ` : ''}
+                        </td>
+                        <td class="py-3.5 px-4">
+                            ${statusTag}
+                        </td>
+                        <td class="py-3.5 px-4 text-xs font-mono">
+                            <div class="text-[#1d2d3e] font-bold">📅 ${createdDate}</div>
+                            <div class="text-[#556b82] text-[11px]">⏰ ${createdTime}</div>
+                            ${p.entryLog ? `<div class="text-[#107e3e] font-bold text-[11px] mt-1">🚪 دخل: ${p.entryLog.gate_name}</div>` : ''}
+                        </td>
+                        <td class="py-3.5 px-4 text-center">
+                            <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${p.id})" class="px-3 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold inline-flex items-center gap-1 shadow-sm">
+                                ${icon('qrcode', 'w-3.5 h-3.5')}
+                                <span>عرض الكارت A4</span>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 2. Vehicles Activity View
         let filteredVehicles = vehicles.filter(vehicle => {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
             const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
