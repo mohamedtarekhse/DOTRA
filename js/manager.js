@@ -716,7 +716,7 @@ class ManagerController {
         document.title = oldTitle;
     }
 
-    static createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil) {
+    createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -864,7 +864,7 @@ class ManagerController {
         return canvas.toDataURL('image/png');
     }
 
-    static dataURItoBlob(dataURI) {
+    dataURItoBlob(dataURI) {
         const byteString = atob(dataURI.split(',')[1]);
         const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
         const ab = new ArrayBuffer(byteString.length);
@@ -876,11 +876,11 @@ class ManagerController {
     }
 
     async shareWhatsAppImage(permitCode, plate, phone, driverName, validUntil) {
-        const dataUrl = Manager.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil);
-        const blob = Manager.dataURItoBlob(dataUrl);
+        const dataUrl = this.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil);
+        const blob = this.dataURItoBlob(dataUrl);
         const file = new File([blob], `DOTRA_Gate_Pass_${permitCode}.png`, { type: 'image/png' });
 
-        Manager.downloadPassImage(permitCode, plate, phone);
+        this.downloadPassImage(permitCode, plate, phone);
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
@@ -900,7 +900,7 @@ class ManagerController {
 
     downloadPassImage(permitCode, plate, phone) {
         const vehicle = window.DB.findVehicleByPlate(plate) || {};
-        const dataUrl = Manager.createPassCanvasDataUrl(
+        const dataUrl = this.createPassCanvasDataUrl(
             permitCode, 
             plate, 
             phone, 
@@ -962,3 +962,5 @@ class ManagerController {
 }
 
 window.Manager = new ManagerController();
+ManagerController.createPassCanvasDataUrl = (permitCode, plate, phone, driverName, validUntil) => window.Manager.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil);
+ManagerController.dataURItoBlob = (dataURI) => window.Manager.dataURItoBlob(dataURI);
