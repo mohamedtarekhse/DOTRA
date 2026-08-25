@@ -2048,6 +2048,23 @@ class ManagerController {
     }
 
     exportCSV() {
+        if (this.activeFilter === 'permits') {
+            const enrichedPermits = window.DB.getEnrichedPermits();
+            let csv = 'Permit_Code,PIN_Code,Vehicle_Plate,Permit_Type,Destination,Invoice_No,Cargo_Details,Driver_Name,Driver_Phone,Company,Status,Valid_From,Valid_Until,Gate_Name,Officer_Name\n';
+            enrichedPermits.forEach(p => {
+                const gateName = p.entryLog ? p.entryLog.gate_name : '';
+                const officerName = p.officer ? p.officer.name_ar : '';
+                csv += `"${p.permit_code}","${p.pin_code || ''}","${p.vehicle?.plate_ar || ''}","${p.permit_type || 'entry'}","${p.destination_ar || ''}","${p.invoice_no || ''}","${p.cargo_details || ''}","${p.vehicle?.driver_name_ar || ''}","${p.vehicle?.driver_phone || ''}","${p.vehicle?.company_ar || ''}","${p.status || 'active'}","${p.valid_from || ''}","${p.valid_until || ''}","${gateName}","${officerName}"\n`;
+            });
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dotra_permits_registry_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            return;
+        }
+
         const logs = window.DB.getLogs();
         const vehicles = window.DB.getVehicles();
 
