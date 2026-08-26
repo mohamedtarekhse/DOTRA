@@ -236,7 +236,7 @@ class AppController {
                             </div>
                         </div>
 
-                        <!-- Right Actions: Language, Offline Indicator & User Profile -->
+                        <!-- Right Actions: Cache Buster, Language, Offline Indicator & User Profile -->
                         <div class="flex items-center gap-2.5">
                             
                             <!-- Network Status Badge -->
@@ -244,6 +244,15 @@ class AppController {
                                 <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}"></span>
                                 <span>${isOnline ? (lang === 'ar' ? 'متصل' : 'Online') : (lang === 'ar' ? 'أوفلاين (محلي)' : 'Offline (Local)')}</span>
                             </div>
+
+                            <!-- 🧹 Cache Buster Button — clears localStorage + SW cache + reloads fresh from cloud -->
+                            <button type="button"
+                                onclick="App.bustCache()"
+                                title="${lang === 'ar' ? 'مسح الذاكرة المؤقتة وإعادة المزامنة من السحابة' : 'Clear cache & re-sync from cloud'}"
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-orange-500/20 hover:bg-orange-500/40 text-orange-300 border border-orange-400/30 hover:border-orange-400/60 transition-all active:scale-95">
+                                <span class="text-sm leading-none">🧹</span>
+                                <span class="hidden sm:inline">${lang === 'ar' ? 'مسح الكاش' : 'Clear Cache'}</span>
+                            </button>
 
                             <!-- Language Toggle -->
                             <div class="flex items-center bg-[#001940] border border-blue-900 p-0.5 rounded-xl text-xs font-bold shadow-inner">
@@ -273,6 +282,7 @@ class AppController {
                 </header>
             `;
         }
+
 
         if (this.currentView === 'login') {
             this.renderLoginScreen();
@@ -382,6 +392,44 @@ class AppController {
         } else {
             alert(res.message);
         }
+    }
+
+    // 🧹 Cache Buster: clears localStorage, SW caches, then reloads fresh from cloud
+    async bustCache() {
+        const lang = window.i18n ? window.i18n.getLang() : 'ar';
+        const confirmed = confirm(
+            lang === 'ar'
+                ? 'هل تريد مسح الذاكرة المؤقتة وإعادة تحميل البيانات من السحابة؟\n⚠️ سيتم حذف البيانات المحلية غير المرفوعة.'
+                : 'Clear local cache and reload all data fresh from cloud?\n⚠️ Any un-synced local data will be lost.'
+        );
+        if (!confirmed) return;
+
+        // 1. Clear all gate_ localStorage keys
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('gate_')) keysToRemove.push(key);
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+
+        // 2. Unregister all service workers and clear their caches
+        try {
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                    await reg.unregister();
+                }
+            }
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+            }
+        } catch (e) {
+            // SW not available in this context — continue
+        }
+
+        // 3. Hard reload — bypass browser cache entirely
+        window.location.reload(true);
     }
 
     refreshUI() {
