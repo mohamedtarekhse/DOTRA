@@ -47,17 +47,15 @@ class AppController {
         if (typeof setInterval !== 'undefined') {
             setInterval(async () => {
                 if (typeof navigator !== 'undefined' && navigator.onLine && window.DB && typeof window.DB.syncFromCloud === 'function') {
-                    const hasUpdates = await window.DB.syncFromCloud();
-                    // FIX RC-3: Always re-render — cloud is authoritative source
-                    if (hasUpdates) {
-                        if (this.currentView === 'manager' && window.Manager) {
-                            window.Manager.renderDashboard();
-                        } else if (this.currentView === 'officer' && window.Officer) {
-                            window.Officer.renderTerminal();
-                        }
+                    await window.DB.syncFromCloud();
+                    // Always re-render — cloud is authoritative source
+                    if (this.currentView === 'manager' && window.Manager) {
+                        window.Manager.renderDashboard();
+                    } else if (this.currentView === 'officer' && window.Officer) {
+                        window.Officer.renderTerminal();
                     }
                 }
-            }, 2000); // 2 seconds for near-real-time cross-device sync
+            }, 2000);
         }
 
         this.renderApp();
@@ -406,11 +404,11 @@ class AppController {
         this.renderLoginScreen();
     }
 
-    handleManagerLogin(e) {
+    async handleManagerLogin(e) {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
-        const res = window.Auth.loginManager(email, password);
+        const res = await window.Auth.loginManager(email, password);
 
         if (res.success) {
             this.currentView = 'manager';
@@ -420,11 +418,11 @@ class AppController {
         }
     }
 
-    handleOfficerLogin(e) {
+    async handleOfficerLogin(e) {
         e.preventDefault();
         const badge = document.getElementById('login-badge').value;
         const pin = document.getElementById('login-pin').value;
-        const res = window.Auth.loginOfficer(badge, pin);
+        const res = await window.Auth.loginOfficer(badge, pin);
 
         if (res.success) {
             this.currentView = 'officer';

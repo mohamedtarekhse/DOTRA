@@ -1,9 +1,9 @@
--- Cloudflare D1 Database Schema for Vehicle Gate Access System
--- نظام تصاريح بوابات المركبات - قاعدة بيانات D1
+-- Cloudflare D1 Database Schema for Vehicle Gate Access System (Unified gate_* Schema)
+-- نظام تصاريح بوابات المركبات - قاعدة بيانات D1 (موحدة)
 
--- LEGACY TABLES
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+-- USERS TABLE (synced across devices)
+CREATE TABLE IF NOT EXISTS gate_users (
+    id INTEGER PRIMARY KEY,
     badge_id TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE,
     password_hash TEXT NOT NULL,
@@ -15,51 +15,28 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS vehicles (
-    id INTEGER PRIMARY KEY,
-    plate_ar TEXT NOT NULL,
-    plate_en TEXT NOT NULL,
-    vehicle_type TEXT NOT NULL,
-    driver_name_ar TEXT NOT NULL,
-    driver_name_en TEXT NOT NULL,
-    driver_phone TEXT,
-    company_ar TEXT NOT NULL,
-    company_en TEXT NOT NULL,
-    status TEXT DEFAULT 'visitor',
-    blacklist_reason TEXT,
+-- GATES TABLE (factory gate definitions)
+CREATE TABLE IF NOT EXISTS gate_gates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS permits (
-    id INTEGER PRIMARY KEY,
-    permit_code TEXT UNIQUE NOT NULL,
-    vehicle_id INTEGER NOT NULL,
-    destination_ar TEXT NOT NULL,
-    destination_en TEXT NOT NULL,
-    purpose_ar TEXT NOT NULL,
-    purpose_en TEXT NOT NULL,
-    cargo_details TEXT,
-    valid_from DATETIME NOT NULL,
-    valid_until DATETIME NOT NULL,
-    status TEXT DEFAULT 'active',
-    created_by INTEGER,
+-- DESTINATIONS TABLE (internal factory destinations)
+CREATE TABLE IF NOT EXISTS gate_destinations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS access_logs (
-    id INTEGER PRIMARY KEY,
-    permit_id INTEGER,
-    vehicle_id INTEGER NOT NULL,
-    officer_id INTEGER,
-    gate_name TEXT NOT NULL,
-    action_type TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    exit_timestamp DATETIME,
-    duration_minutes INTEGER,
-    remarks TEXT
+-- SETTINGS TABLE (system configuration key-value pairs)
+CREATE TABLE IF NOT EXISTS gate_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- PRIMARY SYNC TABLES used by POST/GET /api/sync for persistent cross-device sync
+-- VEHICLES TABLE (primary, all CRUD goes here)
 CREATE TABLE IF NOT EXISTS gate_vehicles (
     id INTEGER PRIMARY KEY,
     plate_ar TEXT NOT NULL,
@@ -72,9 +49,11 @@ CREATE TABLE IF NOT EXISTS gate_vehicles (
     company_en TEXT NOT NULL DEFAULT '',
     status TEXT DEFAULT 'visitor',
     blacklist_reason TEXT DEFAULT '',
+    photo_url TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- PERMITS TABLE (primary, all CRUD goes here)
 CREATE TABLE IF NOT EXISTS gate_permits (
     id INTEGER PRIMARY KEY,
     permit_code TEXT NOT NULL,
@@ -94,6 +73,7 @@ CREATE TABLE IF NOT EXISTS gate_permits (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ACCESS LOGS TABLE (primary, entry/exit/denied records)
 CREATE TABLE IF NOT EXISTS gate_logs (
     id INTEGER PRIMARY KEY,
     vehicle_id INTEGER NOT NULL,
@@ -120,8 +100,12 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 
 -- Indexes for fast lookups
 CREATE INDEX IF NOT EXISTS idx_gate_vehicles_plate ON gate_vehicles(plate_ar);
+CREATE INDEX IF NOT EXISTS idx_gate_vehicles_status ON gate_vehicles(status);
 CREATE INDEX IF NOT EXISTS idx_gate_permits_vehicle ON gate_permits(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_gate_permits_code ON gate_permits(permit_code);
+CREATE INDEX IF NOT EXISTS idx_gate_permits_status ON gate_permits(status);
 CREATE INDEX IF NOT EXISTS idx_gate_logs_vehicle ON gate_logs(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_gate_logs_action ON gate_logs(action_type);
+CREATE INDEX IF NOT EXISTS idx_gate_logs_timestamp ON gate_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_push_role ON push_subscriptions(role);
+CREATE INDEX IF NOT EXISTS idx_push_endpoint ON push_subscriptions(endpoint);

@@ -1,5 +1,5 @@
-// Database Layer - Egyptian Standard Vehicles, Settings, Gates, Destinations & Personnel
-// طبقة إدارة البيانات - دعم كامل للبوابات المخصصة، الوجهات الداخلية، وتعيين أفراد الأمن
+// Database Layer - Unified Cloud Sync via /api/sync (gate_* tables only)
+// طبقة إدارة البيانات - مزامنة موحدة عبر /api/sync
 
 const SEED_USERS = [
     {
@@ -59,8 +59,8 @@ const SEED_SETTINGS = {
     company_name_en: 'DOTRA Group',
     gate_name_ar: 'بوابة مصانع دوترا الرئيسية',
     gate_name_en: 'DOTRA Main Factory Gate',
-    auto_send_default: true,
-    overstay_hours_threshold: 3
+    auto_send_default: 'true',
+    overstay_hours_threshold: '3'
 };
 
 const SEED_VEHICLES = [
@@ -110,7 +110,8 @@ const SEED_VEHICLES = [
         driver_phone: '01567890123',
         company_ar: 'مجموعة السويدي إلكتريك',
         company_en: 'Elsewedy Electric',
-        status: 'blacklist'
+        status: 'blacklist',
+        blacklist_reason: 'مخالفة أمنية سابقة'
     }
 ];
 
@@ -129,8 +130,7 @@ const SEED_PERMITS = [
         valid_from: new Date(Date.now() - 2 * 3600000).toISOString(),
         valid_until: new Date(Date.now() + 8 * 3600000).toISOString(),
         status: 'active',
-        created_by: 1,
-        created_at: new Date(Date.now() - 2 * 3600000).toISOString()
+        created_by: 1
     },
     {
         id: 2,
@@ -146,8 +146,7 @@ const SEED_PERMITS = [
         valid_from: new Date(Date.now() - 3 * 3600000).toISOString(),
         valid_until: new Date(Date.now() + 8 * 3600000).toISOString(),
         status: 'active',
-        created_by: 1,
-        created_at: new Date(Date.now() - 3 * 3600000).toISOString()
+        created_by: 1
     }
 ];
 
@@ -210,15 +209,35 @@ class DatabaseService {
     }
 
     loadDemoData() {
-        localStorage.setItem('gate_vehicles', JSON.stringify(SEED_VEHICLES));
-        localStorage.setItem('gate_permits', JSON.stringify(SEED_PERMITS));
-        localStorage.setItem('gate_logs', JSON.stringify(SEED_LOGS));
+        const currentVehicles = this.getVehicles();
+        const mergedVehicles = [...currentVehicles];
+        SEED_VEHICLES.forEach(sv => {
+            if (!mergedVehicles.find(v => v.id === sv.id)) mergedVehicles.push(sv);
+        });
+        localStorage.setItem('gate_vehicles', JSON.stringify(mergedVehicles));
+
+        const currentPermits = this.getPermits();
+        const mergedPermits = [...currentPermits];
+        SEED_PERMITS.forEach(sp => {
+            if (!mergedPermits.find(p => p.id === sp.id)) mergedPermits.push(sp);
+        });
+        localStorage.setItem('gate_permits', JSON.stringify(mergedPermits));
+
+        const currentLogs = this.getLogs();
+        const mergedLogs = [...currentLogs];
+        SEED_LOGS.forEach(sl => {
+            if (!mergedLogs.find(l => l.id === sl.id)) mergedLogs.push(sl);
+        });
+        localStorage.setItem('gate_logs', JSON.stringify(mergedLogs));
+
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return true;
     }
 
-    // FIX RC-4: Generate globally unique IDs to avoid cross-device collisions
     generateId() {
-        // Format: timestamp (ms) + random 4-digit suffix
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return Math.abs([...crypto.randomUUID()].reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0));
+        }
         return parseInt(`${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 15));
     }
 
@@ -238,20 +257,18 @@ class DatabaseService {
             if (cloudVehicles.length > 0) {
                 const merged = [...localVehicles];
                 cloudVehicles.forEach(cv => {
-                    const idx = merged.findIndex(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar);
-                    if (idx === -1) { 
-                        merged.push(cv); 
-                        changed = true; 
-                    } else {
-                        const diff = merged[idx].status !== cv.status || merged[idx].blacklist_reason !== cv.blacklist_reason;
+                    const idx = merged.findIndex(lv => lv.id === cv.id);
+                    if (idx === -1) { merged.push(cv); changed = true; }
+                    else {
+                        const diff = merged[idx].status !== cv.status || merged[idx].blacklist_reason !== cv.blacklist_reason || merged[idx].plate_ar !== cv.plate_ar;
                         merged[idx] = { ...merged[idx], ...cv };
                         if (diff) changed = true;
                     }
                 });
                 localStorage.setItem('gate_vehicles', JSON.stringify(merged));
-            } else if (localVehicles.length > 0) {
-                // Cloud is empty but local has data -> Auto-sync local to cloud to populate it
-                this.pushToCloud('/api/sync', { vehicles: localVehicles, permits: this.getPermits(), logs: this.getLogs() });
+            } else if (cloudVehicles.length === 0 && localVehicles.length > 0) {
+                localStorage.setItem('gate_vehicles', JSON.stringify([]));
+                changed = true;
             }
 
             // --- Permits ---
@@ -260,20 +277,18 @@ class DatabaseService {
             if (cloudPermits.length > 0) {
                 const merged = [...localPermits];
                 cloudPermits.forEach(cp => {
-                    const idx = merged.findIndex(lp => lp.id === cp.id || lp.permit_code === cp.permit_code);
-                    if (idx === -1) { 
-                        merged.push(cp); 
-                        changed = true; 
-                    } else {
-                        const diff = merged[idx].status !== cp.status || merged[idx].pin_code !== cp.pin_code;
+                    const idx = merged.findIndex(lp => lp.id === cp.id);
+                    if (idx === -1) { merged.push(cp); changed = true; }
+                    else {
+                        const diff = merged[idx].status !== cp.status;
                         merged[idx] = { ...merged[idx], ...cp };
                         if (diff) changed = true;
                     }
                 });
                 localStorage.setItem('gate_permits', JSON.stringify(merged));
-            } else if (localPermits.length > 0) {
-                // Cloud is empty but local has permits -> Auto-sync to cloud
-                this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: localPermits, logs: this.getLogs() });
+            } else if (cloudPermits.length === 0 && localPermits.length > 0) {
+                localStorage.setItem('gate_permits', JSON.stringify([]));
+                changed = true;
             }
 
             // --- Logs ---
@@ -283,50 +298,90 @@ class DatabaseService {
                 const merged = [...localLogs];
                 cloudLogs.forEach(cl => {
                     const idx = merged.findIndex(ll => ll.id === cl.id);
-                    if (idx === -1) { 
-                        merged.push(cl); 
-                        changed = true; 
-                    } else {
+                    if (idx === -1) { merged.push(cl); changed = true; }
+                    else {
                         const diff = !merged[idx].exit_timestamp && cl.exit_timestamp;
                         merged[idx] = { ...merged[idx], ...cl };
                         if (diff) changed = true;
                     }
                 });
                 localStorage.setItem('gate_logs', JSON.stringify(merged));
-            } else if (localLogs.length > 0) {
-                // Cloud is empty but local has logs -> Auto-sync to cloud
-                this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: localLogs });
+            } else if (cloudLogs.length === 0 && localLogs.length > 0) {
+                localStorage.setItem('gate_logs', JSON.stringify([]));
+                changed = true;
+            }
+
+            // --- Gates ---
+            if (Array.isArray(data.gates) && data.gates.length > 0) {
+                const localGates = this.getGates();
+                if (JSON.stringify(localGates) !== JSON.stringify(data.gates)) {
+                    localStorage.setItem('gate_gates', JSON.stringify(data.gates));
+                    changed = true;
+                }
+            }
+
+            // --- Destinations ---
+            if (Array.isArray(data.destinations) && data.destinations.length > 0) {
+                const localDests = this.getDestinations();
+                if (JSON.stringify(localDests) !== JSON.stringify(data.destinations)) {
+                    localStorage.setItem('gate_destinations', JSON.stringify(data.destinations));
+                    changed = true;
+                }
+            }
+
+            // --- Settings ---
+            if (data.settings && typeof data.settings === 'object' && Object.keys(data.settings).length > 0) {
+                const localSettings = this.getSettings();
+                const merged = { ...localSettings };
+                Object.entries(data.settings).forEach(([k, v]) => {
+                    if (v !== undefined && v !== null) merged[k] = v;
+                });
+                if (JSON.stringify(localSettings) !== JSON.stringify(merged)) {
+                    localStorage.setItem('gate_settings', JSON.stringify(merged));
+                    changed = true;
+                }
+            }
+
+            // --- Users (only password_hash and pin_code from cloud, never overwrite local password) ---
+            if (Array.isArray(data.users) && data.users.length > 0) {
+                const localUsers = this.getUsers();
+                const mergedUsers = [...localUsers];
+                data.users.forEach(cu => {
+                    const idx = mergedUsers.findIndex(lu => lu.id === cu.id);
+                    if (idx === -1) {
+                        mergedUsers.push({ ...cu, password: cu.password || '' });
+                        changed = true;
+                    } else {
+                        mergedUsers[idx] = { ...mergedUsers[idx], ...cu };
+                        changed = true;
+                    }
+                });
+                localStorage.setItem('gate_users', JSON.stringify(mergedUsers));
             }
 
             return changed;
-
         } catch (err) {
-            // Offline or network error — silent fail, keep local data intact
+            // Offline or network error — silent fail, keep local data
         }
         return false;
     }
 
-
-    // Wipe local localStorage
     clearAllData() {
         localStorage.setItem('gate_vehicles', JSON.stringify([]));
         localStorage.setItem('gate_permits', JSON.stringify([]));
         localStorage.setItem('gate_logs', JSON.stringify([]));
-        // Also wipe D1 — fire-and-forget, no await needed
         this.pushToCloud('/api/clear', {});
         return true;
     }
 
     clearPermitsOnly() {
         localStorage.setItem('gate_permits', JSON.stringify([]));
-        // Sync empty permits array to cloud
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: [], logs: this.getLogs() });
         return true;
     }
 
     clearLogsOnly() {
         localStorage.setItem('gate_logs', JSON.stringify([]));
-        // Sync empty logs array to cloud
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: [] });
         return true;
     }
@@ -340,6 +395,7 @@ class DatabaseService {
         const current = this.getSettings();
         const updated = { ...current, ...newSettings };
         localStorage.setItem('gate_settings', JSON.stringify(updated));
+        this.pushToCloud('/api/settings', updated);
         return updated;
     }
 
@@ -354,6 +410,7 @@ class DatabaseService {
         if (!gates.includes(name.trim())) {
             gates.push(name.trim());
             localStorage.setItem('gate_gates', JSON.stringify(gates));
+            this.pushToCloud('/api/gates', { gates });
         }
         return gates;
     }
@@ -363,6 +420,7 @@ class DatabaseService {
         if (index >= 0 && index < gates.length) {
             gates.splice(index, 1);
             localStorage.setItem('gate_gates', JSON.stringify(gates));
+            this.pushToCloud('/api/gates', { gates });
         }
         return gates;
     }
@@ -378,6 +436,7 @@ class DatabaseService {
         if (!dests.includes(name.trim())) {
             dests.push(name.trim());
             localStorage.setItem('gate_destinations', JSON.stringify(dests));
+            this.pushToCloud('/api/destinations', { destinations: dests });
         }
         return dests;
     }
@@ -387,6 +446,7 @@ class DatabaseService {
         if (index >= 0 && index < dests.length) {
             dests.splice(index, 1);
             localStorage.setItem('gate_destinations', JSON.stringify(dests));
+            this.pushToCloud('/api/destinations', { destinations: dests });
         }
         return dests;
     }
@@ -403,7 +463,7 @@ class DatabaseService {
     addOfficer(officerData) {
         const users = this.getUsers();
         const newOfficer = {
-            id: Date.now(),
+            id: this.generateId(),
             role: 'officer',
             badge_id: officerData.badge_id || `GT-0${users.length + 1}`,
             name_ar: officerData.name_ar || 'حارس بوابة',
@@ -415,6 +475,7 @@ class DatabaseService {
         };
         users.push(newOfficer);
         localStorage.setItem('gate_users', JSON.stringify(users));
+        this.syncUsersToCloud();
         return newOfficer;
     }
 
@@ -424,6 +485,7 @@ class DatabaseService {
         if (user) {
             Object.assign(user, data);
             localStorage.setItem('gate_users', JSON.stringify(users));
+            this.syncUsersToCloud();
         }
         return user;
     }
@@ -432,11 +494,27 @@ class DatabaseService {
         let users = this.getUsers();
         users = users.filter(u => u.id !== id);
         localStorage.setItem('gate_users', JSON.stringify(users));
+        this.syncUsersToCloud();
         return users;
     }
 
     assignOfficerToGate(officerId, gateName) {
         return this.updateOfficer(officerId, { gate_assigned: gateName });
+    }
+
+    syncUsersToCloud() {
+        const users = this.getUsers().map(u => ({
+            id: u.id,
+            badge_id: u.badge_id,
+            email: u.email,
+            password_hash: u.password_hash || '',
+            pin_code: u.pin_code,
+            name_ar: u.name_ar,
+            name_en: u.name_en,
+            role: u.role,
+            gate_assigned: u.gate_assigned
+        }));
+        this.pushToCloud('/api/users', { users });
     }
 
     // --- Vehicles & Permits ---
@@ -456,7 +534,7 @@ class DatabaseService {
         if (!searchTerm) return null;
         const term = searchTerm.trim().toLowerCase().replace(/\s+/g, '');
         const vehicles = this.getVehicles();
-        
+
         return vehicles.find(v => {
             const arClean = (v.plate_ar || '').toLowerCase().replace(/\s+/g, '');
             const enClean = (v.plate_en || '').toLowerCase().replace(/\s+/g, '');
@@ -595,7 +673,7 @@ class DatabaseService {
     recordEntry(vehicleId, permitId, officerId, gateName, remarks = '', photoUrl = null) {
         const logs = this.getLogs();
         const newLog = {
-            id: this.generateId(), // FIX RC-4: collision-free ID
+            id: this.generateId(),
             vehicle_id: vehicleId,
             permit_id: permitId || null,
             officer_id: officerId,
@@ -623,13 +701,7 @@ class DatabaseService {
             officer: officer ? officer.name_ar : 'حارس البوابة'
         });
 
-        this.pushToCloud('/api/entry', {
-            vehicle_id: vehicleId,
-            permit_id: permitId || null,
-            officer_id: officerId,
-            gate_name: gateName,
-            remarks: remarks
-        });
+        // Single sync call — eliminates dual-write to /api/entry and /api/sync
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
 
         return newLog;
@@ -639,21 +711,21 @@ class DatabaseService {
         const logs = this.getLogs();
         const activeEntryIndex = logs.slice().reverse().findIndex(l => l.vehicle_id === vehicleId && l.action_type === 'entry' && !l.exit_timestamp);
         const vehicle = this.getVehicles().find(v => v.id === vehicleId);
-        
+
         if (activeEntryIndex !== -1) {
             const actualIndex = logs.length - 1 - activeEntryIndex;
             const entryLog = logs[actualIndex];
             const exitTime = new Date();
             const entryTime = new Date(entryLog.timestamp);
             const durationMin = Math.round((exitTime - entryTime) / 60000);
-            
+
             entryLog.exit_timestamp = exitTime.toISOString();
             entryLog.duration_minutes = durationMin;
             entryLog.remarks = (entryLog.remarks ? entryLog.remarks + ' | ' : '') + `خروج عبر ${gateName}`;
             if (photoUrl) {
                 entryLog.exit_photo_url = photoUrl;
             }
-            
+
             localStorage.setItem('gate_logs', JSON.stringify(logs));
 
             this.announce('VEHICLE_EXIT', {
@@ -662,12 +734,11 @@ class DatabaseService {
                 duration: durationMin
             });
 
-            this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
             return entryLog;
         } else {
             const newExitLog = {
-                id: this.generateId(), // FIX RC-4: collision-free ID
+                id: this.generateId(),
                 vehicle_id: vehicleId,
                 permit_id: null,
                 officer_id: officerId,
@@ -688,7 +759,6 @@ class DatabaseService {
                 duration: 0
             });
 
-            this.pushToCloud('/api/exit', { vehicle_id: vehicleId, officer_id: officerId, gate_name: gateName, remarks });
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
             return newExitLog;
         }
@@ -697,7 +767,7 @@ class DatabaseService {
     recordDenied(vehicleId, officerId, gateName, reason) {
         const logs = this.getLogs();
         const newLog = {
-            id: Date.now(),
+            id: this.generateId(),
             vehicle_id: vehicleId,
             permit_id: null,
             officer_id: officerId,
@@ -710,6 +780,10 @@ class DatabaseService {
         };
         logs.push(newLog);
         localStorage.setItem('gate_logs', JSON.stringify(logs));
+
+        // FIX: Sync denied records to cloud (was missing before)
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+
         return newLog;
     }
 
@@ -730,12 +804,12 @@ class DatabaseService {
     addVehicle(vehicleData) {
         const vehicles = this.getVehicles();
         const newVehicle = {
-            id: this.generateId(), // FIX RC-4: collision-free ID
+            id: this.generateId(),
             ...vehicleData
         };
         vehicles.push(newVehicle);
         localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
-        this.pushToCloud('/api/vehicles', newVehicle);
+        // Single sync call — no more dual-write to /api/vehicles
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return newVehicle;
     }
@@ -744,10 +818,10 @@ class DatabaseService {
         const permits = this.getPermits();
         const pin = permitData.pin_code || Math.floor(10000 + Math.random() * 90000).toString();
         const newPermit = {
-            id: this.generateId(), // FIX RC-4: collision-free ID
+            id: this.generateId(),
             permit_code: `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
             pin_code: pin,
-            permit_type: permitData.permit_type || 'entry', // 'entry' | 'exit' | 'both'
+            permit_type: permitData.permit_type || 'entry',
             status: 'active',
             invoice_no: permitData.invoice_no || '',
             cargo_details: permitData.cargo_details || 'بضائع ومواد مصرحة',
@@ -764,7 +838,7 @@ class DatabaseService {
             destination: newPermit.destination_ar || 'المستودع'
         });
 
-        this.pushToCloud('/api/permits', newPermit);
+        // Single sync call — no more dual-write to /api/permits
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return newPermit;
     }
@@ -780,7 +854,7 @@ class DatabaseService {
                 plate: vehicle.plate_ar || 'المركبة',
                 status: status
             });
-            this.pushToCloud('/api/vehicles', vehicle);
+            // Single sync call — no more dual-write to /api/vehicles
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         }
         return vehicle;
