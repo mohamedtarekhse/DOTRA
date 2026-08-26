@@ -11,5 +11,5 @@ binding = "ASSETS"
 # Cloudflare D1 Database Binding
 [[d1_databases]]
 binding = "DB"
-database_name = "gate_access_db"
-database_id = "your-d1-database-id-here" # TODO: Replace with actual D1 database ID from `wrangler d1 create gate_access_db`
+database_name = "dotra-traffic-db"
+database_id = "dotra-traffic-db" # TODO: Replace with actual D1 database ID from `wrangler d1 create gate_access_db`

@@ -1,42 +1,6 @@
 // Database Layer - Unified Cloud Sync via /api/sync (gate_* tables only)
 // طبقة إدارة البيانات - مزامنة موحدة عبر /api/sync
 
-const SEED_USERS = [
-    {
-        id: 1,
-        badge_id: 'MGR-01',
-        email: 'manager@factory.com',
-        password: 'Manager@2026',
-        pin_code: '9900',
-        name_ar: 'م. أحمد المنصور',
-        name_en: 'Eng. Ahmed Al-Mansoor',
-        role: 'manager',
-        gate_assigned: 'Office HQ (الإدارة العامة)'
-    },
-    {
-        id: 2,
-        badge_id: 'GT-01',
-        email: 'officer1@factory.com',
-        password: 'Officer@2026',
-        pin_code: '1234',
-        name_ar: 'أمين الشرطة / طارق مصطفى',
-        name_en: 'Officer Tariq Mostafa',
-        role: 'officer',
-        gate_assigned: 'بوابة 1 الرئيسية - دوترا'
-    },
-    {
-        id: 3,
-        badge_id: 'GT-02',
-        email: 'officer2@factory.com',
-        password: 'Officer@2026',
-        pin_code: '5678',
-        name_ar: 'أمين الشرطة / خالد الشناوي',
-        name_en: 'Officer Khalid El-Shenawy',
-        role: 'officer',
-        gate_assigned: 'بوابة 2 الشحن والجمارك - دوترا'
-    }
-];
-
 const SEED_GATES = [
     'بوابة 1 الرئيسية - دوترا',
     'بوابة 2 الشحن والجمارك - دوترا',
@@ -184,7 +148,7 @@ class DatabaseService {
 
     initStorage() {
         if (!localStorage.getItem('gate_users')) {
-            localStorage.setItem('gate_users', JSON.stringify(SEED_USERS));
+            localStorage.setItem('gate_users', JSON.stringify([]));
         }
         if (!localStorage.getItem('gate_gates')) {
             localStorage.setItem('gate_gates', JSON.stringify(SEED_GATES));
@@ -232,6 +196,32 @@ class DatabaseService {
 
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return true;
+    }
+
+    needsSetup() {
+        const users = this.getUsers();
+        return !users.some(u => u.role === 'manager');
+    }
+
+    setupManager({ name_ar, name_en, email, password, pin_code }) {
+        const hash = window.Auth.hashPassword(password);
+        const manager = {
+            id: this.generateId(),
+            badge_id: 'MGR-01',
+            email,
+            password: '',
+            password_hash: hash,
+            pin_code,
+            name_ar,
+            name_en,
+            role: 'manager',
+            gate_assigned: ''
+        };
+        const users = this.getUsers();
+        users.push(manager);
+        localStorage.setItem('gate_users', JSON.stringify(users));
+        this.syncUsersToCloud();
+        return manager;
     }
 
     generateId() {
@@ -462,21 +452,25 @@ class DatabaseService {
 
     addOfficer(officerData) {
         const users = this.getUsers();
+        const pin = officerData.pin_code || String(Math.floor(1000 + Math.random() * 9000));
+        const password = officerData.password || pin;
+        const hash = window.Auth.hashPassword(password);
         const newOfficer = {
             id: this.generateId(),
             role: 'officer',
             badge_id: officerData.badge_id || `GT-0${users.length + 1}`,
             name_ar: officerData.name_ar || 'حارس بوابة',
             name_en: officerData.name_en || 'Gate Officer',
-            pin_code: officerData.pin_code || '1234',
+            pin_code: pin,
             gate_assigned: officerData.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
             email: officerData.email || `officer${Date.now()}@factory.com`,
-            password: 'Officer@2026'
+            password: '',
+            password_hash: hash
         };
         users.push(newOfficer);
         localStorage.setItem('gate_users', JSON.stringify(users));
         this.syncUsersToCloud();
-        return newOfficer;
+        return { ...newOfficer, password };
     }
 
     updateOfficer(id, data) {

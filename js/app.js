@@ -14,6 +14,8 @@ class AppController {
         const currentUser = window.Auth.getCurrentUser();
         if (currentUser) {
             this.currentView = currentUser.role === 'manager' ? 'manager' : 'officer';
+        } else if (window.DB.needsSetup()) {
+            this.currentView = 'setup';
         } else {
             this.currentView = 'login';
         }
@@ -322,7 +324,9 @@ class AppController {
         }
 
 
-        if (this.currentView === 'login') {
+        if (this.currentView === 'setup') {
+            this.renderSetupScreen();
+        } else if (this.currentView === 'login') {
             this.renderLoginScreen();
         } else if (this.currentView === 'manager') {
             window.Manager.renderDashboard();
@@ -397,6 +401,71 @@ class AppController {
                 </div>
             </div>
         `;
+    }
+
+    renderSetupScreen() {
+        const container = document.getElementById('main-content');
+        if (!container) return;
+        const lang = window.i18n.getLang();
+
+        container.innerHTML = `
+            <div class="max-w-md mx-auto my-8 px-4 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                <div class="sap-panel p-8 rounded-3xl border border-[#d7e2ee] shadow-xl relative overflow-hidden bg-white">
+                    <div class="text-center mb-6">
+                        <div class="w-24 h-24 rounded-3xl bg-white p-2 mx-auto shadow-md border border-[#d7e2ee] mb-3 flex items-center justify-center">
+                            <img src="assets/logo.jpg" alt="DOTRA دوترا" class="h-full w-full object-contain" />
+                        </div>
+                        <h2 class="text-xl font-black text-[#002b66]">${lang === 'ar' ? 'الإعداد الأولي' : 'Initial Setup'}</h2>
+                        <p class="text-xs text-[#556b82] mt-1">${lang === 'ar' ? 'إنشاء حساب المدير الأولي' : 'Create the initial manager account'}</p>
+                    </div>
+                    <form onsubmit="App.handleSetup(event)" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${lang === 'ar' ? 'الاسم بالعربي' : 'Name (AR)'}</label>
+                                <input type="text" id="setup-name-ar" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${lang === 'ar' ? 'الاسم بالإنجليزي' : 'Name (EN)'}</label>
+                                <input type="text" id="setup-name-en" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('emailLabel')}</label>
+                            <input type="email" id="setup-email" required placeholder="admin@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('passwordLabel')}</label>
+                            <input type="password" id="setup-password" required minlength="8" placeholder="••••••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${lang === 'ar' ? 'رقم التعريف الشخصي (4 أرقام)' : 'PIN Code (4 digits)'}</label>
+                            <input type="password" id="setup-pin" required maxlength="4" minlength="4" placeholder="••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-center text-xl tracking-widest font-mono font-bold focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                        </div>
+                        <button type="submit" class="w-full py-3.5 sap-btn-primary text-sm shadow-md flex items-center justify-center gap-2 mt-2">
+                            <span>🏢</span>
+                            <span>${lang === 'ar' ? 'إنشاء حساب المدير' : 'Create Manager Account'}</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    async handleSetup(e) {
+        e.preventDefault();
+        const name_ar = document.getElementById('setup-name-ar').value;
+        const name_en = document.getElementById('setup-name-en').value;
+        const email = document.getElementById('setup-email').value;
+        const password = document.getElementById('setup-password').value;
+        const pin_code = document.getElementById('setup-pin').value;
+
+        window.DB.setupManager({ name_ar, name_en, email, password, pin_code });
+
+        const res = await window.Auth.loginManager(email, password);
+        if (res.success) {
+            this.currentView = 'manager';
+            this.renderApp();
+        }
     }
 
     switchLoginTab(role) {

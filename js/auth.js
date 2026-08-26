@@ -31,7 +31,7 @@ class AuthService {
         const user = users.find(u => u.role === 'manager' && u.email.toLowerCase() === email.trim().toLowerCase());
 
         if (user) {
-            const storedHash = user.password_hash || user.password;
+            const storedHash = user.password_hash;
             if (storedHash) {
                 const isMatch = await this.verifyPassword(password.trim(), storedHash);
                 if (isMatch) {
@@ -39,12 +39,6 @@ class AuthService {
                     sessionStorage.setItem('gate_current_user', JSON.stringify(user));
                     return { success: true, user };
                 }
-            }
-            // Fallback: plaintext comparison for existing seed data
-            if (user.password === password.trim()) {
-                this.currentUser = user;
-                sessionStorage.setItem('gate_current_user', JSON.stringify(user));
-                return { success: true, user };
             }
         }
         return { success: false, message: 'بيانات البريد الإلكتروني أو كلمة المرور غير صحيحة' };
