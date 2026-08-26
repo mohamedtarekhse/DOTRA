@@ -24,6 +24,10 @@ class AppController {
             this.currentView = 'login';
         }
 
+        if (this.currentView !== 'login' && this.currentView !== 'setup' && window.PushService) {
+            window.PushService.startPolling(5000);
+        }
+
         window.addEventListener('online', () => this.updateNetworkBadge());
         window.addEventListener('offline', () => this.updateNetworkBadge());
 
@@ -293,9 +297,10 @@ class AppController {
                             <button type="button"
                                 onclick="App.toggleUserPush()"
                                 title="${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات الفورية مفعلة (انقر للتعطيل)' : 'Push Notifications Active (Click to disable)') : (lang === 'ar' ? 'تفعيل الإشعارات الفورية لهذا الحساب' : 'Enable Push Notifications for this account')}"
-                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-400/30' : 'bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-400/30'} transition-all active:scale-95">
+                                class="relative flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-400/30' : 'bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-400/30'} transition-all active:scale-95">
                                 <span class="text-sm leading-none">${localStorage.getItem('gate_push_enabled') === 'true' ? '🔔' : '🔕'}</span>
                                 <span class="hidden sm:inline">${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Push On') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
+                                <span id="notif-badge" class="hidden absolute -top-1.5 ${lang === 'ar' ? '-left-1.5' : '-right-1.5'} w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center shadow"></span>
                             </button>
 
 
@@ -470,6 +475,7 @@ class AppController {
         if (res.success) {
             this.currentView = 'manager';
             this.renderApp();
+            if (window.PushService) window.PushService.startPolling(5000);
         } else {
             alert(res.message);
         }
@@ -489,6 +495,7 @@ class AppController {
         if (res.success) {
             this.currentView = 'manager';
             this.renderApp();
+            if (window.PushService) window.PushService.startPolling(5000);
         } else {
             alert(res.message);
         }
@@ -503,6 +510,7 @@ class AppController {
         if (res.success) {
             this.currentView = 'officer';
             this.renderApp();
+            if (window.PushService) window.PushService.startPolling(5000);
         } else {
             alert(res.message);
         }

@@ -340,6 +340,94 @@ export default {
                     return new Response(JSON.stringify({ success: true, message: 'Push subscription removed' }), { headers });
                 }
 
+                // ============================================================
+                // POST /api/push/notify — Create notification entry for entry/exit events
+                // ============================================================
+                if (url.pathname === '/api/push/notify' && request.method === 'POST') {
+                    const data = await request.json();
+                    if (db && data.type && data.vehicle_plate) {
+                        const title = data.type === 'entry'
+                            ? `📥 دخول: ${data.vehicle_plate}`
+                            : (data.type === 'exit' ? `📤 خروج: ${data.vehicle_plate}` : `🔔 ${data.vehicle_plate}`);
+                        const body = data.type === 'entry'
+                            ? `دخول عبر ${data.gate_name || 'البوابة'}`
+                            : (data.type === 'exit' ? `خروج عبر ${data.gate_name || 'البوابة'}` : data.message || '');
+
+                        try {
+                            const roles = data.roles || ['manager'];
+                            for (const role of roles) {
+                                const subs = (await db.prepare("SELECT user_id FROM push_subscriptions WHERE role = ?").bind(role).all()).results || [];
+                                const userIds = [...new Set(subs.map(s => s.user_id).filter(Boolean))];
+                                for (const uid of userIds) {
+                                    await db.prepare(`
+                                        INSERT INTO gate_notifications (user_id, type, title, body, vehicle_id, vehicle_plate, gate_name)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    `).bind(uid, data.type, title, body, data.vehicle_id || null, data.vehicle_plate, data.gate_name || '').run();
+                                }
+                            }
+                        } catch (e) { console.error('[PUSH NOTIFY] error:', e.message); }
+                    }
+                    return new Response(JSON.stringify({ success: true }), { headers });
+                }
+
+                // ============================================================
+                // GET /api/notifications?user_id=X — Get unread notifications for user
+                // ============================================================
+                if (url.pathname === '/api/notifications' && request.method === 'GET') {
+                    const userId = url.searchParams.get('user_id');
+                    if (db && userId) {
+                        try {
+                            const notifs = (await db.prepare(
+                                "SELECT * FROM gate_notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT 50"
+                            ).bind(parseInt(userId)).all()).results || [];
+                            return new Response(JSON.stringify({ notifications: notifs }), { headers });
+                        } catch (e) { console.error('[NOTIFS GET] error:', e.message); }
+                    }
+                    return new Response(JSON.stringify({ notifications: [] }), { headers });
+                }
+
+                // ============================================================
+                // POST /api/notifications/read — Mark notification(s) as read
+                // ============================================================
+                if (url.pathname === '/api/notifications/read' && request.method === 'POST') {
+                    const data = await request.json();
+                    if (db) {
+                        try {
+                            if (data.id) {
+                                await db.prepare("UPDATE gate_notifications SET is_read = 1 WHERE id = ?").bind(data.id).run();
+                            } else if (data.user_id) {
+                                await db.prepare("UPDATE gate_notifications SET is_read = 1 WHERE user_id = ?").bind(data.user_id).run();
+                            }
+                        } catch (e) { console.error('[NOTIF READ] error:', e.message); }
+                    }
+                    return new Response(JSON.stringify({ success: true }), { headers });
+                }
+
+                // ============================================================
+                // POST /api/push/watchlist — Manage per-vehicle watchlist
+                // ============================================================
+                if (url.pathname === '/api/push/watchlist' && request.method === 'POST') {
+                    const data = await request.json();
+                    if (db && data.endpoint) {
+                        try {
+                            const sub = (await db.prepare("SELECT id FROM push_subscriptions WHERE endpoint = ?").bind(data.endpoint).all()).results || [];
+                            if (sub.length > 0) {
+                                const subId = sub[0].id;
+                                if (data.watch_all !== undefined) {
+                                    await db.prepare("UPDATE push_subscriptions SET watch_all = ? WHERE id = ?").bind(data.watch_all ? 1 : 0, subId).run();
+                                }
+                                if (data.vehicle_ids && Array.isArray(data.vehicle_ids)) {
+                                    await db.prepare("DELETE FROM push_vehicle_watchlist WHERE subscription_id = ?").bind(subId).run();
+                                    for (const vid of data.vehicle_ids) {
+                                        await db.prepare("INSERT INTO push_vehicle_watchlist (subscription_id, vehicle_id) VALUES (?, ?)").bind(subId, vid).run();
+                                    }
+                                }
+                            }
+                        } catch (e) { console.error('[WATCHLIST] error:', e.message); }
+                    }
+                    return new Response(JSON.stringify({ success: true }), { headers });
+                }
+
                 return new Response(JSON.stringify({ status: 'ok', message: 'DOTRA Cloudflare Gate API (Unified)' }), { headers });
             } catch (err) {
                 console.error('[API] Unhandled error:', err.message, err.stack);

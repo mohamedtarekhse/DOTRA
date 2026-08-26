@@ -689,8 +689,8 @@ class DatabaseService {
             officer: officer ? officer.name_ar : 'حارس البوابة'
         });
 
-        // Single sync call — eliminates dual-write to /api/entry and /api/sync
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        this.notifyVehicleEvent('entry', vehicleId, vehicle ? vehicle.plate_ar : '', gateName);
 
         return newLog;
     }
@@ -723,6 +723,7 @@ class DatabaseService {
             });
 
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+            this.notifyVehicleEvent('exit', vehicleId, vehicle ? vehicle.plate_ar : '', gateName);
             return entryLog;
         } else {
             const newExitLog = {
@@ -748,6 +749,7 @@ class DatabaseService {
             });
 
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+            this.notifyVehicleEvent('exit', vehicleId, vehicle ? vehicle.plate_ar : '', gateName);
             return newExitLog;
         }
     }
@@ -787,6 +789,55 @@ class DatabaseService {
         } catch (e) {
             // Background sync resilience
         }
+    }
+
+    notifyVehicleEvent(type, vehicleId, plate, gateName) {
+        const user = window.Auth ? window.Auth.getCurrentUser() : null;
+        this.pushToCloud('/api/push/notify', {
+            type,
+            vehicle_id: vehicleId,
+            vehicle_plate: plate,
+            gate_name: gateName,
+            roles: ['manager', 'officer']
+        });
+    }
+
+    async getNotifications() {
+        const user = window.Auth ? window.Auth.getCurrentUser() : null;
+        if (!user) return [];
+        try {
+            const res = await fetch(`/api/notifications?user_id=${user.id}`);
+            if (!res || !res.ok) return [];
+            const data = await res.json();
+            return data.notifications || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async markNotificationRead(notifId) {
+        this.pushToCloud('/api/notifications/read', { id: notifId });
+    }
+
+    async markAllNotificationsRead() {
+        const user = window.Auth ? window.Auth.getCurrentUser() : null;
+        if (user) this.pushToCloud('/api/notifications/read', { user_id: user.id });
+    }
+
+    async updateWatchlist(vehicleIds, watchAll) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+        if (typeof fetch === 'undefined') return;
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                await fetch('/api/push/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ endpoint: sub.endpoint, vehicle_ids: vehicleIds, watch_all: watchAll })
+                });
+            }
+        } catch (e) { /* background */ }
     }
 
     addVehicle(vehicleData) {

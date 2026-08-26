@@ -485,6 +485,9 @@ class ManagerController {
                                     <span>تصريح</span>
                                 </button>
                             `}
+                            <button type="button" onclick="Manager.toggleVehicleNotify(${vehicle.id})" id="bell-${vehicle.id}" class="w-8 h-8 rounded-lg flex items-center justify-center transition-all ${this.isWatchingVehicle(vehicle.id) ? 'bg-amber-100 text-amber-600 border border-amber-300' : 'bg-[#f0f4f8] text-[#556b82] border border-[#d7e2ee] hover:bg-[#e2edf8]'}" title="${lang === 'ar' ? 'إشعار عند دخول/خروج هذه المركبة' : 'Notify on entry/exit'}">
+                                <span class="text-sm">${this.isWatchingVehicle(vehicle.id) ? '🔔' : '🔕'}</span>
+                            </button>
                         </div>
                     </div>
 
@@ -929,6 +932,15 @@ class ManagerController {
                                         <span>${lang === 'ar' ? 'إرسال إشعار تجريبي' : 'Send Test Alert'}</span>
                                     </button>
                                 </div>
+                                <div class="mt-3 pt-3 border-t border-blue-100">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-[11px] font-bold text-[#002b66]">${lang === 'ar' ? 'تتبع دخول/خروج كل المركبات' : 'Track All Vehicles'}</span>
+                                        <button type="button" onclick="Manager.toggleWatchAll()" class="w-10 h-5 rounded-full transition-all relative ${localStorage.getItem('gate_vehicle_watchlist') === '[]' || !localStorage.getItem('gate_vehicle_watchlist') ? 'bg-[#0070f2]' : 'bg-gray-300'}">
+                                            <span class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${(localStorage.getItem('gate_vehicle_watchlist') === '[]' || !localStorage.getItem('gate_vehicle_watchlist')) ? 'right-5' : 'left-0.5'}"></span>
+                                        </button>
+                                    </div>
+                                    <p class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'عند التفعيل: إشعار لكل مركبة. عند الإيقاف: اضغط 🔔 بجانب المركبات المطلوبة فقط.' : 'ON: notify for all vehicles. OFF: tap 🔔 next to specific vehicles only.'}</p>
+                                </div>
                             </div>
 
                             <!-- Database Management Tools: Demo Data & Reset -->
@@ -1275,6 +1287,41 @@ class ManagerController {
         } else {
             alert(lang === 'ar' ? 'يرجى تفعيل الإشعارات أولاً بالضغط على زر "تفعيل الإشعارات"' : 'Please enable push notifications first.');
         }
+    }
+
+    isWatchingVehicle(vehicleId) {
+        const watchlist = JSON.parse(localStorage.getItem('gate_vehicle_watchlist') || '[]');
+        return watchlist.includes(vehicleId);
+    }
+
+    async toggleVehicleNotify(vehicleId) {
+        const lang = window.i18n.getLang();
+        const isEnabled = localStorage.getItem('gate_push_enabled') === 'true';
+        if (!isEnabled) {
+            alert(lang === 'ar' ? 'يرجى تفعيل الإشعارات أولاً من إعدادات النظام' : 'Enable notifications first in System Settings');
+            return;
+        }
+        let watchlist = JSON.parse(localStorage.getItem('gate_vehicle_watchlist') || '[]');
+        if (watchlist.includes(vehicleId)) {
+            watchlist = watchlist.filter(id => id !== vehicleId);
+        } else {
+            watchlist.push(vehicleId);
+        }
+        localStorage.setItem('gate_vehicle_watchlist', JSON.stringify(watchlist));
+        await window.DB.updateWatchlist(watchlist, false);
+        this.renderDashboard();
+    }
+
+    async toggleWatchAll() {
+        const lang = window.i18n.getLang();
+        const isEnabled = localStorage.getItem('gate_push_enabled') === 'true';
+        if (!isEnabled) {
+            alert(lang === 'ar' ? 'يرجى تفعيل الإشعارات أولاً من إعدادات النظام' : 'Enable notifications first in System Settings');
+            return;
+        }
+        localStorage.setItem('gate_vehicle_watchlist', JSON.stringify([]));
+        await window.DB.updateWatchlist([], true);
+        this.openSettingsModal('general');
     }
 
 

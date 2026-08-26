@@ -97,6 +97,30 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     endpoint TEXT NOT NULL UNIQUE,
     p256dh TEXT NOT NULL,
     auth TEXT NOT NULL,
+    watch_all INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- PER-VEHICLE WATCHLIST (which vehicles a subscription wants notifications for)
+CREATE TABLE IF NOT EXISTS push_vehicle_watchlist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subscription_id INTEGER NOT NULL,
+    vehicle_id INTEGER NOT NULL,
+    FOREIGN KEY (subscription_id) REFERENCES push_subscriptions(id) ON DELETE CASCADE,
+    FOREIGN KEY (vehicle_id) REFERENCES gate_vehicles(id) ON DELETE CASCADE
+);
+
+-- NOTIFICATIONS QUEUE (pending notifications for polling clients)
+CREATE TABLE IF NOT EXISTS gate_notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    type TEXT NOT NULL DEFAULT 'entry',
+    title TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    vehicle_id INTEGER,
+    vehicle_plate TEXT DEFAULT '',
+    gate_name TEXT DEFAULT '',
+    is_read INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -111,6 +135,10 @@ CREATE INDEX IF NOT EXISTS idx_gate_logs_action ON gate_logs(action_type);
 CREATE INDEX IF NOT EXISTS idx_gate_logs_timestamp ON gate_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_push_role ON push_subscriptions(role);
 CREATE INDEX IF NOT EXISTS idx_push_endpoint ON push_subscriptions(endpoint);
+CREATE INDEX IF NOT EXISTS idx_watchlist_sub ON push_vehicle_watchlist(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_watchlist_vehicle ON push_vehicle_watchlist(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_notif_user ON gate_notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notif_read ON gate_notifications(is_read);
 
 -- ============================================================
 -- SEED DATA: Initial manager + officer accounts
