@@ -597,12 +597,16 @@ class OfficerController {
         const textSpan = document.getElementById('scan-qr-text');
 
         if (this.isScanning) {
+            this.isScanning = false;
             if (this.html5QrCode) {
                 this.html5QrCode.stop().then(() => {
-                    this.isScanning = false;
+                    container.classList.add('hidden');
+                    textSpan.textContent = window.i18n.t('openScanner');
+                }).catch(() => {
                     container.classList.add('hidden');
                     textSpan.textContent = window.i18n.t('openScanner');
                 });
+                this.html5QrCode = null;
             }
         } else {
             container.classList.remove('hidden');
@@ -614,11 +618,11 @@ class OfficerController {
     startScanner() {
         if (typeof Html5Qrcode === 'undefined') {
             alert('قارئ الكاميرا غير جاهز أو غير مدعوم في هذا المتصفح');
+            this.toggleCameraScanner();
             return;
         }
 
         this.html5QrCode = new Html5Qrcode("qr-reader");
-        this.isScanning = true;
 
         this.html5QrCode.start(
             { facingMode: "environment" },
@@ -628,10 +632,22 @@ class OfficerController {
                 this.toggleCameraScanner();
             },
             () => {}
-        ).catch(err => {
+        ).then(() => {
+            this.isScanning = true;
+        }).catch(err => {
             console.error("Camera access error:", err);
-            alert("تعذر فتح الكاميرا، يرجى السماح بالإذن في المتصفح أو إدخال رقم اللوحة يدوياً");
-            this.toggleCameraScanner();
+            this.isScanning = false;
+            this.html5QrCode = null;
+            const container = document.getElementById('scanner-container');
+            const textSpan = document.getElementById('scan-qr-text');
+            if (container) container.classList.add('hidden');
+            if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
+            const lang = window.i18n.getLang();
+            if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission denied')) {
+                alert(lang === 'ar' ? 'تم رفض إذن الكاميرا. يرجى السماح بالوصول لإعدادات المتصفح ثم أعد المحاولة.' : 'Camera permission denied. Please allow access in browser settings and try again.');
+            } else {
+                alert(lang === 'ar' ? 'تعذر فتح الكاميرا. يمكنك إدخال رقم اللوحة يدوياً.' : 'Could not open camera. You can enter the plate number manually.');
+            }
         });
     }
 
