@@ -10,6 +10,6 @@ binding = "ASSETS"
 
 # Cloudflare D1 Database Binding
 [[d1_databases]]
-binding = "DB"
+binding = "dotra-traffic-db"
 database_name = "dotra-traffic-db"
 database_id = "140644fa-ed39-47e9-a39e-56ab99d6fa1b" # From: npx wrangler d1 create dotra-traffic-db
