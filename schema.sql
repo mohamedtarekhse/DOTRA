@@ -1,6 +1,7 @@
--- Cloudflare D1 Database Schema for Vehicle Gate Access System (Egypt Traffic Edition)
--- نظام تصاريح بوابات المركبات - قاعدة بيانات كلاود فلير D1 (معيار المرور المصري)
+﻿-- Cloudflare D1 Database Schema for Vehicle Gate Access System
+-- نظام تصاريح بوابات المركبات - قاعدة بيانات D1
 
+-- LEGACY TABLES
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     badge_id TEXT UNIQUE NOT NULL,
@@ -15,25 +16,24 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS vehicles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    plate_ar TEXT NOT NULL,           -- e.g. "ط ر ق ٩ ٨ ٢ ١"
-    plate_en TEXT NOT NULL,           -- e.g. "TRQ 9821"
-    vehicle_type TEXT NOT NULL,       -- truckHeavy, truckMedium, car, van, tanker
+    id INTEGER PRIMARY KEY,
+    plate_ar TEXT NOT NULL,
+    plate_en TEXT NOT NULL,
+    vehicle_type TEXT NOT NULL,
     driver_name_ar TEXT NOT NULL,
     driver_name_en TEXT NOT NULL,
     driver_phone TEXT,
-    driver_id_number TEXT,
     company_ar TEXT NOT NULL,
     company_en TEXT NOT NULL,
-    status TEXT DEFAULT 'visitor' CHECK(status IN ('whitelist', 'blacklist', 'visitor')),
+    status TEXT DEFAULT 'visitor',
     blacklist_reason TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS permits (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     permit_code TEXT UNIQUE NOT NULL,
-    vehicle_id INTEGER NOT NULL REFERENCES vehicles(id),
+    vehicle_id INTEGER NOT NULL,
     destination_ar TEXT NOT NULL,
     destination_en TEXT NOT NULL,
     purpose_ar TEXT NOT NULL,
@@ -41,28 +41,75 @@ CREATE TABLE IF NOT EXISTS permits (
     cargo_details TEXT,
     valid_from DATETIME NOT NULL,
     valid_until DATETIME NOT NULL,
-    status TEXT DEFAULT 'active' CHECK(status IN ('active', 'expired', 'used', 'revoked')),
-    created_by INTEGER REFERENCES users(id),
+    status TEXT DEFAULT 'active',
+    created_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS access_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    permit_id INTEGER REFERENCES permits(id),
-    vehicle_id INTEGER NOT NULL REFERENCES vehicles(id),
-    officer_id INTEGER REFERENCES users(id),
+    id INTEGER PRIMARY KEY,
+    permit_id INTEGER,
+    vehicle_id INTEGER NOT NULL,
+    officer_id INTEGER,
     gate_name TEXT NOT NULL,
-    action_type TEXT NOT NULL CHECK(action_type IN ('entry', 'exit', 'denied')),
+    action_type TEXT NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     exit_timestamp DATETIME,
     duration_minutes INTEGER,
     remarks TEXT
 );
 
--- Seed Initial Egyptian Admin & Gate Officers
-INSERT OR IGNORE INTO users (id, badge_id, email, password_hash, pin_code, name_ar, name_en, role, gate_assigned) VALUES
-(1, 'MGR-01', 'manager@factory.com', 'Manager@2026', '9900', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', 'Office HQ (الإدارة الرئيسية)'),
-(2, 'GT-01', 'officer1@factory.com', 'Officer@2026', '1234', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية (Gate 1 Main)'),
-(3, 'GT-02', 'officer2@factory.com', 'Officer@2026', '5678', 'أمين الشرطة / خالد الشناوي', 'Officer Khalid El-Shenawy', 'officer', 'بوابة 2 الشحن والجمارك (Gate 2 Cargo)');
+-- PRIMARY SYNC TABLES used by POST/GET /api/sync for persistent cross-device sync
+CREATE TABLE IF NOT EXISTS gate_vehicles (
+    id INTEGER PRIMARY KEY,
+    plate_ar TEXT NOT NULL,
+    plate_en TEXT NOT NULL DEFAULT '',
+    vehicle_type TEXT NOT NULL DEFAULT 'truckHeavy',
+    driver_name_ar TEXT NOT NULL DEFAULT '',
+    driver_name_en TEXT NOT NULL DEFAULT '',
+    driver_phone TEXT DEFAULT '',
+    company_ar TEXT NOT NULL DEFAULT '',
+    company_en TEXT NOT NULL DEFAULT '',
+    status TEXT DEFAULT 'visitor',
+    blacklist_reason TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
+CREATE TABLE IF NOT EXISTS gate_permits (
+    id INTEGER PRIMARY KEY,
+    permit_code TEXT NOT NULL,
+    pin_code TEXT NOT NULL DEFAULT '',
+    vehicle_id INTEGER NOT NULL,
+    permit_type TEXT DEFAULT 'entry',
+    destination_ar TEXT DEFAULT '',
+    destination_en TEXT DEFAULT '',
+    purpose_ar TEXT DEFAULT '',
+    purpose_en TEXT DEFAULT '',
+    cargo_details TEXT DEFAULT '',
+    invoice_no TEXT DEFAULT '',
+    valid_from DATETIME DEFAULT CURRENT_TIMESTAMP,
+    valid_until DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'active',
+    created_by INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
+CREATE TABLE IF NOT EXISTS gate_logs (
+    id INTEGER PRIMARY KEY,
+    vehicle_id INTEGER NOT NULL,
+    permit_id INTEGER DEFAULT NULL,
+    officer_id INTEGER DEFAULT NULL,
+    gate_name TEXT NOT NULL DEFAULT '',
+    action_type TEXT NOT NULL DEFAULT 'entry',
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    exit_timestamp DATETIME DEFAULT NULL,
+    duration_minutes INTEGER DEFAULT NULL,
+    remarks TEXT DEFAULT ''
+);
+
+-- Indexes for fast lookups
+CREATE INDEX IF NOT EXISTS idx_gate_vehicles_plate ON gate_vehicles(plate_ar);
+CREATE INDEX IF NOT EXISTS idx_gate_permits_vehicle ON gate_permits(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_gate_permits_code ON gate_permits(permit_code);
+CREATE INDEX IF NOT EXISTS idx_gate_logs_vehicle ON gate_logs(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_gate_logs_action ON gate_logs(action_type);

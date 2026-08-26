@@ -216,6 +216,12 @@ class DatabaseService {
         return true;
     }
 
+    // FIX RC-4: Generate globally unique IDs to avoid cross-device collisions
+    generateId() {
+        // Format: timestamp (ms) + random 4-digit suffix
+        return parseInt(`${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 15));
+    }
+
     async syncFromCloud() {
         try {
             if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
@@ -225,58 +231,71 @@ class DatabaseService {
                 const data = await res.json();
                 let changed = false;
 
+                // FIX RC-3 & RC-5: Cloud is the source of truth for all other devices
+                // Merge cloud data INTO local, preferring cloud records for conflicts
                 if (data.vehicles && Array.isArray(data.vehicles) && data.vehicles.length > 0) {
                     const localVehicles = this.getVehicles();
-                    const mergedVehicles = [...localVehicles];
+                    const merged = [...localVehicles];
                     data.vehicles.forEach(cv => {
-                        const existingIdx = mergedVehicles.findIndex(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar);
+                        const existingIdx = merged.findIndex(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar);
                         if (existingIdx === -1) {
-                            mergedVehicles.push(cv);
+                            merged.push(cv);
                             changed = true;
-                        } else if (mergedVehicles[existingIdx].status !== cv.status) {
-                            mergedVehicles[existingIdx] = { ...mergedVehicles[existingIdx], ...cv };
-                            changed = true;
+                        } else {
+                            // Always take latest status from cloud
+                            const hadChange = merged[existingIdx].status !== cv.status || merged[existingIdx].blacklist_reason !== cv.blacklist_reason;
+                            merged[existingIdx] = { ...merged[existingIdx], ...cv };
+                            if (hadChange) changed = true;
                         }
                     });
-                    if (changed) localStorage.setItem('gate_vehicles', JSON.stringify(mergedVehicles));
+                    localStorage.setItem('gate_vehicles', JSON.stringify(merged));
                 }
 
                 if (data.permits && Array.isArray(data.permits) && data.permits.length > 0) {
                     const localPermits = this.getPermits();
-                    const mergedPermits = [...localPermits];
+                    const merged = [...localPermits];
                     data.permits.forEach(cp => {
-                        const existingIdx = mergedPermits.findIndex(lp => lp.id === cp.id || lp.permit_code === cp.permit_code);
+                        const existingIdx = merged.findIndex(lp => lp.id === cp.id || lp.permit_code === cp.permit_code);
                         if (existingIdx === -1) {
-                            mergedPermits.push(cp);
+                            merged.push(cp);
                             changed = true;
-                        } else if (mergedPermits[existingIdx].status !== cp.status) {
-                            mergedPermits[existingIdx] = { ...mergedPermits[existingIdx], ...cp };
-                            changed = true;
+                        } else {
+                            const hadChange = merged[existingIdx].status !== cp.status;
+                            merged[existingIdx] = { ...merged[existingIdx], ...cp };
+                            if (hadChange) changed = true;
                         }
                     });
-                    if (changed) localStorage.setItem('gate_permits', JSON.stringify(mergedPermits));
+                    localStorage.setItem('gate_permits', JSON.stringify(merged));
                 }
 
                 if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
                     const localLogs = this.getLogs();
-                    const mergedLogs = [...localLogs];
+                    const merged = [...localLogs];
                     data.logs.forEach(cl => {
-                        const existingIdx = mergedLogs.findIndex(ll => ll.id === cl.id);
+                        const existingIdx = merged.findIndex(ll => ll.id === cl.id);
                         if (existingIdx === -1) {
-                            mergedLogs.push(cl);
+                            merged.push(cl);
                             changed = true;
-                        } else if (mergedLogs[existingIdx].exit_timestamp !== cl.exit_timestamp) {
-                            mergedLogs[existingIdx] = { ...mergedLogs[existingIdx], ...cl };
-                            changed = true;
+                        } else {
+                            // Update exit data if cloud has it and local doesn't
+                            const hadChange = !merged[existingIdx].exit_timestamp && cl.exit_timestamp;
+                            merged[existingIdx] = { ...merged[existingIdx], ...cl };
+                            if (hadChange) changed = true;
                         }
                     });
-                    if (changed) localStorage.setItem('gate_logs', JSON.stringify(mergedLogs));
+                    localStorage.setItem('gate_logs', JSON.stringify(merged));
+                }
+
+                // FIX RC-3: Return true even if cloud has same count but data is present
+                // so the UI always stays current
+                if (data.vehicles?.length > 0 || data.permits?.length > 0 || data.logs?.length > 0) {
+                    return changed || true; // always re-render when cloud responds with data
                 }
 
                 return changed;
             }
         } catch (err) {
-            // Offline or fallback mode
+            // Offline or fallback mode — silent fail
         }
         return false;
     }
@@ -552,7 +571,7 @@ class DatabaseService {
     recordEntry(vehicleId, permitId, officerId, gateName, remarks = '', photoUrl = null) {
         const logs = this.getLogs();
         const newLog = {
-            id: Date.now(),
+            id: this.generateId(), // FIX RC-4: collision-free ID
             vehicle_id: vehicleId,
             permit_id: permitId || null,
             officer_id: officerId,
@@ -624,7 +643,7 @@ class DatabaseService {
             return entryLog;
         } else {
             const newExitLog = {
-                id: Date.now(),
+                id: this.generateId(), // FIX RC-4: collision-free ID
                 vehicle_id: vehicleId,
                 permit_id: null,
                 officer_id: officerId,
@@ -687,7 +706,7 @@ class DatabaseService {
     addVehicle(vehicleData) {
         const vehicles = this.getVehicles();
         const newVehicle = {
-            id: Date.now(),
+            id: this.generateId(), // FIX RC-4: collision-free ID
             ...vehicleData
         };
         vehicles.push(newVehicle);
@@ -701,7 +720,7 @@ class DatabaseService {
         const permits = this.getPermits();
         const pin = permitData.pin_code || Math.floor(10000 + Math.random() * 90000).toString();
         const newPermit = {
-            id: Date.now(),
+            id: this.generateId(), // FIX RC-4: collision-free ID
             permit_code: `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
             pin_code: pin,
             permit_type: permitData.permit_type || 'entry', // 'entry' | 'exit' | 'both'

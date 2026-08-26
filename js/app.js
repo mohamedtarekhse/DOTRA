@@ -43,11 +43,12 @@ class AppController {
             };
         }
 
-        // 3. Continuous Cloud Synchronization across PC, Mobile, and Gate Terminals
+        // 3. Continuous Cloud Synchronization across PC, Mobile, and Gate Terminals (every 2s)
         if (typeof setInterval !== 'undefined') {
             setInterval(async () => {
                 if (typeof navigator !== 'undefined' && navigator.onLine && window.DB && typeof window.DB.syncFromCloud === 'function') {
                     const hasUpdates = await window.DB.syncFromCloud();
+                    // FIX RC-3: Always re-render — cloud is authoritative source
                     if (hasUpdates) {
                         if (this.currentView === 'manager' && window.Manager) {
                             window.Manager.renderDashboard();
@@ -56,7 +57,7 @@ class AppController {
                         }
                     }
                 }
-            }, 3000);
+            }, 2000); // 2 seconds for near-real-time cross-device sync
         }
 
         this.renderApp();

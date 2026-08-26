@@ -173,45 +173,122 @@ export default {
                     return new Response(JSON.stringify(CLOUD_STATE.logs), { headers });
                 }
 
-                // 6. GET & POST /api/sync (Full Cloud Sync across PC, Mobile, Tablets)
+                // 6. GET & POST /api/sync — THE CRITICAL SHARED STATE ENDPOINT
                 if (url.pathname === '/api/sync') {
                     if (request.method === 'GET') {
+                        // PRIORITY: Always read from D1 (persistent) first
                         if (db) {
                             try {
-                                const vehicles = (await db.prepare("SELECT * FROM vehicles ORDER BY id DESC").all()).results || [];
-                                const permits = (await db.prepare("SELECT * FROM permits ORDER BY id DESC").all()).results || [];
-                                const logs = (await db.prepare("SELECT * FROM access_logs ORDER BY id DESC LIMIT 200").all()).results || [];
+                                const vehicles = (await db.prepare("SELECT * FROM gate_vehicles ORDER BY id DESC").all()).results || [];
+                                const permits = (await db.prepare("SELECT * FROM gate_permits ORDER BY id DESC").all()).results || [];
+                                const logs = (await db.prepare("SELECT * FROM gate_logs ORDER BY id DESC LIMIT 500").all()).results || [];
                                 if (vehicles.length > 0 || permits.length > 0 || logs.length > 0) {
+                                    // Also refresh in-memory cache from D1
+                                    CLOUD_STATE = { vehicles, permits, logs };
                                     return new Response(JSON.stringify({ vehicles, permits, logs }), { headers });
                                 }
                             } catch(e) {}
                         }
                         return new Response(JSON.stringify(CLOUD_STATE), { headers });
                     }
+
                     if (request.method === 'POST') {
                         const body = await request.json();
+
+                        // Merge vehicles
                         if (body.vehicles && Array.isArray(body.vehicles)) {
                             body.vehicles.forEach(v => {
                                 const idx = CLOUD_STATE.vehicles.findIndex(ev => ev.id === v.id || ev.plate_ar === v.plate_ar);
                                 if (idx >= 0) CLOUD_STATE.vehicles[idx] = { ...CLOUD_STATE.vehicles[idx], ...v };
                                 else CLOUD_STATE.vehicles.push(v);
                             });
+                            // FIX RC-2: Write vehicles to D1
+                            if (db) {
+                                for (const v of body.vehicles) {
+                                    try {
+                                        await db.prepare(`
+                                            INSERT OR REPLACE INTO gate_vehicles 
+                                            (id, plate_ar, plate_en, vehicle_type, driver_name_ar, driver_name_en, driver_phone, company_ar, company_en, status, blacklist_reason)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        `).bind(
+                                            v.id, v.plate_ar || '', v.plate_en || v.plate_ar || '',
+                                            v.vehicle_type || 'truckHeavy',
+                                            v.driver_name_ar || '', v.driver_name_en || '',
+                                            v.driver_phone || '', v.company_ar || '', v.company_en || '',
+                                            v.status || 'visitor', v.blacklist_reason || ''
+                                        ).run();
+                                    } catch(e) {}
+                                }
+                            }
                         }
+
+                        // Merge permits
                         if (body.permits && Array.isArray(body.permits)) {
                             body.permits.forEach(p => {
                                 const idx = CLOUD_STATE.permits.findIndex(ep => ep.id === p.id || ep.permit_code === p.permit_code);
                                 if (idx >= 0) CLOUD_STATE.permits[idx] = { ...CLOUD_STATE.permits[idx], ...p };
                                 else CLOUD_STATE.permits.push(p);
                             });
+                            // FIX RC-2: Write permits to D1
+                            if (db) {
+                                for (const p of body.permits) {
+                                    try {
+                                        await db.prepare(`
+                                            INSERT OR REPLACE INTO gate_permits
+                                            (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        `).bind(
+                                            p.id, p.permit_code || '', p.pin_code || '',
+                                            p.vehicle_id, p.permit_type || 'entry',
+                                            p.destination_ar || '', p.destination_en || '',
+                                            p.purpose_ar || '', p.purpose_en || '',
+                                            p.cargo_details || '', p.invoice_no || '',
+                                            p.valid_from || '', p.valid_until || '',
+                                            p.status || 'active', p.created_by || 1
+                                        ).run();
+                                    } catch(e) {}
+                                }
+                            }
                         }
+
+                        // Merge logs
                         if (body.logs && Array.isArray(body.logs)) {
                             body.logs.forEach(l => {
                                 const idx = CLOUD_STATE.logs.findIndex(el => el.id === l.id);
                                 if (idx >= 0) CLOUD_STATE.logs[idx] = { ...CLOUD_STATE.logs[idx], ...l };
                                 else CLOUD_STATE.logs.push(l);
                             });
+                            // FIX RC-2: Write logs to D1
+                            if (db) {
+                                for (const l of body.logs) {
+                                    try {
+                                        await db.prepare(`
+                                            INSERT OR REPLACE INTO gate_logs
+                                            (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        `).bind(
+                                            l.id, l.vehicle_id, l.permit_id || null,
+                                            l.officer_id || null, l.gate_name || '',
+                                            l.action_type || 'entry',
+                                            l.timestamp || new Date().toISOString(),
+                                            l.exit_timestamp || null,
+                                            l.duration_minutes || null,
+                                            l.remarks || ''
+                                        ).run();
+                                    } catch(e) {}
+                                }
+                            }
                         }
-                        return new Response(JSON.stringify({ success: true, synced_at: new Date().toISOString(), state: CLOUD_STATE }), { headers });
+
+                        return new Response(JSON.stringify({ 
+                            success: true, 
+                            synced_at: new Date().toISOString(),
+                            counts: {
+                                vehicles: CLOUD_STATE.vehicles.length,
+                                permits: CLOUD_STATE.permits.length,
+                                logs: CLOUD_STATE.logs.length
+                            }
+                        }), { headers });
                     }
                 }
 
@@ -225,3 +302,4 @@ export default {
         return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
     }
 };
+
