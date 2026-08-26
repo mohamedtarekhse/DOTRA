@@ -12,4 +12,4 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "dotra-traffic-db"
-database_id = "dotra-traffic-db" # TODO: Replace with actual D1 database ID from `wrangler d1 create gate_access_db`
+database_id = "140644fa-ed39-47e9-a39e-56ab99d6fa1b" # From: npx wrangler d1 create dotra-traffic-db

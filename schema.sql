@@ -111,3 +111,38 @@ CREATE INDEX IF NOT EXISTS idx_gate_logs_action ON gate_logs(action_type);
 CREATE INDEX IF NOT EXISTS idx_gate_logs_timestamp ON gate_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_push_role ON push_subscriptions(role);
 CREATE INDEX IF NOT EXISTS idx_push_endpoint ON push_subscriptions(endpoint);
+
+-- ============================================================
+-- SEED DATA: Initial manager + officer accounts
+-- Manager login: manager@dotra.com / Manager@2026
+-- Officer login: GT-01 / PIN: 1234
+-- Passwords are salted SHA-256 hashes. Change in production.
+-- ============================================================
+INSERT OR IGNORE INTO gate_users (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
+VALUES
+    (1, 'MGR-01', 'manager@dotra.com', '445b0b2469bd2c6f06a0fde29d0c7cb4:445527f7eaecdc43a384078755d8dd09583adc64c1a4f92d8018d4f36a80ef6d', '', '58362c85765ad4f743cedad4426a81b0:cd9fd56df282a971f8878c5fb949e2ee4e3f2f8f4ad34ef196d971f499c86fc2', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', ''),
+    (2, 'GT-01', 'officer1@dotra.com', '', '', '58362c85765ad4f743cedad4426a81b0:cd9fd56df282a971f8878c5fb949e2ee4e3f2f8f4ad34ef196d971f499c86fc2', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية - دوترا');
+
+-- Seed gates
+INSERT OR IGNORE INTO gate_gates (name) VALUES
+    ('بوابة 1 الرئيسية - دوترا'),
+    ('بوابة 2 الشحن والجمارك - دوترا'),
+    ('بوابة 3 المواد الخام والكيماويات'),
+    ('بوابة 4 خروج الإنتاج والشاحنات');
+
+-- Seed destinations
+INSERT OR IGNORE INTO gate_destinations (name) VALUES
+    ('المستودع الرئيسي'),
+    ('مصنع الأسمدة والمخصبات'),
+    ('مصنع المبيدات والكيماويات'),
+    ('منطقة التحميل والتفريغ'),
+    ('ميزان البسكول'),
+    ('مبنى الإدارة العامة');
+
+-- Seed settings
+INSERT OR IGNORE INTO gate_settings (key, value) VALUES
+    ('default_whatsapp', '01012345678'),
+    ('company_name_ar', 'مجموعة دوترا'),
+    ('company_name_en', 'DOTRA Group'),
+    ('gate_name_ar', 'بوابة مصانع دوترا الرئيسية'),
+    ('gate_name_en', 'DOTRA Factory Main Gate');

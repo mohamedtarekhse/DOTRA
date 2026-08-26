@@ -7,9 +7,13 @@ class AppController {
         this.loginRoleTab = 'manager';
     }
 
-    init() {
+    async init() {
         const savedLang = localStorage.getItem('gate_lang') || 'ar';
         window.i18n.setLanguage(savedLang);
+
+        if (window.DB && typeof window.DB.syncFromCloud === 'function') {
+            await window.DB.syncFromCloud();
+        }
 
         const currentUser = window.Auth.getCurrentUser();
         if (currentUser) {
