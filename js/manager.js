@@ -897,6 +897,29 @@ class ManagerController {
                                 </div>
                             </div>
 
+                            <!-- Web Push Notifications Section -->
+                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-200">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-lg">🔔</span>
+                                        <div>
+                                            <div class="text-xs font-bold text-[#002b66]">${lang === 'ar' ? 'إشعارات الويب وتنبيهات الدخول والخروج' : 'Web Push Notifications'}</div>
+                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'استقبال تنبيهات فورية للمدير عند دخول وخروج الشاحنات وتجاوز المدة' : 'Receive instant push alerts for entry, exit and overstay'}</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="Manager.handleTogglePush()" id="btn-push-toggle" class="px-3 py-1.5 font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-[#0070f2] hover:bg-blue-700 text-white'}">
+                                        <span>${localStorage.getItem('gate_push_enabled') === 'true' ? '✅ ' + (lang === 'ar' ? 'الإشعارات مفعلة' : 'Enabled') : '🔔 ' + (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between pt-2 border-t border-blue-100 text-[11px]">
+                                    <span class="text-[#556b82] text-[10px] font-medium">${lang === 'ar' ? 'تصلك الإشعارات حتى عند تصغير المتصفح' : 'Alerts arrive even when browser is minimized'}</span>
+                                    <button type="button" onclick="Manager.handleTestPush()" class="text-[#0070f2] hover:underline font-bold text-[10px] flex items-center gap-1">
+                                        <span>📨</span>
+                                        <span>${lang === 'ar' ? 'إرسال إشعار تجريبي' : 'Send Test Alert'}</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- Database Management Tools: Demo Data & Reset -->
                             <div class="space-y-2">
                                 <div class="bg-[#ebf3fb] p-3 rounded-2xl border border-[#b3d5fa] flex items-center justify-between">
@@ -943,6 +966,7 @@ class ManagerController {
                                     </button>
                                 </div>
                             </div>
+
 
                             <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
                                 <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
@@ -1203,6 +1227,45 @@ class ManagerController {
             alert(window.i18n.getLang() === 'ar' ? 'تم مسح كافة السجلات من الذاكرة المحلية وقاعدة D1 بنجاح!' : 'All logs cleared from local storage and cloud D1!');
         }
     }
+
+    async handleTogglePush() {
+        if (!window.PushService) return;
+        const isEnabled = localStorage.getItem('gate_push_enabled') === 'true';
+        const lang = window.i18n.getLang();
+        const user = window.Auth ? window.Auth.getCurrentUser() : null;
+
+        if (!isEnabled) {
+            const res = await window.PushService.requestPermissionAndSubscribe('manager', user ? user.id : 1);
+            if (res.success) {
+                alert(lang === 'ar' ? '✅ تم تفعيل إشعارات الويب للمدير بنجاح!' : 'Push notifications enabled for manager!');
+            } else {
+                alert(lang === 'ar' ? `⚠️ تعذر تفعيل الإشعارات: ${res.message}` : `Could not enable push: ${res.message}`);
+            }
+        } else {
+            await window.PushService.unsubscribe();
+            alert(lang === 'ar' ? 'تم إيقاف إشعارات الويب' : 'Push notifications disabled');
+        }
+        this.openSettingsModal();
+    }
+
+    async handleTestPush() {
+        if (!window.PushService) return;
+        const lang = window.i18n.getLang();
+        const res = await window.PushService.sendTestNotification();
+        if (res) {
+            if (window.App) {
+                window.App.showToast(
+                    lang === 'ar' ? '🔔 اختبار الإشعارات' : 'Test Alert',
+                    lang === 'ar' ? 'تم إرسال إشعار تجريبي بنجاح!' : 'Test notification sent successfully!',
+                    'success',
+                    'shield'
+                );
+            }
+        } else {
+            alert(lang === 'ar' ? 'يرجى تفعيل الإشعارات أولاً بالضغط على زر "تفعيل الإشعارات"' : 'Please enable push notifications first.');
+        }
+    }
+
 
     saveSettings(e) {
         e.preventDefault();

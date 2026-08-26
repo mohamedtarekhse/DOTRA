@@ -101,7 +101,37 @@ class AppController {
         } else if (this.currentView === 'officer' && window.Officer) {
             window.Officer.renderTerminal();
         }
+
+        // Native Notification fallback if tab is backgrounded
+        if (typeof document !== 'undefined' && document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            try {
+                navigator.serviceWorker.ready.then(reg => {
+                    let title = '🔔 تنبيه بوابة دوترا';
+                    let body = '';
+                    if (data.type === 'VEHICLE_ENTRY') {
+                        title = '📥 تسجيل دخول شاحنة';
+                        body = `دخلت ${data.plate} عبر ${data.gate}`;
+                    } else if (data.type === 'VEHICLE_EXIT') {
+                        title = '📤 تسجيل خروج شاحنة';
+                        body = `غادرت ${data.plate} عبر ${data.gate} (${data.duration} دقيقة)`;
+                    } else if (data.type === 'PERMIT_CREATED') {
+                        title = '🎫 تم إصدار تصريح جديد';
+                        body = `تصريح للمركبة: ${data.plate} • PIN: ${data.pin}`;
+                    }
+                    if (body && reg && reg.showNotification) {
+                        reg.showNotification(title, {
+                            body: body,
+                            icon: 'assets/logo.jpg',
+                            badge: 'assets/logo.jpg',
+                            dir: 'rtl',
+                            lang: 'ar'
+                        });
+                    }
+                });
+            } catch(e) {}
+        }
     }
+
 
     playChime(type = 'info') {
         try {

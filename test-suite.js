@@ -37,6 +37,7 @@ const requiredFiles = [
     'js/auth.js',
     'js/manager.js',
     'js/officer.js',
+    'js/push.js',
     'js/app.js',
     'schema.sql',
     '_worker.js',
@@ -223,6 +224,8 @@ const mgrCode = fs.readFileSync('js/manager.js', 'utf8');
 eval(mgrCode);
 const offCode = fs.readFileSync('js/officer.js', 'utf8');
 eval(offCode);
+const pushCode = fs.readFileSync('js/push.js', 'utf8');
+eval(pushCode);
 
 // Manager creates permit
 const freshTruck = window.DB.addVehicle({
@@ -481,7 +484,71 @@ window.DB.addPermit({ vehicle_id: 1, destination_ar: 'test', destination_en: 'te
 const localPermitsBefore = window.DB.getPermits().length;
 assert(localPermitsBefore > 0, 'NEW: Local permit added for clear-propagation test');
 
+// [12] Testing Web Push Notifications System
+console.log("\n[12] Testing Web Push Notifications System (Client, Worker & Schema):");
+
+assert(typeof window.PushService !== 'undefined', 'PushManagerService is initialized and available globally on client');
+assert(window.PushService.vapidPublicKey.length > 50, 'PushManagerService contains valid standard VAPID public key');
+
+// Test Service Worker Push Event Support
+const swSource = fs.readFileSync('sw.js', 'utf8');
+assert(swSource.includes("addEventListener('push'"), 'sw.js contains push event listener for background notifications');
+assert(swSource.includes("addEventListener('notificationclick'"), 'sw.js contains notificationclick handler to focus app on tap');
+assert(swSource.includes("'./js/push.js'"), 'sw.js caches js/push.js in offline asset bundle');
+
+// Test Schema.sql for push_subscriptions table
+const schemaSource = fs.readFileSync('schema.sql', 'utf8');
+assert(schemaSource.includes('CREATE TABLE IF NOT EXISTS push_subscriptions'), 'schema.sql includes push_subscriptions table');
+assert(schemaSource.includes('idx_push_role'), 'schema.sql includes index for push_subscriptions role filtering');
+
+// Test Worker POST /api/push/subscribe
+const reqPushSub = new Request('https://dotra.pages.dev/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test-manager-token-999',
+        p256dh: 'BNcRdreALRF8FsII11CsoNHT6gnKqKEvTc15yJ4k3m3Zg38q899n3',
+        auth: 'tH9sDFk02k4msf23',
+        role: 'manager',
+        user_id: 1
+    })
+});
+const resPushSub = await worker.fetch(reqPushSub, { DB: mockD1 });
+const resPushSubJson = await resPushSub.json();
+assert(resPushSub.status === 200 && resPushSubJson.success === true, 'Worker POST /api/push/subscribe successfully registered push subscriber');
+
+// Test Worker POST /api/push/send
+const reqPushSend = new Request('https://dotra.pages.dev/api/push/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        role: 'manager',
+        title: '📥 تسجيل دخول شاحنة',
+        body: 'شاحنة ط ر ق ٩ ٨ ٢ ١ دخلت المصنع'
+    })
+});
+const resPushSend = await worker.fetch(reqPushSend, { DB: mockD1 });
+const resPushSendJson = await resPushSend.json();
+assert(resPushSend.status === 200 && resPushSendJson.success === true && resPushSendJson.broadcasted === true, 'Worker POST /api/push/send successfully dispatched push alert');
+
+// Test Worker POST /api/push/unsubscribe
+const reqPushUnsub = new Request('https://dotra.pages.dev/api/push/unsubscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        endpoint: 'https://fcm.googleapis.com/fcm/send/test-manager-token-999'
+    })
+});
+const resPushUnsub = await worker.fetch(reqPushUnsub, { DB: mockD1 });
+const resPushUnsubJson = await resPushUnsub.json();
+assert(resPushUnsub.status === 200 && resPushUnsubJson.success === true, 'Worker POST /api/push/unsubscribe successfully removed subscriber');
+
+// Manager UI contains Push Toggle and Handlers
+assert(typeof window.Manager.handleTogglePush === 'function', 'Manager.handleTogglePush is defined');
+assert(typeof window.Manager.handleTestPush === 'function', 'Manager.handleTestPush is defined');
+
 // Summary
+
 console.log("\n=================================================");
 console.log(`🏁 FULL VERIFICATION RESULTS:`);
 console.log(`   Passed: ${testsPassed}`);
@@ -490,8 +557,9 @@ console.log("=================================================");
 
 if (testsFailed === 0) {
     console.log("🎉 ALL TESTS PASSED! FULL STACK INTEGRITY VERIFIED (100%).");
-    process.exit(0);
+    process.exitCode = 0;
 } else {
     console.error("❌ Some tests failed.");
-    process.exit(1);
+    process.exitCode = 1;
 }
+

@@ -5,8 +5,49 @@
 let CLOUD_STATE = {
     vehicles: [],
     permits: [],
-    logs: []
+    logs: [],
+    pushSubscriptions: []
 };
+
+// Push Dispatch Helper
+async function broadcastPushNotification(db, roleFilter, payload) {
+    try {
+        let subs = [];
+        if (db) {
+            try {
+                const query = roleFilter 
+                    ? "SELECT * FROM push_subscriptions WHERE role = ?" 
+                    : "SELECT * FROM push_subscriptions";
+                const params = roleFilter ? [roleFilter] : [];
+                const res = await db.prepare(query).bind(...params).all();
+                subs = (res && res.results) ? res.results : [];
+            } catch(e) {}
+        }
+        if (subs.length === 0) {
+            subs = roleFilter 
+                ? CLOUD_STATE.pushSubscriptions.filter(s => s.role === roleFilter)
+                : CLOUD_STATE.pushSubscriptions;
+        }
+
+        // Broadcast to web-push endpoints
+        for (const sub of subs) {
+            if (sub.endpoint) {
+                try {
+                    await fetch(sub.endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'TTL': '60'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                } catch(e) {
+                    // Endpoint delivery handled
+                }
+            }
+        }
+    } catch(e) {}
+}
 
 export default {
     async fetch(request, env, ctx) {
@@ -107,6 +148,20 @@ export default {
                                 ).run();
                             } catch(e) {}
                         }
+
+                        // Dispatch Push Notification for new permit to all active devices
+                        if (ctx && ctx.waitUntil) {
+                            ctx.waitUntil(broadcastPushNotification(db, null, {
+                                title: '🎫 تصريح دخول جديد',
+                                body: `تصريح #${permitCode} • الوجهة: ${data.destination_ar || 'المستودع'}`
+                            }));
+                        } else {
+                            broadcastPushNotification(db, null, {
+                                title: '🎫 تصريح دخول جديد',
+                                body: `تصريح #${permitCode} • الوجهة: ${data.destination_ar || 'المستودع'}`
+                            });
+                        }
+
                         return new Response(JSON.stringify({ success: true, id: data.id || Date.now(), permit_code: permitCode, pin_code: pinCode }), { headers });
                     }
                 }
@@ -136,6 +191,18 @@ export default {
                             `).bind(newLog.id, data.vehicle_id, data.permit_id || null, data.officer_id || 2, data.gate_name || 'بوابة 1 الرئيسية', data.remarks || '').run();
                         } catch(e) {}
                     }
+
+                    // Dispatch Push Notification to Manager Only (as configured)
+                    const pushPayload = {
+                        title: '📥 تسجيل دخول شاحنة',
+                        body: `دخلت مركبة عبر ${data.gate_name || 'البوابة الرئيسية'} (تسجيل أمني معتمد)`
+                    };
+                    if (ctx && ctx.waitUntil) {
+                        ctx.waitUntil(broadcastPushNotification(db, 'manager', pushPayload));
+                    } else {
+                        broadcastPushNotification(db, 'manager', pushPayload);
+                    }
+
                     return new Response(JSON.stringify({ success: true, id: newLog.id }), { headers });
                 }
 
@@ -159,8 +226,21 @@ export default {
                             `).bind(data.vehicle_id).run();
                         } catch(e) {}
                     }
+
+                    // Dispatch Push Notification to Manager Only (as configured)
+                    const pushPayload = {
+                        title: '📤 تسجيل خروج شاحنة',
+                        body: `غادرت مركبة عبر ${data.gate_name || 'البوابة'}`
+                    };
+                    if (ctx && ctx.waitUntil) {
+                        ctx.waitUntil(broadcastPushNotification(db, 'manager', pushPayload));
+                    } else {
+                        broadcastPushNotification(db, 'manager', pushPayload);
+                    }
+
                     return new Response(JSON.stringify({ success: true }), { headers });
                 }
+
 
                 // 5. GET /api/logs (Live access logs)
                 if (url.pathname === '/api/logs' && request.method === 'GET') {
@@ -295,7 +375,8 @@ export default {
                 // 7. DELETE /api/clear — Wipe ALL data from D1 and in-memory state
                 if (url.pathname === '/api/clear' && (request.method === 'DELETE' || request.method === 'POST')) {
                     // Reset in-memory state
-                    CLOUD_STATE = { vehicles: [], permits: [], logs: [] };
+                    CLOUD_STATE = { vehicles: [], permits: [], logs: [], pushSubscriptions: CLOUD_STATE.pushSubscriptions || [] };
+
 
                     // Wipe D1 persistent tables
                     if (db) {
@@ -315,10 +396,72 @@ export default {
                     }), { headers });
                 }
 
+                // 8. POST /api/push/subscribe — Register client web push subscription
+                if (url.pathname === '/api/push/subscribe' && request.method === 'POST') {
+                    const data = await request.json();
+                    if (!data.endpoint) {
+                        return new Response(JSON.stringify({ error: 'Endpoint required' }), { status: 400, headers });
+                    }
+
+                    const sub = {
+                        endpoint: data.endpoint,
+                        p256dh: data.p256dh || '',
+                        auth: data.auth || '',
+                        role: data.role || 'officer',
+                        user_id: data.user_id || null,
+                        created_at: new Date().toISOString()
+                    };
+
+                    const existingIdx = CLOUD_STATE.pushSubscriptions.findIndex(s => s.endpoint === data.endpoint);
+                    if (existingIdx >= 0) {
+                        CLOUD_STATE.pushSubscriptions[existingIdx] = sub;
+                    } else {
+                        CLOUD_STATE.pushSubscriptions.push(sub);
+                    }
+
+                    if (db) {
+                        try {
+                            await db.prepare(`
+                                INSERT OR REPLACE INTO push_subscriptions (user_id, role, endpoint, p256dh, auth)
+                                VALUES (?, ?, ?, ?, ?)
+                            `).bind(sub.user_id, sub.role, sub.endpoint, sub.p256dh, sub.auth).run();
+                        } catch(e) {}
+                    }
+
+                    return new Response(JSON.stringify({ success: true, message: 'Push subscription registered' }), { headers });
+                }
+
+                // 9. POST /api/push/unsubscribe — Remove client web push subscription
+                if (url.pathname === '/api/push/unsubscribe' && request.method === 'POST') {
+                    const data = await request.json();
+                    if (data.endpoint) {
+                        CLOUD_STATE.pushSubscriptions = CLOUD_STATE.pushSubscriptions.filter(s => s.endpoint !== data.endpoint);
+                        if (db) {
+                            try {
+                                await db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(data.endpoint).run();
+                            } catch(e) {}
+                        }
+                    }
+                    return new Response(JSON.stringify({ success: true, message: 'Push subscription removed' }), { headers });
+                }
+
+                // 10. POST /api/push/send — Manual / Test trigger for web push
+                if (url.pathname === '/api/push/send' && request.method === 'POST') {
+                    const data = await request.json();
+                    const payload = {
+                        title: data.title || '🔔 تنبيه بوابة دوترا',
+                        body: data.body || 'إشعار فوري من نظام بوابات دوترا',
+                        url: data.url || './'
+                    };
+                    await broadcastPushNotification(db, data.role || null, payload);
+                    return new Response(JSON.stringify({ success: true, broadcasted: true, payload }), { headers });
+                }
+
                 return new Response(JSON.stringify({ status: 'ok', message: 'DOTRA Cloudflare Gate API' }), { headers });
             } catch (err) {
                 return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
             }
+
         }
 
         // Serve static assets via Cloudflare Pages

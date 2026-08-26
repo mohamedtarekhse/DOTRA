@@ -1,4 +1,4 @@
-﻿-- Cloudflare D1 Database Schema for Vehicle Gate Access System
+-- Cloudflare D1 Database Schema for Vehicle Gate Access System
 -- نظام تصاريح بوابات المركبات - قاعدة بيانات D1
 
 -- LEGACY TABLES
@@ -107,9 +107,21 @@ CREATE TABLE IF NOT EXISTS gate_logs (
     remarks TEXT DEFAULT ''
 );
 
+-- WEB PUSH SUBSCRIPTIONS TABLE
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    role TEXT NOT NULL DEFAULT 'officer',
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for fast lookups
 CREATE INDEX IF NOT EXISTS idx_gate_vehicles_plate ON gate_vehicles(plate_ar);
 CREATE INDEX IF NOT EXISTS idx_gate_permits_vehicle ON gate_permits(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_gate_permits_code ON gate_permits(permit_code);
 CREATE INDEX IF NOT EXISTS idx_gate_logs_vehicle ON gate_logs(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_gate_logs_action ON gate_logs(action_type);
+CREATE INDEX IF NOT EXISTS idx_push_role ON push_subscriptions(role);
