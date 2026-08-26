@@ -910,14 +910,36 @@ class ManagerController {
                                     </button>
                                 </div>
 
+                                <div class="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs font-bold text-orange-700">🧹 مسح التصاريح فقط</div>
+                                        <div class="text-[10px] text-orange-500 font-medium">حذف التصاريح من الذاكرة المحلية وقاعدة البيانات السحابية D1</div>
+                                    </div>
+                                    <button type="button" onclick="Manager.resetPermitsOnly()" class="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
+                                        ${icon('trash', 'w-3.5 h-3.5')}
+                                        <span>مسح التصاريح</span>
+                                    </button>
+                                </div>
+
+                                <div class="bg-yellow-50 p-3 rounded-2xl border border-yellow-200 flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs font-bold text-yellow-700">🗒️ مسح سجلات الدخول والخروج فقط</div>
+                                        <div class="text-[10px] text-yellow-600 font-medium">حذف سجلات الحركة من الذاكرة المحلية وقاعدة البيانات D1</div>
+                                    </div>
+                                    <button type="button" onclick="Manager.resetLogsOnly()" class="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
+                                        ${icon('trash', 'w-3.5 h-3.5')}
+                                        <span>مسح السجلات</span>
+                                    </button>
+                                </div>
+
                                 <div class="bg-red-50 p-3 rounded-2xl border border-red-200 flex items-center justify-between">
                                     <div>
-                                        <div class="text-xs font-bold text-red-700">مسح وتصفير كافة البيانات</div>
-                                        <div class="text-[10px] text-red-500 font-medium">حذف كافة التصاريح القديمة لبدء صفحة نظيفة</div>
+                                        <div class="text-xs font-bold text-red-700">⛔ مسح وتصفير كافة البيانات (محلي + D1)</div>
+                                        <div class="text-[10px] text-red-500 font-medium">حذف كافة التصاريح والمركبات والسجلات من كل الأجهزة</div>
                                     </div>
                                     <button type="button" onclick="Manager.resetAllData()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
                                         ${icon('trash', 'w-3.5 h-3.5')}
-                                        <span>تصفير الآن</span>
+                                        <span>تصفير الكل</span>
                                     </button>
                                 </div>
                             </div>
@@ -1144,13 +1166,41 @@ class ManagerController {
     }
 
     resetAllData() {
-        if (confirm(window.i18n.getLang() === 'ar' ? "هل أنت متأكد من رغبتك في تصفير ومسح كافة التصاريح والمركبات؟" : "Are you sure you want to clear all permits?")) {
+        if (confirm(window.i18n.getLang() === 'ar'
+            ? 'هل أنت متأكد؟ سيتم حذف كافة التصاريح والمركبات والسجلات من الذاكرة المحلية وقاعدة البيانات D1 السحابية!'
+            : 'Are you sure? This will delete ALL permits, vehicles, and logs from both local storage and the cloud D1 database!')) {
             window.DB.clearAllData();
             if (typeof document !== 'undefined' && document.getElementById('modal-container')) {
                 document.getElementById('modal-container').innerHTML = '';
             }
             this.renderDashboard();
-            alert(window.i18n.getLang() === 'ar' ? "تم مسح وتصفير كافة البيانات بنجاح!" : "All data cleared successfully!");
+            alert(window.i18n.getLang() === 'ar' ? 'تم مسح وتصفير كافة البيانات من الذاكرة المحلية وقاعدة D1 بنجاح!' : 'All data cleared from local storage and cloud D1 database!');
+        }
+    }
+
+    resetPermitsOnly() {
+        if (confirm(window.i18n.getLang() === 'ar'
+            ? 'هل تريد مسح كافة التصاريح؟ سيتم حذفها من الذاكرة المحلية وقاعدة البيانات D1.'
+            : 'Delete all permits from local storage and cloud D1 database?')) {
+            window.DB.clearPermitsOnly();
+            if (typeof document !== 'undefined' && document.getElementById('modal-container')) {
+                document.getElementById('modal-container').innerHTML = '';
+            }
+            this.renderDashboard();
+            alert(window.i18n.getLang() === 'ar' ? 'تم مسح كافة التصاريح من الذاكرة المحلية وقاعدة D1 بنجاح!' : 'All permits cleared from local storage and cloud D1!');
+        }
+    }
+
+    resetLogsOnly() {
+        if (confirm(window.i18n.getLang() === 'ar'
+            ? 'هل تريد مسح كافة سجلات الدخول والخروج؟ سيتم حذفها من الذاكرة المحلية وقاعدة البيانات D1.'
+            : 'Delete all entry/exit logs from local storage and cloud D1 database?')) {
+            window.DB.clearLogsOnly();
+            if (typeof document !== 'undefined' && document.getElementById('modal-container')) {
+                document.getElementById('modal-container').innerHTML = '';
+            }
+            this.renderDashboard();
+            alert(window.i18n.getLang() === 'ar' ? 'تم مسح كافة السجلات من الذاكرة المحلية وقاعدة D1 بنجاح!' : 'All logs cleared from local storage and cloud D1!');
         }
     }
 

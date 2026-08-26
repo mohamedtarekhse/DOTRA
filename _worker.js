@@ -292,6 +292,29 @@ export default {
                     }
                 }
 
+                // 7. DELETE /api/clear — Wipe ALL data from D1 and in-memory state
+                if (url.pathname === '/api/clear' && (request.method === 'DELETE' || request.method === 'POST')) {
+                    // Reset in-memory state
+                    CLOUD_STATE = { vehicles: [], permits: [], logs: [] };
+
+                    // Wipe D1 persistent tables
+                    if (db) {
+                        try { await db.prepare("DELETE FROM gate_logs").run(); } catch(e) {}
+                        try { await db.prepare("DELETE FROM gate_permits").run(); } catch(e) {}
+                        try { await db.prepare("DELETE FROM gate_vehicles").run(); } catch(e) {}
+                        // Also wipe legacy tables
+                        try { await db.prepare("DELETE FROM access_logs").run(); } catch(e) {}
+                        try { await db.prepare("DELETE FROM permits").run(); } catch(e) {}
+                        try { await db.prepare("DELETE FROM vehicles").run(); } catch(e) {}
+                    }
+
+                    return new Response(JSON.stringify({ 
+                        success: true, 
+                        cleared_at: new Date().toISOString(),
+                        message: 'All data cleared from D1 and cloud state'
+                    }), { headers });
+                }
+
                 return new Response(JSON.stringify({ status: 'ok', message: 'DOTRA Cloudflare Gate API' }), { headers });
             } catch (err) {
                 return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });

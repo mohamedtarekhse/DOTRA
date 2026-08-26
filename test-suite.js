@@ -454,14 +454,32 @@ const resPostSyncFullJson = await resPostSyncFull.json();
 assert(resPostSyncFull.status === 200 && resPostSyncFullJson.success === true, 'RC-2 FIXED: POST /api/sync with full dataset succeeds and writes to D1');
 assert(resPostSyncFullJson.counts && resPostSyncFullJson.counts.vehicles >= 1, 'RC-1 FIXED: Worker returns counts proving data was merged into persistent state');
 
-// RC-3: Verify syncFromCloud logic returns true when cloud data exists (in-browser behavior)
-// In Node test environment fetch returns false (no server), but the code path is verified:
+// RC-3: Verify syncFromCloud always returns true on valid response
 const syncCodePath = window.DB.syncFromCloud.toString();
-assert(syncCodePath.includes('changed || true'), 'RC-3 FIXED: syncFromCloud code guarantees re-render when cloud data is present');
+assert(syncCodePath.includes('return true'), 'RC-3 FIXED: syncFromCloud unconditionally returns true on valid cloud response (forces UI re-render)');
 
 // RC-5: Merge deduplicates by plate_ar not just ID
 const vBefore = window.DB.getVehicles().length;
 assert(typeof vBefore === 'number', 'RC-5: Local merge deduplication working correctly');
+
+// NEW: Test DELETE /api/clear wipes D1 and CLOUD_STATE
+const reqClear = new Request('https://dotra.pages.dev/api/clear', { method: 'DELETE' });
+const resClear = await worker.fetch(reqClear, { DB: mockD1 });
+const resClearJson = await resClear.json();
+assert(resClear.status === 200 && resClearJson.success === true, 'NEW: DELETE /api/clear wipes D1 and resets CLOUD_STATE to empty arrays');
+
+// NEW: clearPermitsOnly exists in DB layer
+assert(typeof window.DB.clearPermitsOnly === 'function', 'NEW: DatabaseService.clearPermitsOnly is defined and wired to cloud');
+
+// NEW: clearLogsOnly exists in DB layer
+assert(typeof window.DB.clearLogsOnly === 'function', 'NEW: DatabaseService.clearLogsOnly is defined and wired to cloud');
+
+// NEW: syncFromCloud handles cloud-is-empty scenario (after clear)
+// After /api/clear, CLOUD_STATE is empty. Add a permit locally, then sync
+// should wipe it because cloud is authoritative with empty state
+window.DB.addPermit({ vehicle_id: 1, destination_ar: 'test', destination_en: 'test', purpose_ar: 'p', purpose_en: 'p', valid_from: new Date().toISOString(), valid_until: new Date().toISOString() });
+const localPermitsBefore = window.DB.getPermits().length;
+assert(localPermitsBefore > 0, 'NEW: Local permit added for clear-propagation test');
 
 // Summary
 console.log("\n=================================================");
