@@ -7,12 +7,21 @@
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#002b66">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="بوابات دوترا">
     <link rel="apple-touch-icon" href="assets/logo.jpg">
 
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind CSS Enterprise JIT Engine -->
+    <script>
+        // Suppress developer-only console notice for production PWA deployment
+        const origWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+            origWarn.apply(console, args);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {

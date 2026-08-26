@@ -344,6 +344,10 @@ assert(permitsTableHtml.includes('PIN:') && permitsTableHtml.includes('ساري 
 
 const mobilePermitsHtml = window.Manager.renderMobileCards('ar');
 assert(mobilePermitsHtml.includes('PIN:') && mobilePermitsHtml.includes('الكارت A4'), 'Mobile Permits cards render connected relational permit data');
+
+// Test Full CSV Export with Records Content
+const exportedCsv = window.Manager.exportCSV();
+assert(exportedCsv.includes('كود التصريح') && exportedCsv.split('\n').length >= 2, 'CSV Export includes full permits records (not just header)');
 window.Manager.setFilter('all');
 
 // 8. Test Mobile Responsive Cards Renderer (Manager Mobile View)

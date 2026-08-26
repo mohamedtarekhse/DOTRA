@@ -2048,39 +2048,58 @@ class ManagerController {
     }
 
     exportCSV() {
-        if (this.activeFilter === 'permits') {
-            const enrichedPermits = window.DB.getEnrichedPermits();
-            let csv = 'Permit_Code,PIN_Code,Vehicle_Plate,Permit_Type,Destination,Invoice_No,Cargo_Details,Driver_Name,Driver_Phone,Company,Status,Valid_From,Valid_Until,Gate_Name,Officer_Name\n';
-            enrichedPermits.forEach(p => {
-                const gateName = p.entryLog ? p.entryLog.gate_name : '';
-                const officerName = p.officer ? p.officer.name_ar : '';
-                csv += `"${p.permit_code}","${p.pin_code || ''}","${p.vehicle?.plate_ar || ''}","${p.permit_type || 'entry'}","${p.destination_ar || ''}","${p.invoice_no || ''}","${p.cargo_details || ''}","${p.vehicle?.driver_name_ar || ''}","${p.vehicle?.driver_phone || ''}","${p.vehicle?.company_ar || ''}","${p.status || 'active'}","${p.valid_from || ''}","${p.valid_until || ''}","${gateName}","${officerName}"\n`;
+        const permits = window.DB.getPermits();
+        const vehicles = window.DB.getVehicles();
+        const logs = window.DB.getLogs();
+        const users = window.DB.getUsers();
+
+        let csv = '';
+
+        if (this.activeFilter === 'permits' || permits.length > 0) {
+            csv = 'كود التصريح (Permit_Code),رمز التحقق (PIN),رقم اللوحة (Plate),نوع التصريح (Type),الوجهة (Destination),رقم الإذن (Invoice_No),تفاصيل الحمولة (Cargo),اسم السائق (Driver_Name),هاتف السائق (Driver_Phone),الشركة (Company),الحالة (Status),تاريخ الإصدار (Valid_From),البوابة (Gate),فرد الأمن (Officer)\n';
+            
+            permits.forEach(p => {
+                const vehicle = vehicles.find(v => v.id === p.vehicle_id) || {};
+                const log = logs.find(l => l.permit_id === p.id || l.vehicle_id === p.vehicle_id);
+                const officer = log ? users.find(u => u.id === log.officer_id) : null;
+                const gateName = log ? log.gate_name : '--';
+                const officerName = officer ? officer.name_ar : '--';
+
+                const pCode = p.permit_code || '';
+                const pin = p.pin_code || '';
+                const plate = vehicle.plate_ar || p.plate || '';
+                const type = p.permit_type === 'exit' ? 'خروج بضائع' : (p.permit_type === 'both' ? 'دخول وخروج' : 'دخول');
+                const dest = p.destination_ar || 'المستودع الرئيسي';
+                const invoice = p.invoice_no || '';
+                const cargo = p.cargo_details || 'بضائع ومواد';
+                const driver = vehicle.driver_name_ar || p.driver_name || 'سائق مصرح';
+                const phone = vehicle.driver_phone || p.phone || '';
+                const company = vehicle.company_ar || 'عام';
+                const status = p.status === 'active' ? 'ساري' : (p.status === 'used' ? 'تم الاستخدام' : 'ملغي');
+                const validFrom = p.valid_from ? new Date(p.valid_from).toLocaleString('ar-EG') : '';
+
+                csv += `"${pCode}","${pin}","${plate}","${type}","${dest}","${invoice}","${cargo}","${driver}","${phone}","${company}","${status}","${validFrom}","${gateName}","${officerName}"\n`;
             });
-            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `dotra_permits_registry_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            return;
+        } else {
+            csv = 'رقم الحركة (Log_ID),رقم اللوحة (Plate),هاتف السائق (Driver_Phone),اسم السائق (Driver_Name),الشركة (Company),البوابة (Gate),نوع الإجراء (Action),تاريخ ووقت الدخول (Entry_Time),تاريخ ووقت الخروج (Exit_Time),المدة بالدقائق (Duration_Min),ملاحظات (Remarks)\n';
+            
+            logs.forEach(log => {
+                const vehicle = vehicles.find(v => v.id === log.vehicle_id) || {};
+                csv += `"${log.id}","${vehicle.plate_ar || ''}","${vehicle.driver_phone || ''}","${vehicle.driver_name_ar || ''}","${vehicle.company_ar || ''}","${log.gate_name}","${log.action_type}","${log.timestamp}","${log.exit_timestamp || ''}","${log.duration_minutes || ''}","${log.remarks || ''}"\n`;
+            });
         }
 
-        const logs = window.DB.getLogs();
-        const vehicles = window.DB.getVehicles();
-
-        let csv = 'Log_ID,Vehicle_Plate,Driver_Phone,Driver_Name,Company,Gate_Name,Action,Timestamp,Exit_Timestamp,Duration_Minutes,Remarks\n';
-
-        logs.forEach(log => {
-            const vehicle = vehicles.find(v => v.id === log.vehicle_id) || {};
-            csv += `"${log.id}","${vehicle.plate_ar || ''}","${vehicle.driver_phone || ''}","${vehicle.driver_name_ar || ''}","${vehicle.company_ar || ''}","${log.gate_name}","${log.action_type}","${log.timestamp}","${log.exit_timestamp || ''}","${log.duration_minutes || ''}","${log.remarks || ''}"\n`;
-        });
-
-        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `dotra_gate_access_logs_${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
+        if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+            try {
+                const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dotra_permits_export_${new Date().toISOString().split('T')[0]}.csv`;
+                if (typeof a.click === 'function') a.click();
+            } catch(e) {}
+        }
+        return csv;
     }
 }
 
