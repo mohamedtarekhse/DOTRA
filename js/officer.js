@@ -27,18 +27,13 @@ class OfficerController {
         const gates = window.DB.getGates();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
-        // FIX BUG 1: Non-destructive re-render during 2-second cloud sync heartbeat
-        // If the officer has an active input or search card open, do NOT wipe the UI!
-        const existingInput = document.getElementById('officer-plate-input');
-        const isInputFocused = existingInput && document.activeElement === existingInput;
-        const hasActiveQuery = existingInput && existingInput.value.trim().length > 0;
+        // IN-PLACE SMART UPDATE: If officer terminal is already loaded in DOM, only refresh the recent logs list and return!
         const recentListContainer = document.getElementById('officer-recent-activity-list');
-
-        if (recentListContainer && (isInputFocused || hasActiveQuery || this.selectedVehicle)) {
-            // Only update the recent activity list seamlessly without destroying officer's typing
+        if (recentListContainer) {
             recentListContainer.innerHTML = this.renderRecentLogs(logs, lang);
             return;
         }
+
 
         container.innerHTML = `
             <div class="max-w-xl mx-auto pb-12 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">

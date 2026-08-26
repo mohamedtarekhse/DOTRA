@@ -48,6 +48,33 @@ class ManagerController {
         }
     }
 
+    renderTableHeader(lang) {
+        if (this.activeFilter === 'permits') {
+            return `
+                <tr>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'كود التصريح ورمز PIN' : 'Permit Code & PIN'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'لوحة الشاحنة' : 'Plate Number'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'نوع التصريح والوجهة' : 'Type & Destination'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'السائق والجهة / الواتساب' : 'Driver / WhatsApp'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التصريح' : 'Permit Status'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ الإصدار وحركة البوابة' : 'Issued Date & Gate'}</th>
+                    <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
+                </tr>
+            `;
+        }
+        return `
+            <tr>
+                <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع وحالة المركبة' : 'Last Location & Status'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة' : 'Last Gate'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'فرد الأمن المسجل' : 'Officer'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ ووقت الحركة والمدة' : 'Date, Time & Duration'}</th>
+                <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
+                <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
+            </tr>
+        `;
+    }
+
     renderDashboard() {
         const container = document.getElementById('main-content');
         if (!container) return;
@@ -75,6 +102,55 @@ class ManagerController {
 
         const activePermits = permits.filter(p => p.status === 'active').length;
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+
+        // SMART IN-PLACE UPDATE: If table & dashboard layout already exists in DOM, only update table rows, mobile cards, and KPI numbers!
+        const existingTableBody = document.getElementById('manager-table-body');
+        const existingMobileList = document.getElementById('manager-mobile-cards-list');
+        const existingInsideKpi = document.getElementById('kpi-inside-count');
+
+        if (existingTableBody && existingMobileList && existingInsideKpi) {
+            // Update KPI metric numbers in-place
+            existingInsideKpi.textContent = insideCount;
+            const elExited = document.getElementById('kpi-exited-count');
+            if (elExited) elExited.textContent = exitedToday;
+            const elOverstay = document.getElementById('kpi-overstay-count');
+            if (elOverstay) elOverstay.textContent = overstayLogs.length;
+            const elPermits = document.getElementById('kpi-permits-count');
+            if (elPermits) elPermits.textContent = activePermits;
+
+            // Update Tab Badge Counts in-place
+            const bPermits = document.getElementById('tab-count-permits');
+            if (bPermits) bPermits.textContent = `(${permits.length})`;
+            const bInside = document.getElementById('tab-count-inside');
+            if (bInside) bInside.textContent = `(${insideCount})`;
+            const bExited = document.getElementById('tab-count-exited');
+            if (bExited) bExited.textContent = `(${exitedLogs.length})`;
+            const bOverstay = document.getElementById('tab-count-overstay');
+            if (bOverstay) bOverstay.textContent = `(${overstayLogs.length})`;
+
+            // Update Tab Button Active Classes
+            const tabButtons = container.querySelectorAll ? container.querySelectorAll('[data-manager-filter]') : (typeof document !== 'undefined' && document.querySelectorAll ? document.querySelectorAll('[data-manager-filter]') : []);
+            if (tabButtons && tabButtons.forEach) {
+                tabButtons.forEach(btn => {
+                    const f = btn.getAttribute ? btn.getAttribute('data-manager-filter') : null;
+                    if (f === this.activeFilter) {
+                        btn.className = `px-3 py-1.5 rounded-lg font-bold transition-all ${f === 'inside' ? 'bg-[#107e3e] text-white shadow-sm' : (f === 'overstay' ? 'bg-[#bb0000] text-white shadow-sm' : 'bg-[#0070f2] text-white shadow-sm')}`;
+                    } else {
+                        btn.className = 'px-3 py-1.5 rounded-lg font-bold transition-all text-[#556b82] hover:text-[#1d2d3e]';
+                    }
+                });
+            }
+
+
+            // Update Table Header
+            const thead = document.getElementById('manager-table-head');
+            if (thead) thead.innerHTML = this.renderTableHeader(lang);
+
+            // Update Table Body in-place (without rebuilding the whole page or stealing focus!)
+            existingTableBody.innerHTML = this.renderTableRows(lang);
+            existingMobileList.innerHTML = this.renderMobileCards(lang);
+            return;
+        }
 
         container.innerHTML = `
             <!-- Top Dashboard Bar -->
@@ -111,7 +187,7 @@ class ManagerController {
                 <div class="sap-card p-5 border-t-4 border-t-[#107e3e] flex items-center justify-between">
                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricInside')}</p>
-                        <h3 class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${insideCount}</h3>
+                        <h3 id="kpi-inside-count" class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${insideCount}</h3>
                         <p class="text-[11px] text-[#107e3e] mt-1 font-bold flex items-center gap-1.5">
                             <span class="inline-block w-2 h-2 rounded-full bg-[#107e3e] animate-pulse"></span>
                             <span>${lang === 'ar' ? 'متواجدون داخل المصنع' : 'Active on premises'}</span>
@@ -125,7 +201,7 @@ class ManagerController {
                 <div class="sap-card p-5 border-t-4 border-t-[#0070f2] flex items-center justify-between">
                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${lang === 'ar' ? 'غادروا المصنع اليوم' : 'Exited Today'}</p>
-                        <h3 class="text-3xl font-black text-[#0070f2] mt-1 font-mono">${exitedToday}</h3>
+                        <h3 id="kpi-exited-count" class="text-3xl font-black text-[#0070f2] mt-1 font-mono">${exitedToday}</h3>
                         <p class="text-[11px] text-[#556b82] mt-1 font-bold">
                             ${lang === 'ar' ? `إجمالي المغادرين: ${exitedLogs.length}` : `Total Exits: ${exitedLogs.length}`}
                         </p>
@@ -138,7 +214,7 @@ class ManagerController {
                 <div class="sap-card p-5 border-t-4 border-t-[#bb0000] flex items-center justify-between ${overstayLogs.length > 0 ? 'ring-2 ring-red-300' : ''}">
                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricOverstay')}</p>
-                        <h3 class="text-3xl font-black text-[#bb0000] mt-1 font-mono">${overstayLogs.length}</h3>
+                        <h3 id="kpi-overstay-count" class="text-3xl font-black text-[#bb0000] mt-1 font-mono">${overstayLogs.length}</h3>
                         <p class="text-[11px] text-[#bb0000] mt-1 font-bold">
                             ${overstayLogs.length > 0 ? (lang === 'ar' ? `تجاوزوا مدة البقاء (>${settings.overstay_hours_threshold || 3} س)` : 'Overstayed') : (lang === 'ar' ? 'لا توجد تجاوزات' : 'Zero violations')}
                         </p>
@@ -151,7 +227,7 @@ class ManagerController {
                 <div class="sap-card p-5 border-t-4 border-t-[#b85500] flex items-center justify-between">
                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                         <p class="text-xs font-bold text-[#556b82] uppercase tracking-wider">${window.i18n.t('metricPending')}</p>
-                        <h3 class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${activePermits}</h3>
+                        <h3 id="kpi-permits-count" class="text-3xl font-black text-[#1d2d3e] mt-1 font-mono">${activePermits}</h3>
                         <p class="text-[11px] text-[#b85500] mt-1 font-bold">
                             ${lang === 'ar' ? 'تصاريح فعالة بانتظار الوصول' : 'Active valid permits'}
                         </p>
@@ -197,20 +273,20 @@ class ManagerController {
 
                     <!-- Filter Tabs including Permits List and Exited List -->
                     <div class="flex items-center gap-1 bg-[#ffffff] p-1 rounded-xl border border-[#d7e2ee] text-xs flex-shrink-0 flex-wrap">
-                        <button type="button" onclick="Manager.setFilter('all')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'all' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                        <button type="button" data-manager-filter="all" onclick="Manager.setFilter('all')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'all' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
                             🚛 ${lang === 'ar' ? 'حركة المركبات' : 'Vehicles'}
                         </button>
-                        <button type="button" onclick="Manager.setFilter('permits')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'permits' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            🎫 ${lang === 'ar' ? 'جدول التصاريح' : 'Permits'} (${permits.length})
+                        <button type="button" data-manager-filter="permits" onclick="Manager.setFilter('permits')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'permits' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            🎫 ${lang === 'ar' ? 'جدول التصاريح' : 'Permits'} <span id="tab-count-permits">(${permits.length})</span>
                         </button>
-                        <button type="button" onclick="Manager.setFilter('inside')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'inside' ? 'bg-[#107e3e] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            🟢 ${lang === 'ar' ? 'بالداخل' : 'Inside'} (${insideCount})
+                        <button type="button" data-manager-filter="inside" onclick="Manager.setFilter('inside')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'inside' ? 'bg-[#107e3e] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            🟢 ${lang === 'ar' ? 'بالداخل' : 'Inside'} <span id="tab-count-inside">(${insideCount})</span>
                         </button>
-                        <button type="button" onclick="Manager.setFilter('exited')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'exited' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            📤 ${lang === 'ar' ? 'المغادرين' : 'Exited'} (${exitedLogs.length})
+                        <button type="button" data-manager-filter="exited" onclick="Manager.setFilter('exited')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'exited' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            📤 ${lang === 'ar' ? 'المغادرين' : 'Exited'} <span id="tab-count-exited">(${exitedLogs.length})</span>
                         </button>
-                        <button type="button" onclick="Manager.setFilter('overstay')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'overstay' ? 'bg-[#bb0000] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            ⚠️ ${lang === 'ar' ? 'متجاوزون' : 'Overstay'} (${overstayLogs.length})
+                        <button type="button" data-manager-filter="overstay" onclick="Manager.setFilter('overstay')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'overstay' ? 'bg-[#bb0000] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            ⚠️ ${lang === 'ar' ? 'متجاوزون' : 'Overstay'} <span id="tab-count-overstay">(${overstayLogs.length})</span>
                         </button>
                     </div>
                 </div>
@@ -218,30 +294,10 @@ class ManagerController {
                 <!-- Desktop Table View (Hidden on Small Phones) -->
                 <div class="hidden md:block overflow-x-auto bg-white">
                     <table class="w-full text-sm ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                        <thead class="bg-[#f5f8fc] text-[#556b82] text-xs uppercase tracking-wider font-bold border-b border-[#d7e2ee]">
-                            ${this.activeFilter === 'permits' ? `
-                                <tr>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'كود التصريح ورمز PIN' : 'Permit Code & PIN'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'لوحة الشاحنة' : 'Plate Number'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'نوع التصريح والوجهة' : 'Type & Destination'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'السائق والجهة / الواتساب' : 'Driver / WhatsApp'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التصريح' : 'Permit Status'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ الإصدار وحركة البوابة' : 'Issued Date & Gate'}</th>
-                                    <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
-                                </tr>
-                            ` : `
-                                <tr>
-                                    <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع وحالة المركبة' : 'Last Location & Status'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة' : 'Last Gate'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'فرد الأمن المسجل' : 'Officer'}</th>
-                                    <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ ووقت الحركة والمدة' : 'Date, Time & Duration'}</th>
-                                    <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
-                                    <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
-                                </tr>
-                            `}
+                        <thead id="manager-table-head" class="bg-[#f5f8fc] text-[#556b82] text-xs uppercase tracking-wider font-bold border-b border-[#d7e2ee]">
+                            ${this.renderTableHeader(lang)}
                         </thead>
-                        <tbody class="divide-y divide-[#e7eff7] font-medium">
+                        <tbody id="manager-table-body" class="divide-y divide-[#e7eff7] font-medium">
                             ${this.renderTableRows(lang)}
                         </tbody>
                     </table>
@@ -256,6 +312,7 @@ class ManagerController {
     }
 
     renderMobileCards(lang) {
+
         const vehicles = window.DB.getVehicles();
         const permits = window.DB.getPermits();
         const logs = window.DB.getLogs();
