@@ -230,31 +230,28 @@ class DatabaseService {
             if (!res || !res.ok) return false;
 
             const data = await res.json();
-
-            // Cloud is the SOURCE OF TRUTH — always apply its state
-            // even if arrays are empty (meaning a clear was performed)
             let changed = false;
 
             // --- Vehicles ---
             const cloudVehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
             const localVehicles = this.getVehicles();
             if (cloudVehicles.length > 0) {
-                // Merge: cloud overwrites local for matching records, appends new
                 const merged = [...localVehicles];
                 cloudVehicles.forEach(cv => {
                     const idx = merged.findIndex(lv => lv.id === cv.id || lv.plate_ar === cv.plate_ar);
-                    if (idx === -1) { merged.push(cv); changed = true; }
-                    else {
+                    if (idx === -1) { 
+                        merged.push(cv); 
+                        changed = true; 
+                    } else {
                         const diff = merged[idx].status !== cv.status || merged[idx].blacklist_reason !== cv.blacklist_reason;
                         merged[idx] = { ...merged[idx], ...cv };
                         if (diff) changed = true;
                     }
                 });
                 localStorage.setItem('gate_vehicles', JSON.stringify(merged));
-            } else if (cloudVehicles.length === 0 && localVehicles.length > 0) {
-                // Cloud is explicitly empty (after a clear) — wipe local too
-                localStorage.setItem('gate_vehicles', JSON.stringify([]));
-                changed = true;
+            } else if (localVehicles.length > 0) {
+                // Cloud is empty but local has data -> Auto-sync local to cloud to populate it
+                this.pushToCloud('/api/sync', { vehicles: localVehicles, permits: this.getPermits(), logs: this.getLogs() });
             }
 
             // --- Permits ---
@@ -264,18 +261,19 @@ class DatabaseService {
                 const merged = [...localPermits];
                 cloudPermits.forEach(cp => {
                     const idx = merged.findIndex(lp => lp.id === cp.id || lp.permit_code === cp.permit_code);
-                    if (idx === -1) { merged.push(cp); changed = true; }
-                    else {
+                    if (idx === -1) { 
+                        merged.push(cp); 
+                        changed = true; 
+                    } else {
                         const diff = merged[idx].status !== cp.status || merged[idx].pin_code !== cp.pin_code;
                         merged[idx] = { ...merged[idx], ...cp };
                         if (diff) changed = true;
                     }
                 });
                 localStorage.setItem('gate_permits', JSON.stringify(merged));
-            } else if (cloudPermits.length === 0 && localPermits.length > 0) {
-                // Cloud cleared permits — apply to local
-                localStorage.setItem('gate_permits', JSON.stringify([]));
-                changed = true;
+            } else if (localPermits.length > 0) {
+                // Cloud is empty but local has permits -> Auto-sync to cloud
+                this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: localPermits, logs: this.getLogs() });
             }
 
             // --- Logs ---
@@ -285,27 +283,29 @@ class DatabaseService {
                 const merged = [...localLogs];
                 cloudLogs.forEach(cl => {
                     const idx = merged.findIndex(ll => ll.id === cl.id);
-                    if (idx === -1) { merged.push(cl); changed = true; }
-                    else {
+                    if (idx === -1) { 
+                        merged.push(cl); 
+                        changed = true; 
+                    } else {
                         const diff = !merged[idx].exit_timestamp && cl.exit_timestamp;
                         merged[idx] = { ...merged[idx], ...cl };
                         if (diff) changed = true;
                     }
                 });
                 localStorage.setItem('gate_logs', JSON.stringify(merged));
-            } else if (cloudLogs.length === 0 && localLogs.length > 0) {
-                localStorage.setItem('gate_logs', JSON.stringify([]));
-                changed = true;
+            } else if (localLogs.length > 0) {
+                // Cloud is empty but local has logs -> Auto-sync to cloud
+                this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: localLogs });
             }
 
-            // Always return true when we got a valid response — forces UI re-render
-            return true;
+            return changed;
 
         } catch (err) {
-            // Offline or network error — silent fail, keep local data
+            // Offline or network error — silent fail, keep local data intact
         }
         return false;
     }
+
 
     // Wipe local localStorage
     clearAllData() {

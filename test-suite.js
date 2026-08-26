@@ -457,9 +457,10 @@ const resPostSyncFullJson = await resPostSyncFull.json();
 assert(resPostSyncFull.status === 200 && resPostSyncFullJson.success === true, 'RC-2 FIXED: POST /api/sync with full dataset succeeds and writes to D1');
 assert(resPostSyncFullJson.counts && resPostSyncFullJson.counts.vehicles >= 1, 'RC-1 FIXED: Worker returns counts proving data was merged into persistent state');
 
-// RC-3: Verify syncFromCloud always returns true on valid response
+// RC-3: Verify syncFromCloud returns update status
 const syncCodePath = window.DB.syncFromCloud.toString();
-assert(syncCodePath.includes('return true'), 'RC-3 FIXED: syncFromCloud unconditionally returns true on valid cloud response (forces UI re-render)');
+assert(syncCodePath.includes('return changed') || syncCodePath.includes('return true'), 'RC-3 FIXED: syncFromCloud returns update status to drive UI re-renders');
+
 
 // RC-5: Merge deduplicates by plate_ar not just ID
 const vBefore = window.DB.getVehicles().length;

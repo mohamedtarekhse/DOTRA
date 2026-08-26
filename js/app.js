@@ -284,6 +284,16 @@ class AppController {
                                 <span class="hidden sm:inline">${lang === 'ar' ? 'مسح الكاش' : 'Clear Cache'}</span>
                             </button>
 
+                            <!-- 🔔 Push Notification Toggle for Any User (Manager / Officer) -->
+                            <button type="button"
+                                onclick="App.toggleUserPush()"
+                                title="${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات الفورية مفعلة (انقر للتعطيل)' : 'Push Notifications Active (Click to disable)') : (lang === 'ar' ? 'تفعيل الإشعارات الفورية لهذا الحساب' : 'Enable Push Notifications for this account')}"
+                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-400/30' : 'bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-400/30'} transition-all active:scale-95">
+                                <span class="text-sm leading-none">${localStorage.getItem('gate_push_enabled') === 'true' ? '🔔' : '🔕'}</span>
+                                <span class="hidden sm:inline">${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Push On') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
+                            </button>
+
+
                             <!-- Language Toggle -->
                             <div class="flex items-center bg-[#001940] border border-blue-900 p-0.5 rounded-xl text-xs font-bold shadow-inner">
                                 <button type="button" id="lang-btn-ar" onclick="window.i18n.setLanguage('ar')" class="px-2 py-1 rounded-lg transition-all ${lang === 'ar' ? 'bg-[#0070f2] text-white shadow' : 'text-blue-200 hover:text-white'}">
@@ -462,7 +472,44 @@ class AppController {
         window.location.reload(true);
     }
 
+    // 🔔 Push Notification Toggle for Currently Logged-in User
+    async toggleUserPush() {
+        if (!window.PushService) {
+            alert('Push notification service is loading or not supported on this browser.');
+            return;
+        }
+        const isEnabled = localStorage.getItem('gate_push_enabled') === 'true';
+        const lang = window.i18n ? window.i18n.getLang() : 'ar';
+        const currentUser = window.Auth ? window.Auth.getCurrentUser() : null;
+        const role = currentUser ? currentUser.role : (this.currentView === 'manager' ? 'manager' : 'officer');
+        const userId = currentUser ? currentUser.id : null;
+
+        if (!isEnabled) {
+            const res = await window.PushService.requestPermissionAndSubscribe(role, userId);
+            if (res.success) {
+                this.showToast(
+                    lang === 'ar' ? '🔔 تم تفعيل الإشعارات' : 'Push Enabled',
+                    lang === 'ar' ? `تم تفعيل التنبيهات الفورية لحساب (${currentUser ? currentUser.name_ar : 'المستخدم'})` : `Push alerts active for ${currentUser ? currentUser.name_en : 'User'}`,
+                    'success',
+                    'shield'
+                );
+            } else {
+                alert(lang === 'ar' ? `⚠️ تعذر تفعيل الإشعارات: ${res.message}` : `Could not enable push: ${res.message}`);
+            }
+        } else {
+            await window.PushService.unsubscribe();
+            this.showToast(
+                lang === 'ar' ? '🔕 تم إيقاف الإشعارات' : 'Push Disabled',
+                lang === 'ar' ? 'تم إيقاف الإشعارات الفورية لهذا الجهاز' : 'Push alerts disabled on this device',
+                'warning',
+                'bell'
+            );
+        }
+        this.renderApp();
+    }
+
     refreshUI() {
+
         this.renderApp();
     }
 }

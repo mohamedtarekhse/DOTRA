@@ -259,13 +259,36 @@ export default {
                         // PRIORITY: Always read from D1 (persistent) first
                         if (db) {
                             try {
-                                const vehicles = (await db.prepare("SELECT * FROM gate_vehicles ORDER BY id DESC").all()).results || [];
-                                const permits = (await db.prepare("SELECT * FROM gate_permits ORDER BY id DESC").all()).results || [];
-                                const logs = (await db.prepare("SELECT * FROM gate_logs ORDER BY id DESC LIMIT 500").all()).results || [];
+                                let vehicles = [];
+                                try {
+                                    vehicles = (await db.prepare("SELECT * FROM gate_vehicles ORDER BY id DESC").all()).results || [];
+                                } catch(e) {
+                                    try { vehicles = (await db.prepare("SELECT * FROM vehicles ORDER BY id DESC").all()).results || []; } catch(e2) {}
+                                }
+
+                                let permits = [];
+                                try {
+                                    permits = (await db.prepare("SELECT * FROM gate_permits ORDER BY id DESC").all()).results || [];
+                                } catch(e) {
+                                    try { permits = (await db.prepare("SELECT * FROM permits ORDER BY id DESC").all()).results || []; } catch(e2) {}
+                                }
+
+                                let logs = [];
+                                try {
+                                    logs = (await db.prepare("SELECT * FROM gate_logs ORDER BY id DESC LIMIT 500").all()).results || [];
+                                } catch(e) {
+                                    try { logs = (await db.prepare("SELECT * FROM access_logs ORDER BY id DESC LIMIT 500").all()).results || []; } catch(e2) {}
+                                }
+
                                 if (vehicles.length > 0 || permits.length > 0 || logs.length > 0) {
-                                    // Also refresh in-memory cache from D1
-                                    CLOUD_STATE = { vehicles, permits, logs };
-                                    return new Response(JSON.stringify({ vehicles, permits, logs }), { headers });
+                                    CLOUD_STATE.vehicles = vehicles.length > 0 ? vehicles : CLOUD_STATE.vehicles;
+                                    CLOUD_STATE.permits = permits.length > 0 ? permits : CLOUD_STATE.permits;
+                                    CLOUD_STATE.logs = logs.length > 0 ? logs : CLOUD_STATE.logs;
+                                    return new Response(JSON.stringify({ 
+                                        vehicles: CLOUD_STATE.vehicles, 
+                                        permits: CLOUD_STATE.permits, 
+                                        logs: CLOUD_STATE.logs 
+                                    }), { headers });
                                 }
                             } catch(e) {}
                         }
@@ -282,7 +305,7 @@ export default {
                                 if (idx >= 0) CLOUD_STATE.vehicles[idx] = { ...CLOUD_STATE.vehicles[idx], ...v };
                                 else CLOUD_STATE.vehicles.push(v);
                             });
-                            // FIX RC-2: Write vehicles to D1
+                            // Write vehicles to D1 (both table formats for 100% resilience)
                             if (db) {
                                 for (const v of body.vehicles) {
                                     try {
@@ -297,7 +320,14 @@ export default {
                                             v.driver_phone || '', v.company_ar || '', v.company_en || '',
                                             v.status || 'visitor', v.blacklist_reason || ''
                                         ).run();
-                                    } catch(e) {}
+                                    } catch(e) {
+                                        try {
+                                            await db.prepare(`
+                                                INSERT OR REPLACE INTO vehicles (id, plate_ar, plate_en, vehicle_type, driver_name_ar, driver_name_en, driver_phone, company_ar, company_en, status)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            `).bind(v.id, v.plate_ar, v.plate_en || v.plate_ar, v.vehicle_type || 'truckHeavy', v.driver_name_ar || '', v.driver_name_en || '', v.driver_phone || '', v.company_ar || '', v.company_en || '', v.status || 'visitor').run();
+                                        } catch(e2) {}
+                                    }
                                 }
                             }
                         }
@@ -309,7 +339,7 @@ export default {
                                 if (idx >= 0) CLOUD_STATE.permits[idx] = { ...CLOUD_STATE.permits[idx], ...p };
                                 else CLOUD_STATE.permits.push(p);
                             });
-                            // FIX RC-2: Write permits to D1
+                            // Write permits to D1 (both table formats)
                             if (db) {
                                 for (const p of body.permits) {
                                     try {
@@ -326,7 +356,14 @@ export default {
                                             p.valid_from || '', p.valid_until || '',
                                             p.status || 'active', p.created_by || 1
                                         ).run();
-                                    } catch(e) {}
+                                    } catch(e) {
+                                        try {
+                                            await db.prepare(`
+                                                INSERT OR REPLACE INTO permits (id, permit_code, vehicle_id, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, valid_from, valid_until, status, created_by)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            `).bind(p.id, p.permit_code, p.vehicle_id, p.destination_ar || '', p.destination_en || '', p.purpose_ar || '', p.purpose_en || '', p.cargo_details || '', p.valid_from || '', p.valid_until || '', p.status || 'active', p.created_by || 1).run();
+                                        } catch(e2) {}
+                                    }
                                 }
                             }
                         }
@@ -338,7 +375,7 @@ export default {
                                 if (idx >= 0) CLOUD_STATE.logs[idx] = { ...CLOUD_STATE.logs[idx], ...l };
                                 else CLOUD_STATE.logs.push(l);
                             });
-                            // FIX RC-2: Write logs to D1
+                            // Write logs to D1 (both table formats)
                             if (db) {
                                 for (const l of body.logs) {
                                     try {
@@ -355,7 +392,14 @@ export default {
                                             l.duration_minutes || null,
                                             l.remarks || ''
                                         ).run();
-                                    } catch(e) {}
+                                    } catch(e) {
+                                        try {
+                                            await db.prepare(`
+                                                INSERT OR REPLACE INTO access_logs (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks)
+                                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            `).bind(l.id, l.vehicle_id, l.permit_id || null, l.officer_id || null, l.gate_name || '', l.action_type || 'entry', l.timestamp || '', l.exit_timestamp || null, l.duration_minutes || null, l.remarks || '').run();
+                                        } catch(e2) {}
+                                    }
                                 }
                             }
                         }
@@ -371,6 +415,7 @@ export default {
                         }), { headers });
                     }
                 }
+
 
                 // 7. DELETE /api/clear — Wipe ALL data from D1 and in-memory state
                 if (url.pathname === '/api/clear' && (request.method === 'DELETE' || request.method === 'POST')) {
