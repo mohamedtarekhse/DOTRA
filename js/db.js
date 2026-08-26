@@ -27,6 +27,37 @@ const SEED_SETTINGS = {
     overstay_hours_threshold: '3'
 };
 
+const SEED_USERS = [
+    {
+        id: 1,
+        badge_id: 'MGR-01',
+        email: 'manager@dotra.com',
+        name_ar: 'م. أحمد فؤاد (مدير العمليات)',
+        name_en: 'Eng. Ahmed Fouad',
+        role: 'manager',
+        gate_assigned: ''
+    },
+    {
+        id: 2,
+        badge_id: 'GT-01',
+        pin_code: '1234',
+        name_ar: 'أمين الشرطة / طارق محمود',
+        name_en: 'Officer Tariq Mahmoud',
+        role: 'officer',
+        gate_assigned: 'بوابة 1 الرئيسية - دوترا'
+    },
+    {
+        id: 3,
+        badge_id: 'GT-02',
+        pin_code: '5678',
+        name_ar: 'مساعد شرطة / حسام حسن',
+        name_en: 'Officer Hossam Hassan',
+        role: 'officer',
+        gate_assigned: 'بوابة 2 الشحن والجمارك - دوترا'
+    }
+];
+
+
 const SEED_VEHICLES = [
     {
         id: 1,
@@ -148,8 +179,9 @@ class DatabaseService {
 
     initStorage() {
         if (!localStorage.getItem('gate_users')) {
-            localStorage.setItem('gate_users', JSON.stringify([]));
+            localStorage.setItem('gate_users', JSON.stringify(SEED_USERS));
         }
+
         if (!localStorage.getItem('gate_gates')) {
             localStorage.setItem('gate_gates', JSON.stringify(SEED_GATES));
         }
@@ -341,11 +373,12 @@ class DatabaseService {
                 localStorage.setItem('gate_users', JSON.stringify(mergedUsers));
             }
 
-            return changed;
+            return true;
         } catch (err) {
             // Offline or network error — silent fail, keep local data
         }
         return false;
+
     }
 
     clearAllData() {

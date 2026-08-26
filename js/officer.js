@@ -7,6 +7,8 @@ class OfficerController {
         this.isScanning = false;
         this.selectedVehicle = null;
         this.selectedPermit = null;
+        this.currentCapturedPhoto = null;
+        this.activeSearchQuery = '';
     }
 
     static escHtml(str) {
@@ -20,36 +22,53 @@ class OfficerController {
         if (!container) return;
 
         const lang = window.i18n.getLang();
-        const user = window.Auth.getCurrentUser() || { name_ar: 'أمين الشرطة طارق', name_en: 'Duty Officer', gate_assigned: 'Gate 1' };
-        const logs = window.DB.getLogs().slice().reverse().slice(0, 5);
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'أمين الشرطة طارق', name_en: 'Duty Officer', gate_assigned: 'بوابة 1 الرئيسية - دوترا', badge_id: 'GT-01' };
+        const logs = window.DB.getLogs().slice().reverse().slice(0, 6);
+        const gates = window.DB.getGates();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+
+        // FIX BUG 1: Non-destructive re-render during 2-second cloud sync heartbeat
+        // If the officer has an active input or search card open, do NOT wipe the UI!
+        const existingInput = document.getElementById('officer-plate-input');
+        const isInputFocused = existingInput && document.activeElement === existingInput;
+        const hasActiveQuery = existingInput && existingInput.value.trim().length > 0;
+        const recentListContainer = document.getElementById('officer-recent-activity-list');
+
+        if (recentListContainer && (isInputFocused || hasActiveQuery || this.selectedVehicle)) {
+            // Only update the recent activity list seamlessly without destroying officer's typing
+            recentListContainer.innerHTML = this.renderRecentLogs(logs, lang);
+            return;
+        }
 
         container.innerHTML = `
             <div class="max-w-xl mx-auto pb-12 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                 <!-- Officer & Gate Header Banner (SAP Style) -->
-                <div class="sap-card p-4 mb-4 flex items-center justify-between border-l-4 border-l-[#0070f2]">
+                <div class="sap-card p-4 mb-4 flex items-center justify-between border-l-4 border-l-[#0070f2] bg-white shadow-sm rounded-2xl">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
                             ${icon('user', 'w-6 h-6')}
                         </div>
                         <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="w-2 h-2 rounded-full bg-[#107e3e] animate-pulse"></span>
                                 <span class="text-xs font-bold text-[#107e3e] uppercase font-mono">${user.badge_id || 'GT-01'}</span>
                                 <span class="text-xs text-[#d7e2ee]">•</span>
-                                <span class="text-xs font-bold text-[#556b82]">${user.gate_assigned || 'Gate 1'}</span>
+                                <!-- Quick Gate Selector for Multi-Gate Stationing -->
+                                <select onchange="Officer.handleSwitchGate(this.value)" class="bg-[#f0f4f8] hover:bg-[#e2edf8] border border-[#b0cfee] text-[#002b66] text-[11px] font-bold rounded-lg px-2 py-0.5 focus:outline-none cursor-pointer">
+                                    ${gates.map(g => `<option value="${g}" ${user.gate_assigned === g ? 'selected' : ''}>📍 ${g}</option>`).join('')}
+                                </select>
                             </div>
-                            <h2 class="text-base font-black text-[#002b66]">${lang === 'ar' ? user.name_ar : user.name_en}</h2>
+                            <h2 class="text-base font-black text-[#002b66] mt-0.5">${lang === 'ar' ? user.name_ar : user.name_en}</h2>
                         </div>
                     </div>
-                    <button type="button" onclick="Officer.openQuickWalkinModal()" class="px-3 py-2 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold flex items-center gap-1.5 shadow-sm">
-                        ${icon('bolt', 'w-3.5 h-3.5')}
+                    <button type="button" onclick="Officer.openQuickWalkinModal()" class="px-3.5 py-2.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                        ${icon('bolt', 'w-4 h-4')}
                         <span>${lang === 'ar' ? 'دخول فوري' : 'Walk-in'}</span>
                     </button>
                 </div>
 
                 <!-- Search Plate & Camera Scanner Box -->
-                <div class="sap-panel p-5 shadow-md mb-4 bg-white">
+                <div class="sap-panel p-5 shadow-md mb-4 bg-white rounded-2xl border border-[#d7e2ee]">
                     <label class="block text-xs font-bold text-[#1d2d3e] mb-2 flex justify-between items-center">
                         <span class="flex items-center gap-1.5">
                             ${icon('search', 'w-4 h-4 text-[#0070f2]')}
@@ -62,24 +81,24 @@ class OfficerController {
                     </label>
 
                     <div class="relative">
-                        <input type="text" id="officer-plate-input" autofocus placeholder="${lang === 'ar' ? 'مثال: ط ر ق ٩ ٨ ٢ ١ أو الكود: 84920' : 'e.g. TRQ 9821 or PIN: 84920'}" class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-4 py-3 text-[#1d2d3e] font-black text-lg focus:border-[#0070f2] focus:bg-white focus:outline-none placeholder-[#94a3b8] shadow-inner" oninput="Officer.handlePlateSearch(this.value)" />
-                        <button type="button" onclick="Officer.clearSearch()" class="absolute ${lang === 'ar' ? 'left-3' : 'right-3'} top-3 text-[#556b82] hover:text-[#1d2d3e] text-base font-bold">
+                        <input type="text" id="officer-plate-input" autofocus value="${this.activeSearchQuery}" placeholder="${lang === 'ar' ? 'مثال: ط ر ق ٩ ٨ ٢ ١ أو الكود: 84920' : 'e.g. TRQ 9821 or PIN: 84920'}" class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-4 py-3 text-[#1d2d3e] font-black text-lg focus:border-[#0070f2] focus:bg-white focus:outline-none placeholder-[#94a3b8] shadow-inner" oninput="Officer.handlePlateSearch(this.value)" />
+                        <button type="button" onclick="Officer.clearSearch()" title="مسح" class="absolute ${lang === 'ar' ? 'left-3' : 'right-3'} top-3 text-[#556b82] hover:text-[#1d2d3e] text-base font-bold p-1">
                             ✕
                         </button>
                     </div>
 
                     <!-- On-screen Egyptian Plate Keypad -->
                     <div id="officer-arabic-keypad" class="hidden">
-                        ${window.ArabicPlate.renderArabicKeypad('officer-plate-input')}
+                        ${window.ArabicPlate ? window.ArabicPlate.renderArabicKeypad('officer-plate-input') : ''}
                     </div>
 
                     <!-- Scan QR Camera & Snap Photo Buttons -->
                     <div class="grid grid-cols-2 gap-2 mt-3">
-                        <button type="button" id="scan-qr-btn" onclick="Officer.toggleCameraScanner()" class="py-3 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold">
+                        <button type="button" id="scan-qr-btn" onclick="Officer.toggleCameraScanner()" class="py-3 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold active:scale-95 transition-all">
                             ${icon('camera', 'w-4 h-4')}
                             <span id="scan-qr-text">${window.i18n.t('openScanner')}</span>
                         </button>
-                        <label class="py-3 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] rounded-xl text-xs flex items-center justify-center gap-1.5 font-bold cursor-pointer transition-all shadow-sm">
+                        <label class="py-3 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] rounded-xl text-xs flex items-center justify-center gap-1.5 font-bold cursor-pointer transition-all shadow-sm active:scale-95">
                             <span>📸</span>
                             <span>${lang === 'ar' ? 'تصوير الشاحنة / اللوحة' : 'Snap Vehicle Photo'}</span>
                             <input type="file" id="officer-camera-file" accept="image/*" capture="environment" onchange="Officer.handlePhotoCapture(event)" class="hidden" />
@@ -102,20 +121,41 @@ class OfficerController {
                 </div>
 
                 <!-- Recent Gate Activity Stream -->
-                <div class="sap-panel p-4 shadow-sm bg-white">
+                <div class="sap-panel p-4 shadow-sm bg-white rounded-2xl border border-[#d7e2ee]">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-xs font-bold text-[#556b82] uppercase tracking-wider flex items-center gap-1.5">
                             ${icon('clock', 'w-3.5 h-3.5 text-[#0070f2]')}
-                            <span>${lang === 'ar' ? 'آخر حركات هذه البوابة' : 'Recent Activity on this Gate'}</span>
+                            <span>${lang === 'ar' ? 'آخر حركات البوابات' : 'Recent Gate Activity'}</span>
                         </h3>
-                        <span class="text-[10px] text-[#107e3e] font-mono font-bold">SAP SYNC</span>
+                        <span class="text-[10px] text-[#107e3e] font-mono font-bold">🟢 LIVE SYNC</span>
                     </div>
-                    <div class="space-y-2">
+                    <div id="officer-recent-activity-list" class="space-y-2">
                         ${this.renderRecentLogs(logs, lang)}
                     </div>
                 </div>
             </div>
         `;
+
+        // If there was an active search query, re-evaluate it
+        if (this.activeSearchQuery) {
+            this.handlePlateSearch(this.activeSearchQuery);
+        }
+    }
+
+    handleSwitchGate(newGateName) {
+        const user = window.Auth ? window.Auth.getCurrentUser() : null;
+        if (user && window.DB) {
+            window.DB.assignOfficerToGate(user.id, newGateName);
+            user.gate_assigned = newGateName;
+            if (window.App) {
+                window.App.showToast(
+                    window.i18n.getLang() === 'ar' ? '📍 تم تغيير البوابة' : 'Gate Changed',
+                    window.i18n.getLang() === 'ar' ? `أنت الآن على: ${newGateName}` : `Stationed at: ${newGateName}`,
+                    'info',
+                    'shield'
+                );
+            }
+        }
     }
 
     async handlePhotoCapture(event) {
@@ -133,7 +173,7 @@ class OfficerController {
                         <img src="${photoDataUrl}" class="w-12 h-12 object-cover rounded-lg border-2 border-[#107e3e] shadow-sm" />
                         <div class="text-right">
                             <div class="text-xs font-bold text-[#002b66]">تم توثيق الصورة بنجاح 📸</div>
-                            <div class="text-[10px] text-[#556b82]">سيتم إرفاقها مع سجل الدخول والخروج</div>
+                            <div class="text-[10px] text-[#556b82]">سيتم حفظها مع سجل الدخول والخروج</div>
                         </div>
                     </div>
                     <button type="button" onclick="Officer.removeCapturedPhoto()" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1">
@@ -157,7 +197,7 @@ class OfficerController {
     renderDefaultPrompt(lang) {
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
         return `
-            <div class="sap-card p-8 text-center bg-white border-dashed border-2 border-[#d7e2ee]">
+            <div class="sap-card p-8 text-center bg-white border-dashed border-2 border-[#d7e2ee] rounded-2xl">
                 <div class="w-14 h-14 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 shadow-sm">
                     ${icon('truck', 'w-8 h-8')}
                 </div>
@@ -177,6 +217,11 @@ class OfficerController {
     }
 
     clearSearch() {
+        this.activeSearchQuery = '';
+        this.selectedVehicle = null;
+        this.selectedPermit = null;
+        this.removeCapturedPhoto();
+
         const input = document.getElementById('officer-plate-input');
         if (input) {
             input.value = '';
@@ -189,6 +234,7 @@ class OfficerController {
     }
 
     handlePlateSearch(query) {
+        this.activeSearchQuery = query || '';
         if (!query || query.trim().length === 0) {
             this.clearSearch();
             return;
@@ -196,6 +242,8 @@ class OfficerController {
 
         const lang = window.i18n.getLang();
         const resultContainer = document.getElementById('vehicle-verification-result');
+        if (!resultContainer) return;
+
         const cleanQuery = query.trim();
 
         // 1. Try search by 5-Digit PIN or Permit Code first
@@ -213,8 +261,10 @@ class OfficerController {
         }
 
         if (!vehicle) {
+            this.selectedVehicle = null;
+            this.selectedPermit = null;
             resultContainer.innerHTML = `
-                <div class="sap-card p-5 bg-[#fff8eb] border-2 border-[#ffc966] animate-scaleUp">
+                <div class="sap-card p-5 bg-[#fff8eb] border-2 border-[#ffc966] rounded-2xl animate-scaleUp">
                     <div class="flex items-center justify-between mb-3">
                         <span class="px-2.5 py-1 bg-[#fff1e5] text-[#b85500] rounded-full text-xs font-bold border border-[#ffd8b3]">
                             ⚠️ ${lang === 'ar' ? 'مركبة / كود غير مسجل' : 'Unregistered Vehicle / PIN'}
@@ -224,7 +274,7 @@ class OfficerController {
                     <p class="text-xs text-[#556b82] mb-3">
                         ${lang === 'ar' ? 'لم يتم العثور على تصريح مسبق برقم اللوحة أو كود PIN هذا. يمكنك تسجيل دخول فوري كزائر الآن.' : 'No prior permit found for this plate or PIN. You can register an instant walk-in pass.'}
                     </p>
-                    <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(cleanQuery)}')" class="w-full py-2.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold">
+                    <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(cleanQuery)}')" class="w-full py-3 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold active:scale-95 transition-all">
                         <span>⚡</span>
                         <span>${lang === 'ar' ? 'تسجيل دخول فوري لهذه المركبة' : 'Register Instant Entry'}</span>
                     </button>
@@ -251,16 +301,16 @@ class OfficerController {
 
         if (isBlacklisted) {
             decisionBadge = `
-                <div class="p-3 bg-[#3b0d0c] text-white rounded-xl border border-red-900 mb-3 text-center">
-                    <div class="text-base font-black flex items-center justify-center gap-1.5">
+                <div class="p-3.5 bg-[#3b0d0c] text-white rounded-2xl border-2 border-red-800 mb-3 text-center shadow-md">
+                    <div class="text-base font-black flex items-center justify-center gap-1.5 text-red-300">
                         ${icon('ban', 'w-5 h-5 text-red-400')}
                         <span>⛔ ${window.i18n.t('statusBanned')}</span>
                     </div>
-                    <div class="text-xs text-red-200 mt-1">${vehicle.blacklist_reason || 'مخالفة أمنية'}</div>
+                    <div class="text-xs text-red-200 mt-1 font-bold">${vehicle.blacklist_reason || 'مخالفة أمنية'}</div>
                 </div>
             `;
             actionButtons = `
-                <button type="button" onclick="Officer.recordAction('denied', 'مركبة محظورة')" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-md">
+                <button type="button" onclick="Officer.recordAction('denied', 'مركبة محظورة')" class="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
                     ${icon('ban', 'w-4 h-4')}
                     <span>${window.i18n.t('denyEntryBtn')}</span>
                 </button>
@@ -274,25 +324,25 @@ class OfficerController {
                 <div class="p-3.5 bg-[#ebf3fb] text-[#002b66] rounded-2xl border-2 border-[#b3d5fa] mb-3 text-center">
                     <div class="text-sm font-black flex items-center justify-center gap-1.5 text-[#107e3e]">
                         <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e] animate-pulse"></span>
-                        <span>🟢 المركبة داخل المصنع حالياً (إجراء تلقائي: خروج)</span>
+                        <span>🟢 المركبة داخل المنشأة حالياً (إجراء تلقائي: خروج)</span>
                     </div>
                     <div class="text-xs text-[#556b82] font-semibold mt-1">
-                        دخلت عبر: <b class="text-[#002b66]">${entryGate}</b> الساعة <b class="font-mono text-[#0070f2]">${entryTime}</b> (المدة بالداخل: ${durationMinutes} دقيقة)
+                        دخلت عبر: <b class="text-[#002b66]">${entryGate}</b> الساعة <b class="font-mono text-[#0070f2]">${entryTime}</b> (المدة: ${durationMinutes} دقيقة)
                     </div>
                     ${permit && permit.pin_code ? `
                         <div class="mt-1.5 inline-block bg-white px-3 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-xs text-[#002b66]">
-                            🔑 كود التصريح: ${permit.pin_code}
+                            🔑 كود PIN: ${permit.pin_code}
                         </div>
                     ` : ''}
                 </div>
             `;
             actionButtons = `
                 <div class="grid grid-cols-3 gap-2">
-                    <button type="button" onclick="Officer.recordAction('exit')" class="col-span-2 py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
+                    <button type="button" onclick="Officer.recordAction('exit')" class="col-span-2 py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
                         ${icon('logout', 'w-5 h-5')}
                         <span>${lang === 'ar' ? '📤 تأكيد تسجيل الخروج' : 'Record Exit'}</span>
                     </button>
-                    <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3]">
+                    <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3] active:scale-95">
                         ${icon('ban', 'w-4 h-4')}
                         <span>منع / تفتيش</span>
                     </button>
@@ -316,13 +366,13 @@ class OfficerController {
                 `;
                 actionButtons = `
                     <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="Officer.recordAction('exit', 'خروج بضائع مصرحة')" class="py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
+                        <button type="button" onclick="Officer.recordAction('exit', 'خروج بضائع مصرحة')" class="py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
                             ${icon('logout', 'w-4 h-4')}
                             <span>تسجيل خروج البضائع</span>
                         </button>
-                        <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3]">
+                        <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3] active:scale-95">
                             ${icon('ban', 'w-3.5 h-3.5')}
-                            <span>منع الخروج والتفتيش</span>
+                            <span>منع وتفتيش</span>
                         </button>
                     </div>
                 `;
@@ -340,11 +390,11 @@ class OfficerController {
                 `;
                 actionButtons = `
                     <div class="grid grid-cols-3 gap-2">
-                        <button type="button" onclick="Officer.recordAction('entry')" class="col-span-2 py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md">
+                        <button type="button" onclick="Officer.recordAction('entry')" class="col-span-2 py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
                             ${icon('check', 'w-5 h-5')}
                             <span>${window.i18n.t('authorizeEntryBtn')}</span>
                         </button>
-                        <button type="button" onclick="Officer.recordAction('exit', 'خروج مباشر')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] font-bold rounded-xl text-xs flex items-center justify-center gap-1">
+                        <button type="button" onclick="Officer.recordAction('exit', 'خروج مباشر')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] font-bold rounded-xl text-xs flex items-center justify-center gap-1 active:scale-95">
                             ${icon('logout', 'w-3.5 h-3.5')}
                             <span>تسجيل خروج</span>
                         </button>
@@ -361,11 +411,11 @@ class OfficerController {
             `;
             actionButtons = `
                 <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(vehicle.plate_ar)}')" class="py-3.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-md font-bold">
+                    <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(vehicle.plate_ar)}')" class="py-3.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-md font-bold active:scale-95 transition-all">
                         ${icon('bolt', 'w-4 h-4')}
                         <span>${lang === 'ar' ? '📥 تسجيل دخول فوري' : 'Instant Entry'}</span>
                     </button>
-                    <button type="button" onclick="Officer.recordAction('exit', 'خروج مباشر بدون تصريح')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] text-xs flex items-center justify-center gap-1.5 font-bold rounded-xl shadow-sm">
+                    <button type="button" onclick="Officer.recordAction('exit', 'خروج مباشر بدون تصريح')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] text-xs flex items-center justify-center gap-1.5 font-bold rounded-xl shadow-sm active:scale-95">
                         ${icon('logout', 'w-4 h-4')}
                         <span>${lang === 'ar' ? '📤 تسجيل خروج مباشر' : 'Direct Exit'}</span>
                     </button>
@@ -376,12 +426,12 @@ class OfficerController {
         const vehiclePhoto = this.currentCapturedPhoto || vehicle.photo_url;
 
         resultContainer.innerHTML = `
-            <div class="sap-panel p-5 border-2 border-[#b0cfee] shadow-lg animate-scaleUp bg-white">
+            <div class="sap-panel p-5 border-2 border-[#b0cfee] shadow-lg animate-scaleUp bg-white rounded-2xl">
                 ${decisionBadge}
 
                 <!-- Egyptian License Plate Badge -->
                 <div class="flex justify-center mb-3">
-                    ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'normal', vehicle.vehicle_type)}
+                    ${window.ArabicPlate ? window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'normal', vehicle.vehicle_type) : ''}
                 </div>
 
                 ${vehiclePhoto ? `
@@ -394,7 +444,7 @@ class OfficerController {
                     </div>
                 ` : ''}
 
-                <!-- Driver & Cargo Details -->
+                <!-- Driver & Destination Details -->
                 <div class="bg-[#f8fafc] rounded-xl p-3 border border-[#d7e2ee] text-xs space-y-1.5 mb-3 text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between border-b border-[#e7eff7] pb-1">
                         <span class="text-[#556b82] font-bold">${window.i18n.t('driverName')}:</span>
@@ -414,12 +464,12 @@ class OfficerController {
                     </div>
                 </div>
 
-                <!-- Quick Manual WhatsApp Send with Mobile Data -->
+                <!-- Quick WhatsApp Send -->
                 ${vehicle.driver_phone ? `
                     <div class="mb-3">
-                        <button type="button" onclick="Officer.shareWhatsAppStatus('${vehicle.plate_ar}', '${vehicle.driver_phone}', '${permit ? permit.permit_code : ''}', '${permit ? permit.pin_code : ''}')" class="w-full py-2 bg-[#e5f6eb] hover:bg-[#d0f0db] text-[#107e3e] border border-[#b4e3c4] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
+                        <button type="button" onclick="Officer.shareWhatsAppStatus('${vehicle.plate_ar}', '${vehicle.driver_phone}', '${permit ? permit.permit_code : ''}', '${permit ? permit.pin_code : ''}')" class="w-full py-2.5 bg-[#e5f6eb] hover:bg-[#d0f0db] text-[#107e3e] border border-[#b4e3c4] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
                             ${icon('whatsapp', 'w-4 h-4 text-[#107e3e]')}
-                            <span>إرسال تفاصيل التصريح لواتساب السائق عبر باقة الموبايل</span>
+                            <span>إرسال تفاصيل التصريح لواتساب السائق</span>
                         </button>
                     </div>
                 ` : ''}
@@ -431,7 +481,7 @@ class OfficerController {
     }
 
     shareWhatsAppStatus(plate, phone, permitCode = '', pinCode = '') {
-        const text = encodeURIComponent(`🛡️ بوابة مصانع دوترا\n🚘 رقم اللوحة: ${plate}\n${permitCode ? `رقم التصريح: ${permitCode}\n` : ''}${pinCode ? `🔑 كود التحقق السريع: ${pinCode}\n` : ''}تم تسجيل وتوثيق الإجراء على البوابة.`);
+        const text = encodeURIComponent(`🛡️ مجموعة مصانع دوترا - بوابة الدخول\n🚘 رقم اللوحة: ${plate}\n${permitCode ? `🎫 رقم التصريح: ${permitCode}\n` : ''}${pinCode ? `🔑 كود التحقق: ${pinCode}\n` : ''}تم تسجيل وتوثيق الحركة بنجاح.`);
         const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
         const url = cleanPhone ? `https://wa.me/${cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone}?text=${text}` : `https://api.whatsapp.com/send?text=${text}`;
         window.open(url, '_blank');
@@ -439,18 +489,44 @@ class OfficerController {
 
     recordAction(action, reason = '') {
         if (!this.selectedVehicle) return;
-        const user = window.Auth.getCurrentUser() || { id: 2, gate_assigned: 'Gate 1' };
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'حارس البوابة', gate_assigned: 'Gate 1' };
         const photoUrl = this.currentCapturedPhoto || null;
+        const plate = this.selectedVehicle.plate_ar;
+        const lang = window.i18n.getLang();
 
         if (action === 'entry') {
             window.DB.recordEntry(this.selectedVehicle.id, this.selectedPermit ? this.selectedPermit.id : null, user.id, user.gate_assigned, 'دخول مصرح', photoUrl);
+            if (window.App) {
+                window.App.showToast(
+                    lang === 'ar' ? '📥 تم تسجيل الدخول بنجاح' : 'Entry Recorded',
+                    lang === 'ar' ? `دخلت الشاحنة: ${plate} عبر ${user.gate_assigned}` : `Vehicle ${plate} entered via ${user.gate_assigned}`,
+                    'success',
+                    'check'
+                );
+            }
         } else if (action === 'exit') {
             window.DB.recordExit(this.selectedVehicle.id, user.id, user.gate_assigned, 'خروج نظامي', photoUrl);
+            if (window.App) {
+                window.App.showToast(
+                    lang === 'ar' ? '📤 تم تسجيل الخروج بنجاح' : 'Exit Recorded',
+                    lang === 'ar' ? `غادرت الشاحنة: ${plate} عبر ${user.gate_assigned}` : `Vehicle ${plate} exited via ${user.gate_assigned}`,
+                    'warning',
+                    'logout'
+                );
+            }
         } else if (action === 'denied') {
             window.DB.recordDenied(this.selectedVehicle.id, user.id, user.gate_assigned, reason);
+            if (window.App) {
+                window.App.showToast(
+                    lang === 'ar' ? '⛔ تم تسجيل المنع' : 'Access Denied',
+                    lang === 'ar' ? `تم منع الشاحنة: ${plate} - ${reason}` : `Access denied for ${plate}`,
+                    'error',
+                    'ban'
+                );
+            }
         }
 
-        this.currentCapturedPhoto = null;
+        this.clearSearch();
         this.renderTerminal();
     }
 
@@ -472,26 +548,40 @@ class OfficerController {
         return logs.map(log => {
             const vehicle = vehicles.find(v => v.id === log.vehicle_id) || {};
             const time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const plate = vehicle.plate_ar || `مركبة #${log.vehicle_id}`;
             
             let badge = '';
             if (log.action_type === 'entry') {
-                badge = `<span class="px-2 py-0.5 bg-[#e5f6eb] text-[#107e3e] text-[10px] font-bold rounded-md">دخول</span>`;
+                badge = `<span class="px-2 py-0.5 bg-[#e5f6eb] text-[#107e3e] text-[10px] font-bold rounded-md flex items-center gap-1">📥 دخول</span>`;
             } else if (log.action_type === 'exit') {
-                badge = `<span class="px-2 py-0.5 bg-[#ebf3fb] text-[#0070f2] text-[10px] font-bold rounded-md">خروج</span>`;
+                badge = `<span class="px-2 py-0.5 bg-[#ebf3fb] text-[#0070f2] text-[10px] font-bold rounded-md flex items-center gap-1">📤 خروج</span>`;
             } else {
-                badge = `<span class="px-2 py-0.5 bg-[#ffebeb] text-[#bb0000] text-[10px] font-bold rounded-md">منع</span>`;
+                badge = `<span class="px-2 py-0.5 bg-[#ffebeb] text-[#bb0000] text-[10px] font-bold rounded-md flex items-center gap-1">⛔ منع</span>`;
             }
 
             return `
-                <div class="flex items-center justify-between p-2 rounded-lg bg-[#f8fafc] border border-[#e7eff7] text-xs">
+                <div onclick="Officer.quickInspect('${OfficerController.escHtml(plate)}')" title="انقر للفحص السريع" class="flex items-center justify-between p-2.5 rounded-xl bg-[#f8fafc] hover:bg-[#eaf2fc] border border-[#e7eff7] text-xs cursor-pointer transition-all active:scale-[0.99]">
                     <div class="flex items-center gap-2">
                         ${badge}
-                        <span class="font-mono font-bold text-[#1d2d3e]">${vehicle.plate_ar || 'مركبة'}</span>
+                        <span class="font-black text-[#002b66]">${plate}</span>
+                        <span class="text-[10px] text-[#556b82] hidden sm:inline font-medium">(${log.gate_name || 'البوابة'})</span>
                     </div>
-                    <span class="font-mono text-[#556b82] text-[11px]">${time}</span>
+                    <div class="flex items-center gap-2">
+                        ${log.duration_minutes ? `<span class="text-[10px] bg-white px-1.5 py-0.5 rounded text-[#0070f2] font-mono font-bold">${log.duration_minutes} د</span>` : ''}
+                        <span class="font-mono text-[#556b82] text-[11px] font-bold">${time}</span>
+                    </div>
                 </div>
             `;
         }).join('');
+    }
+
+    quickInspect(plate) {
+        const input = document.getElementById('officer-plate-input');
+        if (input) {
+            input.value = plate;
+            this.handlePlateSearch(plate);
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 
     openQuickWalkinModal() {
@@ -502,6 +592,7 @@ class OfficerController {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
         const lang = window.i18n.getLang();
+        const destinations = window.DB.getDestinations();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         modalContainer.innerHTML = `
@@ -523,12 +614,20 @@ class OfficerController {
 
                     <form onsubmit="Officer.submitWalkin(event)" class="space-y-3">
                         <div>
-                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1">رقم اللوحة</label>
-                            <input type="text" id="walkin-plate" required value="${plate}" placeholder="ط ر ق ٩ ٨ ٢ ١" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2.5 text-sm font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1">رقم لوحة المركبة</label>
+                            <input type="text" id="walkin-plate" required value="${plate}" placeholder="ط ر ق ٩ ٨ ٢ ١" class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-3 py-2.5 text-sm font-black text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1">هاتف السائق</label>
-                            <input type="tel" id="walkin-phone" required placeholder="01012345678" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2.5 text-sm font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1">هاتف السائق</label>
+                                <input type="tel" id="walkin-phone" required placeholder="01012345678" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1">الوجهة داخل المصنع</label>
+                                <select id="walkin-dest" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-2.5 py-2 text-xs font-bold text-[#002b66]">
+                                    ${destinations.map(d => `<option value="${d}">${d}</option>`).join('')}
+                                </select>
+                            </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
@@ -545,9 +644,9 @@ class OfficerController {
                             <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
                                 ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
                             </button>
-                            <button type="submit" class="flex-1 py-2.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-bold rounded-xl text-xs shadow-md flex items-center justify-center gap-1.5">
+                            <button type="submit" class="flex-1 py-3 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all">
                                 ${icon('check', 'w-4 h-4')}
-                                <span>${lang === 'ar' ? 'اعتماد والدخول فوراً' : 'Authorize & Enter Now'}</span>
+                                <span>${lang === 'ar' ? 'اعتماد وتسجيل الدخول فوراً' : 'Authorize & Enter Now'}</span>
                             </button>
                         </div>
                     </form>
@@ -560,8 +659,11 @@ class OfficerController {
         e.preventDefault();
         const plate = document.getElementById('walkin-plate').value.trim();
         const phone = document.getElementById('walkin-phone').value.trim();
+        const dest = document.getElementById('walkin-dest')?.value || 'المستودع الرئيسي';
         const driverName = document.getElementById('walkin-driver')?.value.trim() || 'سائق مصرح';
         const company = document.getElementById('walkin-company')?.value.trim() || 'توريدات عامة';
+        const photoUrl = this.currentCapturedPhoto || null;
+        const lang = window.i18n.getLang();
 
         let vehicle = window.DB.findVehicleByPlate(plate);
         if (!vehicle) {
@@ -576,20 +678,38 @@ class OfficerController {
                 company_en: company,
                 status: 'visitor'
             });
+        } else {
+            // Update phone / driver if provided
+            if (phone) vehicle.driver_phone = phone;
+            if (driverName && driverName !== 'سائق مصرح') vehicle.driver_name_ar = driverName;
         }
+
+        // Expire any existing active permit
+        window.DB.expireExistingPermitsForVehicle(vehicle.id);
 
         const permit = window.DB.addPermit({
             vehicle_id: vehicle.id,
-            destination_ar: 'المستودع الرئيسي',
-            purpose_ar: 'دخول فوري عبر البوابة',
+            destination_ar: dest,
+            destination_en: dest,
+            purpose_ar: 'دخول فوري معتمد من الحارس',
             valid_from: new Date().toISOString(),
             valid_until: new Date(Date.now() + 8 * 3600000).toISOString()
         });
 
         const user = window.Auth.getCurrentUser() || { id: 2, gate_assigned: 'Gate 1' };
-        window.DB.recordEntry(vehicle.id, permit.id, user.id, user.gate_assigned, 'دخول فوري معتمد من الحارس');
+        window.DB.recordEntry(vehicle.id, permit.id, user.id, user.gate_assigned, 'دخول فوري معتمد من الحارس', photoUrl);
+
+        if (window.App) {
+            window.App.showToast(
+                lang === 'ar' ? '⚡ تم تسجيل الدخول الفوري' : 'Instant Entry Registered',
+                lang === 'ar' ? `مركبة: ${plate} • كود التحقق: ${permit.pin_code}` : `Vehicle ${plate} entered (PIN: ${permit.pin_code})`,
+                'success',
+                'bolt'
+            );
+        }
 
         document.getElementById('modal-container').innerHTML = '';
+        this.clearSearch();
         this.renderTerminal();
     }
 
@@ -600,26 +720,53 @@ class OfficerController {
         if (this.isScanning) {
             this.isScanning = false;
             if (this.html5QrCode) {
-                this.html5QrCode.stop().then(() => {
-                    container.classList.add('hidden');
-                    textSpan.textContent = window.i18n.t('openScanner');
-                }).catch(() => {
-                    container.classList.add('hidden');
-                    textSpan.textContent = window.i18n.t('openScanner');
-                });
+                try {
+                    this.html5QrCode.stop().then(() => {
+                        if (container) container.classList.add('hidden');
+                        if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
+                    }).catch(() => {
+                        if (container) container.classList.add('hidden');
+                        if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
+                    });
+                } catch (e) {
+                    if (container) container.classList.add('hidden');
+                    if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
+                }
                 this.html5QrCode = null;
             }
         } else {
-            container.classList.remove('hidden');
-            textSpan.textContent = window.i18n.t('closeScanner');
+            if (container) container.classList.remove('hidden');
+            if (textSpan) textSpan.textContent = window.i18n.t('closeScanner');
             this.startScanner();
         }
     }
 
+    stopScanner() {
+        this.isScanning = false;
+        if (this.html5QrCode) {
+            try { this.html5QrCode.stop().catch(() => {}); } catch (e) {}
+            this.html5QrCode = null;
+        }
+        const container = document.getElementById('scanner-container');
+        const textSpan = document.getElementById('scan-qr-text');
+        if (container) container.classList.add('hidden');
+        if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
+    }
+
     startScanner() {
         if (typeof Html5Qrcode === 'undefined') {
-            alert('قارئ الكاميرا غير جاهز أو غير مدعوم في هذا المتصفح');
-            this.toggleCameraScanner();
+            const lang = window.i18n.getLang();
+            alert(lang === 'ar' ? 'قارئ الكاميرا غير جاهز. أعد تحميل الصفحة.' : 'Camera reader not ready. Reload the page.');
+            this.stopScanner();
+            return;
+        }
+
+        const container = document.getElementById('scanner-container');
+        const qrReaderEl = container ? container.querySelector('#qr-reader') : null;
+        if (!qrReaderEl) {
+            const lang = window.i18n.getLang();
+            alert(lang === 'ar' ? 'عنصر الكاميرا غير موجود في الصفحة.' : 'Camera element not found in DOM.');
+            this.stopScanner();
             return;
         }
 
@@ -630,42 +777,48 @@ class OfficerController {
             { fps: 10, qrbox: { width: 250, height: 250 } },
             (decodedText) => {
                 this.handleScannedCode(decodedText);
-                this.toggleCameraScanner();
+                this.stopScanner();
             },
             () => {}
         ).then(() => {
             this.isScanning = true;
         }).catch(err => {
-            console.error("Camera access error:", err);
-            this.isScanning = false;
-            this.html5QrCode = null;
-            const container = document.getElementById('scanner-container');
-            const textSpan = document.getElementById('scan-qr-text');
-            if (container) container.classList.add('hidden');
-            if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
+            console.error("Camera error:", err.name, err.message);
+            this.stopScanner();
             const lang = window.i18n.getLang();
-            if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission denied')) {
-                alert(lang === 'ar' ? 'تم رفض إذن الكاميرا. يرجى السماح بالوصول لإعدادات المتصفح ثم أعد المحاولة.' : 'Camera permission denied. Please allow access in browser settings and try again.');
+            const errStr = err.toString();
+            if (errStr.includes('NotAllowedError') || errStr.includes('Permission denied')) {
+                alert(lang === 'ar' ? 'تم رفض إذن الكاميرا. افتح إعدادات المتصفح واسمح بالوصول.' : 'Camera permission denied. Open browser settings and allow access.');
+            } else if (errStr.includes('NotReadableError') || errStr.includes('Could not start video')) {
+                alert(lang === 'ar' ? 'الكاميرا مستخدمة من تطبيق آخر أو غير متاحة. أغلق التطبيقات الأخرى وأعد المحاولة.' : 'Camera is in use by another app or unavailable. Close other apps and try again.');
+            } else if (errStr.includes('NotFoundError')) {
+                alert(lang === 'ar' ? 'لم يتم العثور على كاميرا على هذا الجهاز.' : 'No camera found on this device.');
             } else {
-                alert(lang === 'ar' ? 'تعذر فتح الكاميرا. يمكنك إدخال رقم اللوحة يدوياً.' : 'Could not open camera. You can enter the plate number manually.');
+                alert(lang === 'ar' ? 'تعذر فتح الكاميرا. يمكنك إدخال رقم اللوحة يدوياً.' : 'Could not open camera. Enter the plate number manually.');
             }
         });
     }
 
+    // FIX BUG 2: Multi-format QR payload parsing (PIN, permit code, plate JSON, or raw string)
     handleScannedCode(decodedText) {
+        if (!decodedText) return;
+        let queryToSearch = decodedText.trim();
+
         try {
             const data = JSON.parse(decodedText);
-            if (data.plate) {
-                const input = document.getElementById('officer-plate-input');
-                if (input) input.value = data.plate;
-                this.handlePlateSearch(data.plate);
-            }
+            queryToSearch = data.pin || data.plate || data.permit || decodedText;
         } catch (e) {
-            const input = document.getElementById('officer-plate-input');
-            if (input) input.value = decodedText;
-            this.handlePlateSearch(decodedText);
+            // Raw text or PIN string
+            queryToSearch = decodedText.trim();
         }
+
+        const input = document.getElementById('officer-plate-input');
+        if (input) {
+            input.value = queryToSearch;
+        }
+        this.handlePlateSearch(queryToSearch);
     }
 }
 
 window.Officer = new OfficerController();
+

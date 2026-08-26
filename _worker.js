@@ -18,7 +18,7 @@ export default {
             }
 
             try {
-                const db = env ? env["dotra-traffic-db"] : null;
+                const db = env ? (env["dotra-traffic-db"] || env.DB) : null;
 
                 // ============================================================
                 // GET /api/sync — Read all data from D1 gate_* tables
@@ -178,9 +178,93 @@ export default {
 
                     return new Response(JSON.stringify({
                         success: true,
-                        synced_at: new Date().toISOString()
+                        synced_at: new Date().toISOString(),
+                        counts: {
+                            vehicles: body.vehicles ? body.vehicles.length : 0,
+                            permits: body.permits ? body.permits.length : 0,
+                            logs: body.logs ? body.logs.length : 0
+                        }
                     }), { headers });
                 }
+
+                // ============================================================
+                // REST Endpoints (/api/vehicles, /api/permits, /api/entry, /api/exit, /api/logs)
+                // ============================================================
+                if (url.pathname === '/api/vehicles' && request.method === 'GET') {
+                    if (db) {
+                        try {
+                            const res = await db.prepare("SELECT * FROM gate_vehicles ORDER BY id DESC").all();
+                            return new Response(JSON.stringify(res.results || []), { headers });
+                        } catch(e) {}
+                    }
+                    return new Response(JSON.stringify([]), { headers });
+                }
+
+                if (url.pathname === '/api/permits' && request.method === 'POST') {
+                    const data = await request.json();
+                    const permitCode = data.permit_code || `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                    const pinCode = data.pin_code || Math.floor(10000 + Math.random() * 90000).toString();
+                    if (db) {
+                        try {
+                            await db.prepare(`
+                                INSERT OR REPLACE INTO gate_permits
+                                (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                data.id || Date.now(), permitCode, pinCode,
+                                data.vehicle_id, data.permit_type || 'entry',
+                                data.destination_ar || 'المستودع الرئيسي', data.destination_en || 'Main Plant',
+                                data.purpose_ar || 'تصريح دخول', data.purpose_en || 'Entry Pass',
+                                data.cargo_details || '', data.invoice_no || '',
+                                data.valid_from || new Date().toISOString(),
+                                data.valid_until || new Date(Date.now() + 8 * 3600000).toISOString(),
+                                data.status || 'active', data.created_by || 1
+                            ).run();
+                        } catch(e) {}
+                    }
+                    return new Response(JSON.stringify({ success: true, id: data.id || Date.now(), permit_code: permitCode, pin_code: pinCode }), { headers });
+                }
+
+                if (url.pathname === '/api/entry' && request.method === 'POST') {
+                    const data = await request.json();
+                    const newId = data.id || Date.now();
+                    if (db) {
+                        try {
+                            await db.prepare(`
+                                INSERT OR REPLACE INTO gate_logs
+                                (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, remarks)
+                                VALUES (?, ?, ?, ?, ?, 'entry', ?, ?)
+                            `).bind(newId, data.vehicle_id, data.permit_id || null, data.officer_id || 2, data.gate_name || 'بوابة 1', data.timestamp || new Date().toISOString(), data.remarks || '').run();
+                        } catch(e) {}
+                    }
+                    return new Response(JSON.stringify({ success: true, id: newId }), { headers });
+                }
+
+                if (url.pathname === '/api/exit' && request.method === 'POST') {
+                    const data = await request.json();
+                    if (db) {
+                        try {
+                            await db.prepare(`
+                                UPDATE gate_logs
+                                SET exit_timestamp = CURRENT_TIMESTAMP,
+                                    duration_minutes = ROUND((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(timestamp)) * 1440)
+                                WHERE vehicle_id = ? AND action_type = 'entry' AND exit_timestamp IS NULL
+                            `).bind(data.vehicle_id).run();
+                        } catch(e) {}
+                    }
+                    return new Response(JSON.stringify({ success: true }), { headers });
+                }
+
+                if (url.pathname === '/api/logs' && request.method === 'GET') {
+                    if (db) {
+                        try {
+                            const res = await db.prepare("SELECT * FROM gate_logs ORDER BY id DESC LIMIT 100").all();
+                            return new Response(JSON.stringify(res.results || []), { headers });
+                        } catch(e) {}
+                    }
+                    return new Response(JSON.stringify([]), { headers });
+                }
+
 
                 // ============================================================
                 // GET /api/gates — Read gates
@@ -355,20 +439,20 @@ export default {
                 }
 
                 // ============================================================
-                // POST /api/push/notify — Create notification entry for entry/exit events
+                // POST /api/push/notify & /api/push/send — Create notification & broadcast alert
                 // ============================================================
-                if (url.pathname === '/api/push/notify' && request.method === 'POST') {
+                if ((url.pathname === '/api/push/notify' || url.pathname === '/api/push/send') && request.method === 'POST') {
                     const data = await request.json();
-                    if (db && data.type && data.vehicle_plate) {
-                        const title = data.type === 'entry'
+                    if (db && (data.type || data.title) && (data.vehicle_plate || data.body)) {
+                        const title = data.title || (data.type === 'entry'
                             ? `📥 دخول: ${data.vehicle_plate}`
-                            : (data.type === 'exit' ? `📤 خروج: ${data.vehicle_plate}` : `🔔 ${data.vehicle_plate}`);
-                        const body = data.type === 'entry'
+                            : (data.type === 'exit' ? `📤 خروج: ${data.vehicle_plate}` : `🔔 ${data.vehicle_plate}`));
+                        const body = data.body || (data.type === 'entry'
                             ? `دخول عبر ${data.gate_name || 'البوابة'}`
-                            : (data.type === 'exit' ? `خروج عبر ${data.gate_name || 'البوابة'}` : data.message || '');
+                            : (data.type === 'exit' ? `خروج عبر ${data.gate_name || 'البوابة'}` : data.message || ''));
 
                         try {
-                            const roles = data.roles || ['manager'];
+                            const roles = data.roles || [data.role || 'manager'];
                             for (const role of roles) {
                                 const subs = (await db.prepare("SELECT user_id FROM push_subscriptions WHERE role = ?").bind(role).all()).results || [];
                                 const userIds = [...new Set(subs.map(s => s.user_id).filter(Boolean))];
@@ -376,13 +460,14 @@ export default {
                                     await db.prepare(`
                                         INSERT INTO gate_notifications (user_id, type, title, body, vehicle_id, vehicle_plate, gate_name)
                                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                                    `).bind(uid, data.type, title, body, data.vehicle_id || null, data.vehicle_plate, data.gate_name || '').run();
+                                    `).bind(uid, data.type || 'alert', title, body, data.vehicle_id || null, data.vehicle_plate || '', data.gate_name || '').run();
                                 }
                             }
                         } catch (e) { console.error('[PUSH NOTIFY] error:', e.message); }
                     }
-                    return new Response(JSON.stringify({ success: true }), { headers });
+                    return new Response(JSON.stringify({ success: true, broadcasted: true }), { headers });
                 }
+
 
                 // ============================================================
                 // GET /api/notifications?user_id=X — Get unread notifications for user
