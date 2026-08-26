@@ -15,6 +15,7 @@ class OfficerController {
     }
 
     renderTerminal() {
+        if (this.isScanning) return;
         const container = document.getElementById('main-content');
         if (!container) return;
 

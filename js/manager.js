@@ -1120,7 +1120,7 @@ class ManagerController {
                                             <div>
                                                 <div class="font-bold text-xs text-[#1d2d3e]">${off.name_ar}</div>
                                                 <div class="text-[11px] text-[#556b82] font-mono">
-                                                    <span class="text-[#0070f2] font-bold">${off.badge_id}</span> • <span>${off.gate_assigned}</span> • <span>PIN: ${off.pin_code}</span>
+                                                    <span class="text-[#0070f2] font-bold">${off.badge_id}</span> • <span>${off.gate_assigned}</span> • <span class="text-[10px] text-[#556b82]">🔐 ${lang === 'ar' ? 'PIN مخفي' : 'PIN hidden'}</span>
                                                 </div>
                                             </div>
                                         </div>

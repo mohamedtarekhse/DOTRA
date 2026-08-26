@@ -106,8 +106,8 @@ export default {
                                 try {
                                     await db.prepare(`
                                         INSERT OR REPLACE INTO gate_logs
-                                        (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks, photo_url)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks, photo_url, exit_photo_url)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                     `).bind(
                                         l.id, l.vehicle_id, l.permit_id || null,
                                         l.officer_id || null, l.gate_name || '',
@@ -115,7 +115,7 @@ export default {
                                         l.timestamp || new Date().toISOString(),
                                         l.exit_timestamp || null,
                                         l.duration_minutes || null,
-                                        l.remarks || '', l.photo_url || ''
+                                        l.remarks || '', l.photo_url || '', l.exit_photo_url || ''
                                     ).run();
                                 } catch (e) { console.error('[SYNC] log upsert error:', e.message); }
                             }
@@ -123,22 +123,28 @@ export default {
 
                         // --- Gates ---
                         if (body.gates && Array.isArray(body.gates)) {
-                            for (const g of body.gates) {
-                                const name = typeof g === 'string' ? g : g.name;
-                                if (name) {
-                                    try { await db.prepare("INSERT OR IGNORE INTO gate_gates (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] gate upsert error:', e.message); }
+                            try {
+                                await db.prepare("DELETE FROM gate_gates").run();
+                                for (const g of body.gates) {
+                                    const name = typeof g === 'string' ? g : g.name;
+                                    if (name) {
+                                        try { await db.prepare("INSERT INTO gate_gates (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] gate insert error:', e.message); }
+                                    }
                                 }
-                            }
+                            } catch (e) { console.error('[SYNC] gates replace error:', e.message); }
                         }
 
                         // --- Destinations ---
                         if (body.destinations && Array.isArray(body.destinations)) {
-                            for (const d of body.destinations) {
-                                const name = typeof d === 'string' ? d : d.name;
-                                if (name) {
-                                    try { await db.prepare("INSERT OR IGNORE INTO gate_destinations (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] destination upsert error:', e.message); }
+                            try {
+                                await db.prepare("DELETE FROM gate_destinations").run();
+                                for (const d of body.destinations) {
+                                    const name = typeof d === 'string' ? d : d.name;
+                                    if (name) {
+                                        try { await db.prepare("INSERT INTO gate_destinations (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] destination insert error:', e.message); }
+                                    }
                                 }
-                            }
+                            } catch (e) { console.error('[SYNC] destinations replace error:', e.message); }
                         }
 
                         // --- Settings ---
@@ -278,11 +284,12 @@ export default {
                             for (const u of body.users) {
                                 await db.prepare(`
                                     INSERT OR REPLACE INTO gate_users
-                                    (id, badge_id, email, password_hash, pin_code, name_ar, name_en, role, gate_assigned)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 `).bind(
                                     u.id, u.badge_id || '', u.email || '',
                                     u.password_hash || '', u.pin_code || '',
+                                    u.pin_hash || '',
                                     u.name_ar || '', u.name_en || '',
                                     u.role || 'officer', u.gate_assigned || ''
                                 ).run();
@@ -300,6 +307,13 @@ export default {
                         try { await db.prepare("DELETE FROM gate_logs").run(); } catch (e) { console.error('[CLEAR] logs error:', e.message); }
                         try { await db.prepare("DELETE FROM gate_permits").run(); } catch (e) { console.error('[CLEAR] permits error:', e.message); }
                         try { await db.prepare("DELETE FROM gate_vehicles").run(); } catch (e) { console.error('[CLEAR] vehicles error:', e.message); }
+                        try { await db.prepare("DELETE FROM gate_notifications").run(); } catch (e) { console.error('[CLEAR] notifications error:', e.message); }
+                        try { await db.prepare("DELETE FROM push_vehicle_watchlist").run(); } catch (e) { console.error('[CLEAR] watchlist error:', e.message); }
+                        try { await db.prepare("DELETE FROM push_subscriptions").run(); } catch (e) { console.error('[CLEAR] push_subs error:', e.message); }
+                        try { await db.prepare("DELETE FROM gate_users WHERE role != 'admin'").run(); } catch (e) { console.error('[CLEAR] users error:', e.message); }
+                        try { await db.prepare("DELETE FROM gate_gates").run(); } catch (e) { console.error('[CLEAR] gates error:', e.message); }
+                        try { await db.prepare("DELETE FROM gate_destinations").run(); } catch (e) { console.error('[CLEAR] destinations error:', e.message); }
+                        try { await db.prepare("DELETE FROM gate_settings").run(); } catch (e) { console.error('[CLEAR] settings error:', e.message); }
                     }
                     return new Response(JSON.stringify({
                         success: true,

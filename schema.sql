@@ -86,7 +86,8 @@ CREATE TABLE IF NOT EXISTS gate_logs (
     exit_timestamp DATETIME DEFAULT NULL,
     duration_minutes INTEGER DEFAULT NULL,
     remarks TEXT DEFAULT '',
-    photo_url TEXT DEFAULT ''
+    photo_url TEXT DEFAULT '',
+    exit_photo_url TEXT DEFAULT ''
 );
 
 -- WEB PUSH SUBSCRIPTIONS TABLE
@@ -148,8 +149,8 @@ CREATE INDEX IF NOT EXISTS idx_notif_read ON gate_notifications(is_read);
 -- ============================================================
 INSERT OR IGNORE INTO gate_users (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
 VALUES
-    (1, 'MGR-01', 'manager@dotra.com', '445b0b2469bd2c6f06a0fde29d0c7cb4:445527f7eaecdc43a384078755d8dd09583adc64c1a4f92d8018d4f36a80ef6d', '', '58362c85765ad4f743cedad4426a81b0:cd9fd56df282a971f8878c5fb949e2ee4e3f2f8f4ad34ef196d971f499c86fc2', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', ''),
-    (2, 'GT-01', 'officer1@dotra.com', '', '', '58362c85765ad4f743cedad4426a81b0:cd9fd56df282a971f8878c5fb949e2ee4e3f2f8f4ad34ef196d971f499c86fc2', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية - دوترا');
+    (1, 'MGR-01', 'manager@dotra.com', '408e180e62c0d777915d5e95a367b1cb:d6dffc554dcfc484cda2b4838c7cd60bae796a2dd44640ce004d1931324730c2', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', ''),
+    (2, 'GT-01', 'officer1@dotra.com', '', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية - دوترا');
 
 -- Seed gates
 INSERT OR IGNORE INTO gate_gates (name) VALUES
