@@ -18,7 +18,7 @@ export default {
             }
 
             try {
-                const db = env ? env.DB : null;
+                const db = env ? env["dotra-traffic-db"] : null;
 
                 // ============================================================
                 // GET /api/sync — Read all data from D1 gate_* tables
