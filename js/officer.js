@@ -9,6 +9,11 @@ class OfficerController {
         this.selectedPermit = null;
     }
 
+    static escHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
     renderTerminal() {
         const container = document.getElementById('main-content');
         if (!container) return;
@@ -218,7 +223,7 @@ class OfficerController {
                     <p class="text-xs text-[#556b82] mb-3">
                         ${lang === 'ar' ? 'لم يتم العثور على تصريح مسبق برقم اللوحة أو كود PIN هذا. يمكنك تسجيل دخول فوري كزائر الآن.' : 'No prior permit found for this plate or PIN. You can register an instant walk-in pass.'}
                     </p>
-                    <button type="button" onclick="Officer.openWalkinWithPlate('${cleanQuery}')" class="w-full py-2.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold">
+                    <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(cleanQuery)}')" class="w-full py-2.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold">
                         <span>⚡</span>
                         <span>${lang === 'ar' ? 'تسجيل دخول فوري لهذه المركبة' : 'Register Instant Entry'}</span>
                     </button>
@@ -303,7 +308,7 @@ class OfficerController {
                             <span>📤 تصريح خروج بضائع معتمد (${permit.permit_code})</span>
                         </div>
                         <div class="mt-1 flex items-center justify-center gap-2">
-                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '84920'}</span>
+                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '—'}</span>
                         </div>
                         ${permit.invoice_no ? `<div class="text-xs text-[#1d2d3e] font-mono font-bold mt-1.5">رقم إذن الصرف: <b class="text-[#0070f2]">${permit.invoice_no}</b> • الحمولة: ${permit.cargo_details}</div>` : ''}
                     </div>
@@ -328,7 +333,7 @@ class OfficerController {
                             <span>🟢 ${isBoth ? 'تصريح دخول وخروج معتمد' : window.i18n.t('statusAuthorized')} (${permit.permit_code})</span>
                         </div>
                         <div class="mt-1 flex items-center justify-center gap-2">
-                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b4e3c4] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '84920'}</span>
+                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b4e3c4] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '—'}</span>
                         </div>
                     </div>
                 `;
@@ -355,7 +360,7 @@ class OfficerController {
             `;
             actionButtons = `
                 <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="Officer.openWalkinWithPlate('${vehicle.plate_ar}')" class="py-3.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-md font-bold">
+                    <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(vehicle.plate_ar)}')" class="py-3.5 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-md font-bold">
                         ${icon('bolt', 'w-4 h-4')}
                         <span>${lang === 'ar' ? '📥 تسجيل دخول فوري' : 'Instant Entry'}</span>
                     </button>

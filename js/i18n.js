@@ -214,20 +214,27 @@ function setLanguage(lang) {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     
-    const arBtn = document.getElementById('lang-btn-ar');
-    const enBtn = document.getElementById('lang-btn-en');
-    if (arBtn && enBtn) {
-        if (lang === 'ar') {
-            arBtn.classList.add('bg-[#0070f2]', 'text-white');
-            arBtn.classList.remove('text-blue-200');
-            enBtn.classList.remove('bg-[#0070f2]', 'text-white');
-            enBtn.classList.add('text-blue-200');
-        } else {
-            enBtn.classList.add('bg-[#0070f2]', 'text-white');
-            enBtn.classList.remove('text-blue-200');
-            arBtn.classList.remove('bg-[#0070f2]', 'text-white');
-            arBtn.classList.add('text-blue-200');
+    const updateButtons = () => {
+        const arBtn = document.getElementById('lang-btn-ar');
+        const enBtn = document.getElementById('lang-btn-en');
+        if (arBtn && enBtn) {
+            if (lang === 'ar') {
+                arBtn.classList.add('bg-[#0070f2]', 'text-white');
+                arBtn.classList.remove('text-blue-200');
+                enBtn.classList.remove('bg-[#0070f2]', 'text-white');
+                enBtn.classList.add('text-blue-200');
+            } else {
+                enBtn.classList.add('bg-[#0070f2]', 'text-white');
+                enBtn.classList.remove('text-blue-200');
+                arBtn.classList.remove('bg-[#0070f2]', 'text-white');
+                arBtn.classList.add('text-blue-200');
+            }
         }
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateButtons);
+    } else {
+        updateButtons();
     }
     
     if (window.App && typeof window.App.refreshUI === 'function') {

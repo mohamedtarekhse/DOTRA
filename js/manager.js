@@ -5,6 +5,17 @@ class ManagerController {
     constructor() {
         this.activeFilter = 'all';
         this.searchQuery = '';
+        this._quickPermitData = [];
+    }
+
+    handleQuickPermitEdit(idx) {
+        const data = this._quickPermitData[idx];
+        if (data) this.openQuickPermitModal(data);
+    }
+
+    handleQuickPermitConfirm(idx) {
+        const data = this._quickPermitData[idx];
+        if (data) this.finalizeQuickPermit(data);
     }
 
     handleUniversalSearch(query) {
@@ -1155,14 +1166,14 @@ class ManagerController {
         }
     }
 
-    handleAddOfficer(e) {
+    async handleAddOfficer(e) {
         e.preventDefault();
         const name = document.getElementById('officer-name-input').value.trim();
         const badge = document.getElementById('officer-badge-input').value.trim();
         const pin = document.getElementById('officer-pin-input').value.trim();
         const gate = document.getElementById('officer-gate-select').value;
 
-        window.DB.addOfficer({
+        await window.DB.addOfficer({
             name_ar: name,
             name_en: name,
             badge_id: badge,
@@ -1526,6 +1537,9 @@ class ManagerController {
         const lang = window.i18n.getLang();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
+        this._quickPermitData = [data];
+        const idx = 0;
+
         const typeLabels = {
             entry: { label: '📥 تصريح دخول معتمد (Entry Pass)', color: 'bg-[#e5f6eb] text-[#107e3e] border-[#b4e3c4]' },
             exit: { label: '📤 تصريح خروج بضائع معتمد (Exit Pass)', color: 'bg-[#ebf3fb] text-[#0070f2] border-[#b3d5fa]' },
@@ -1592,11 +1606,11 @@ class ManagerController {
 
                     <!-- Action Buttons -->
                     <div class="flex gap-2">
-                        <button type="button" onclick='Manager.openQuickPermitModal(${JSON.stringify(data)})' class="px-4 py-3 sap-btn-secondary text-xs font-bold flex items-center gap-1">
+                        <button type="button" onclick='Manager.handleQuickPermitEdit(${idx})' class="px-4 py-3 sap-btn-secondary text-xs font-bold flex items-center gap-1">
                             <span>✏️</span>
                             <span>تعديل البيانات</span>
                         </button>
-                        <button type="button" onclick='Manager.finalizeQuickPermit(${JSON.stringify(data)})' class="flex-1 py-3 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm shadow-md flex items-center justify-center gap-2">
+                        <button type="button" onclick='Manager.handleQuickPermitConfirm(${idx})' class="flex-1 py-3 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm shadow-md flex items-center justify-center gap-2">
                             ${icon('check', 'w-5 h-5 text-white')}
                             <span>✅ تأكيد واعتماد وتوليد التصريح</span>
                         </button>

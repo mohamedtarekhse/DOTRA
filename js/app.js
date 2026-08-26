@@ -49,12 +49,13 @@ class AppController {
         if (typeof setInterval !== 'undefined') {
             setInterval(async () => {
                 if (typeof navigator !== 'undefined' && navigator.onLine && window.DB && typeof window.DB.syncFromCloud === 'function') {
-                    await window.DB.syncFromCloud();
-                    // Always re-render — cloud is authoritative source
-                    if (this.currentView === 'manager' && window.Manager) {
-                        window.Manager.renderDashboard();
-                    } else if (this.currentView === 'officer' && window.Officer) {
-                        window.Officer.renderTerminal();
+                    const changed = await window.DB.syncFromCloud();
+                    if (changed) {
+                        if (this.currentView === 'manager' && window.Manager) {
+                            window.Manager.renderDashboard();
+                        } else if (this.currentView === 'officer' && window.Officer) {
+                            window.Officer.renderTerminal();
+                        }
                     }
                 }
             }, 2000);
@@ -459,12 +460,14 @@ class AppController {
         const password = document.getElementById('setup-password').value;
         const pin_code = document.getElementById('setup-pin').value;
 
-        window.DB.setupManager({ name_ar, name_en, email, password, pin_code });
+        await window.DB.setupManager({ name_ar, name_en, email, password, pin_code });
 
         const res = await window.Auth.loginManager(email, password);
         if (res.success) {
             this.currentView = 'manager';
             this.renderApp();
+        } else {
+            alert(res.message);
         }
     }
 

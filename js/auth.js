@@ -1,5 +1,5 @@
-// Authentication & Role Management (with Password Hashing)
-// إدارة المصادقة والأدوار - مع تشفير كلمات المرور
+// Authentication & Role Management (with Per-User Salted Password Hashing)
+// إدارة المصادقة والأدوار - مع تشفير كلمات المرور لكل مستخدم
 
 class AuthService {
     constructor() {
@@ -10,10 +10,16 @@ class AuthService {
         return this.currentUser;
     }
 
-    async hashPassword(password) {
+    generateSalt() {
+        const arr = new Uint8Array(16);
+        crypto.getRandomValues(arr);
+        return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async hashPassword(password, salt) {
         if (typeof crypto !== 'undefined' && crypto.subtle) {
             const encoder = new TextEncoder();
-            const data = encoder.encode(password + 'dotra_gate_salt_2026');
+            const data = encoder.encode(password + salt);
             const hashBuffer = await crypto.subtle.digest('SHA-256', data);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -21,24 +27,31 @@ class AuthService {
         return password;
     }
 
+    async createPasswordHash(password) {
+        const salt = this.generateSalt();
+        const hash = await this.hashPassword(password, salt);
+        return `${salt}:${hash}`;
+    }
+
     async verifyPassword(inputPassword, storedHash) {
-        const inputHash = await this.hashPassword(inputPassword);
-        return inputHash === storedHash;
+        if (storedHash && storedHash.includes(':')) {
+            const [salt, hash] = storedHash.split(':');
+            const inputHash = await this.hashPassword(inputPassword, salt);
+            return inputHash === hash;
+        }
+        return false;
     }
 
     async loginManager(email, password) {
         const users = window.DB.getUsers();
         const user = users.find(u => u.role === 'manager' && u.email.toLowerCase() === email.trim().toLowerCase());
 
-        if (user) {
-            const storedHash = user.password_hash;
-            if (storedHash) {
-                const isMatch = await this.verifyPassword(password.trim(), storedHash);
-                if (isMatch) {
-                    this.currentUser = user;
-                    sessionStorage.setItem('gate_current_user', JSON.stringify(user));
-                    return { success: true, user };
-                }
+        if (user && user.password_hash) {
+            const isMatch = await this.verifyPassword(password.trim(), user.password_hash);
+            if (isMatch) {
+                this.currentUser = user;
+                sessionStorage.setItem('gate_current_user', JSON.stringify(user));
+                return { success: true, user };
             }
         }
         return { success: false, message: 'بيانات البريد الإلكتروني أو كلمة المرور غير صحيحة' };
@@ -46,12 +59,20 @@ class AuthService {
 
     async loginOfficer(badgeId, pinCode) {
         const users = window.DB.getUsers();
-        const user = users.find(u => u.role === 'officer' && u.badge_id.toUpperCase() === badgeId.trim().toUpperCase() && u.pin_code === pinCode.trim());
+        const user = users.find(u => u.role === 'officer' && u.badge_id.toUpperCase() === badgeId.trim().toUpperCase());
 
         if (user) {
-            this.currentUser = user;
-            sessionStorage.setItem('gate_current_user', JSON.stringify(user));
-            return { success: true, user };
+            let pinMatch = false;
+            if (user.pin_hash) {
+                pinMatch = await this.verifyPassword(pinCode.trim(), user.pin_hash);
+            } else if (user.pin_code) {
+                pinMatch = user.pin_code === pinCode.trim();
+            }
+            if (pinMatch) {
+                this.currentUser = user;
+                sessionStorage.setItem('gate_current_user', JSON.stringify(user));
+                return { success: true, user };
+            }
         }
         return { success: false, message: 'رقم الشارة أو الرمز السري (PIN) غير صحيح' };
     }

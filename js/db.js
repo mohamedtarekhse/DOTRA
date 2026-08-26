@@ -169,7 +169,7 @@ class DatabaseService {
             localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
         }
 
-        this.syncFromCloud();
+        this.syncFromCloud().catch(() => {});
     }
 
     loadDemoData() {
@@ -203,15 +203,16 @@ class DatabaseService {
         return !users.some(u => u.role === 'manager');
     }
 
-    setupManager({ name_ar, name_en, email, password, pin_code }) {
-        const hash = window.Auth.hashPassword(password);
+    async setupManager({ name_ar, name_en, email, password, pin_code }) {
+        const hash = await window.Auth.createPasswordHash(password);
+        const pinHash = await window.Auth.createPasswordHash(pin_code);
         const manager = {
             id: this.generateId(),
             badge_id: 'MGR-01',
             email,
-            password: '',
             password_hash: hash,
-            pin_code,
+            pin_code: '',
+            pin_hash: pinHash,
             name_ar,
             name_en,
             role: 'manager',
@@ -256,9 +257,6 @@ class DatabaseService {
                     }
                 });
                 localStorage.setItem('gate_vehicles', JSON.stringify(merged));
-            } else if (cloudVehicles.length === 0 && localVehicles.length > 0) {
-                localStorage.setItem('gate_vehicles', JSON.stringify([]));
-                changed = true;
             }
 
             // --- Permits ---
@@ -276,9 +274,6 @@ class DatabaseService {
                     }
                 });
                 localStorage.setItem('gate_permits', JSON.stringify(merged));
-            } else if (cloudPermits.length === 0 && localPermits.length > 0) {
-                localStorage.setItem('gate_permits', JSON.stringify([]));
-                changed = true;
             }
 
             // --- Logs ---
@@ -296,9 +291,6 @@ class DatabaseService {
                     }
                 });
                 localStorage.setItem('gate_logs', JSON.stringify(merged));
-            } else if (cloudLogs.length === 0 && localLogs.length > 0) {
-                localStorage.setItem('gate_logs', JSON.stringify([]));
-                changed = true;
             }
 
             // --- Gates ---
@@ -450,27 +442,28 @@ class DatabaseService {
         return this.getUsers().filter(u => u.role === 'officer');
     }
 
-    addOfficer(officerData) {
+    async addOfficer(officerData) {
         const users = this.getUsers();
         const pin = officerData.pin_code || String(Math.floor(1000 + Math.random() * 9000));
         const password = officerData.password || pin;
-        const hash = window.Auth.hashPassword(password);
+        const hash = await window.Auth.createPasswordHash(password);
+        const pinHash = await window.Auth.createPasswordHash(pin);
         const newOfficer = {
             id: this.generateId(),
             role: 'officer',
             badge_id: officerData.badge_id || `GT-0${users.length + 1}`,
             name_ar: officerData.name_ar || 'حارس بوابة',
             name_en: officerData.name_en || 'Gate Officer',
-            pin_code: pin,
+            pin_code: '',
+            pin_hash: pinHash,
             gate_assigned: officerData.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
             email: officerData.email || `officer${Date.now()}@factory.com`,
-            password: '',
             password_hash: hash
         };
         users.push(newOfficer);
         localStorage.setItem('gate_users', JSON.stringify(users));
         this.syncUsersToCloud();
-        return { ...newOfficer, password };
+        return { ...newOfficer, pin_code: pin, password };
     }
 
     updateOfficer(id, data) {
@@ -502,7 +495,8 @@ class DatabaseService {
             badge_id: u.badge_id,
             email: u.email,
             password_hash: u.password_hash || '',
-            pin_code: u.pin_code,
+            pin_code: u.pin_code || '',
+            pin_hash: u.pin_hash || '',
             name_ar: u.name_ar,
             name_en: u.name_en,
             role: u.role,
@@ -819,7 +813,14 @@ class DatabaseService {
             status: 'active',
             invoice_no: permitData.invoice_no || '',
             cargo_details: permitData.cargo_details || 'بضائع ومواد مصرحة',
-            ...permitData
+            vehicle_id: permitData.vehicle_id,
+            destination_ar: permitData.destination_ar || '',
+            destination_en: permitData.destination_en || '',
+            purpose_ar: permitData.purpose_ar || '',
+            purpose_en: permitData.purpose_en || '',
+            valid_from: permitData.valid_from || '',
+            valid_until: permitData.valid_until || '',
+            created_by: permitData.created_by || 1
         };
         permits.push(newPermit);
         localStorage.setItem('gate_permits', JSON.stringify(permits));

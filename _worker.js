@@ -34,7 +34,7 @@ export default {
                             const settingsRows = (await db.prepare("SELECT key, value FROM gate_settings").all()).results || [];
                             const settings = {};
                             settingsRows.forEach(r => { settings[r.key] = r.value; });
-                            const users = (await db.prepare("SELECT id, badge_id, email, password_hash, pin_code, name_ar, name_en, role, gate_assigned FROM gate_users ORDER BY id ASC").all()).results || [];
+                            const users = (await db.prepare("SELECT id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned FROM gate_users ORDER BY id ASC").all()).results || [];
 
                             return new Response(JSON.stringify({
                                 vehicles,
@@ -106,8 +106,8 @@ export default {
                                 try {
                                     await db.prepare(`
                                         INSERT OR REPLACE INTO gate_logs
-                                        (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks, photo_url)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                     `).bind(
                                         l.id, l.vehicle_id, l.permit_id || null,
                                         l.officer_id || null, l.gate_name || '',
@@ -115,9 +115,57 @@ export default {
                                         l.timestamp || new Date().toISOString(),
                                         l.exit_timestamp || null,
                                         l.duration_minutes || null,
-                                        l.remarks || ''
+                                        l.remarks || '', l.photo_url || ''
                                     ).run();
                                 } catch (e) { console.error('[SYNC] log upsert error:', e.message); }
+                            }
+                        }
+
+                        // --- Gates ---
+                        if (body.gates && Array.isArray(body.gates)) {
+                            for (const g of body.gates) {
+                                const name = typeof g === 'string' ? g : g.name;
+                                if (name) {
+                                    try { await db.prepare("INSERT OR IGNORE INTO gate_gates (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] gate upsert error:', e.message); }
+                                }
+                            }
+                        }
+
+                        // --- Destinations ---
+                        if (body.destinations && Array.isArray(body.destinations)) {
+                            for (const d of body.destinations) {
+                                const name = typeof d === 'string' ? d : d.name;
+                                if (name) {
+                                    try { await db.prepare("INSERT OR IGNORE INTO gate_destinations (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] destination upsert error:', e.message); }
+                                }
+                            }
+                        }
+
+                        // --- Settings ---
+                        if (body.settings && typeof body.settings === 'object') {
+                            for (const [key, value] of Object.entries(body.settings)) {
+                                if (key && value !== undefined && value !== null) {
+                                    try { await db.prepare("INSERT OR REPLACE INTO gate_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))").bind(key, String(value)).run(); } catch (e) { console.error('[SYNC] settings upsert error:', e.message); }
+                                }
+                            }
+                        }
+
+                        // --- Users ---
+                        if (body.users && Array.isArray(body.users)) {
+                            for (const u of body.users) {
+                                try {
+                                    await db.prepare(`
+                                        INSERT OR REPLACE INTO gate_users
+                                        (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    `).bind(
+                                        u.id, u.badge_id || '', u.email || '',
+                                        u.password_hash || '', u.pin_code || '',
+                                        u.pin_hash || '',
+                                        u.name_ar || '', u.name_en || '',
+                                        u.role || 'officer', u.gate_assigned || ''
+                                    ).run();
+                                } catch (e) { console.error('[SYNC] user upsert error:', e.message); }
                             }
                         }
                     }

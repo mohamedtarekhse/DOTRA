@@ -6,8 +6,9 @@ CREATE TABLE IF NOT EXISTS gate_users (
     id INTEGER PRIMARY KEY,
     badge_id TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE,
-    password_hash TEXT NOT NULL,
-    pin_code TEXT,
+    password_hash TEXT NOT NULL DEFAULT '',
+    pin_code TEXT DEFAULT '',
+    pin_hash TEXT DEFAULT '',
     name_ar TEXT NOT NULL,
     name_en TEXT NOT NULL,
     role TEXT NOT NULL CHECK(role IN ('manager', 'officer', 'admin')),
@@ -84,7 +85,8 @@ CREATE TABLE IF NOT EXISTS gate_logs (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     exit_timestamp DATETIME DEFAULT NULL,
     duration_minutes INTEGER DEFAULT NULL,
-    remarks TEXT DEFAULT ''
+    remarks TEXT DEFAULT '',
+    photo_url TEXT DEFAULT ''
 );
 
 -- WEB PUSH SUBSCRIPTIONS TABLE
