@@ -474,12 +474,11 @@ export default {
                 if (url.pathname === '/api/clear' && (request.method === 'DELETE' || request.method === 'POST')) {
                     if (sql) {
                         try {
-                            await Promise.all([
-                                sql`DELETE FROM gate_vehicles`,
-                                sql`DELETE FROM gate_permits`,
-                                sql`DELETE FROM gate_logs`,
-                                sql`DELETE FROM gate_notifications`
-                            ]);
+                            await sql`DELETE FROM gate_logs`;
+                            await sql`DELETE FROM gate_permits`;
+                            await sql`DELETE FROM push_vehicle_watchlist`;
+                            await sql`DELETE FROM gate_notifications`;
+                            await sql`DELETE FROM gate_vehicles`;
                             return new Response(JSON.stringify({ success: true, message: 'Neon Postgres gate data successfully cleared' }), { headers });
                         } catch (e) {
                             return new Response(JSON.stringify({ error: e.message }), { status: 500, headers });
