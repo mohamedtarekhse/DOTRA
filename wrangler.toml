@@ -1,4 +1,4 @@
-# Cloudflare Configuration for Factory Gate Vehicle Access System
+# Cloudflare Configuration for Factory Gate Vehicle Access System (Neon Postgres Backend)
 name = "factory-gate-access"
 main = "_worker.js"
 compatibility_date = "2024-09-23"
@@ -8,8 +8,7 @@ compatibility_date = "2024-09-23"
 directory = "."
 binding = "ASSETS"
 
-# Cloudflare D1 Database Binding
-[[d1_databases]]
-binding = "dotra-traffic-db"
-database_name = "dotra-traffic-db"
-database_id = "140644fa-ed39-47e9-a39e-56ab99d6fa1b" # From: npx wrangler d1 create dotra-traffic-db
+# Neon Serverless Postgres Configuration:
+# Set secret via: npx wrangler secret put DATABASE_URL
+# Or for local development in .dev.vars: DATABASE_URL="postgresql://user:pass@ep-xyz.us-east-2.aws.neon.tech/neondb?sslmode=require"
+

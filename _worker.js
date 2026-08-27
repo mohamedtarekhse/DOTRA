@@ -1,5 +1,12 @@
-// Cloudflare Pages Functions / Workers Backend Handler (DOTRA Edition - Unified gate_* Schema)
-// معالج سحابة كلاود فلير - موحدة على جداول gate_* فقط
+import { neon } from '@neondatabase/serverless';
+
+function getSql(env) {
+    if (env?.sql) return env.sql;
+    const dbUrl = env?.DATABASE_URL || (typeof process !== 'undefined' ? process.env?.DATABASE_URL : null);
+    if (!dbUrl) return null;
+    return neon(dbUrl);
+}
+
 
 export default {
     async fetch(request, env, ctx) {
@@ -18,35 +25,38 @@ export default {
             }
 
             try {
-                const db = env ? (env["dotra-traffic-db"] || env.DB) : null;
+                const sql = getSql(env);
 
                 // ============================================================
-                // GET /api/sync — Read all data from D1 gate_* tables
+                // 1. GET /api/sync — Read Complete Snapshot from Neon Postgres
                 // ============================================================
                 if (url.pathname === '/api/sync' && request.method === 'GET') {
-                    if (db) {
+                    if (sql) {
                         try {
-                            const vehicles = (await db.prepare("SELECT * FROM gate_vehicles ORDER BY id DESC").all()).results || [];
-                            const permits = (await db.prepare("SELECT * FROM gate_permits ORDER BY id DESC").all()).results || [];
-                            const logs = (await db.prepare("SELECT * FROM gate_logs ORDER BY id DESC LIMIT 500").all()).results || [];
-                            const gates = (await db.prepare("SELECT name FROM gate_gates ORDER BY id ASC").all()).results || [];
-                            const destinations = (await db.prepare("SELECT name FROM gate_destinations ORDER BY id ASC").all()).results || [];
-                            const settingsRows = (await db.prepare("SELECT key, value FROM gate_settings").all()).results || [];
+                            const [vehicles, permits, logs, gates, destinations, settingsRows, users] = await Promise.all([
+                                sql`SELECT * FROM gate_vehicles ORDER BY id DESC`,
+                                sql`SELECT * FROM gate_permits ORDER BY id DESC`,
+                                sql`SELECT * FROM gate_logs ORDER BY id DESC LIMIT 500`,
+                                sql`SELECT name FROM gate_gates ORDER BY id ASC`,
+                                sql`SELECT name FROM gate_destinations ORDER BY id ASC`,
+                                sql`SELECT key, value FROM gate_settings`,
+                                sql`SELECT id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned FROM gate_users ORDER BY id ASC`
+                            ]);
+
                             const settings = {};
-                            settingsRows.forEach(r => { settings[r.key] = r.value; });
-                            const users = (await db.prepare("SELECT id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned FROM gate_users ORDER BY id ASC").all()).results || [];
+                            (settingsRows || []).forEach(r => { settings[r.key] = r.value; });
 
                             return new Response(JSON.stringify({
-                                vehicles,
-                                permits,
-                                logs,
-                                gates: gates.map(g => g.name),
-                                destinations: destinations.map(d => d.name),
+                                vehicles: vehicles || [],
+                                permits: permits || [],
+                                logs: logs || [],
+                                gates: (gates || []).map(g => g.name),
+                                destinations: (destinations || []).map(d => d.name),
                                 settings,
-                                users
+                                users: users || []
                             }), { headers });
                         } catch (e) {
-                            console.error('[SYNC GET] D1 error:', e.message);
+                            console.error('[SYNC GET] Postgres error:', e.message);
                             return new Response(JSON.stringify({ error: 'Database read failed', details: e.message }), { status: 500, headers });
                         }
                     }
@@ -54,123 +64,127 @@ export default {
                 }
 
                 // ============================================================
-                // POST /api/sync — Merge client state into D1 gate_* tables
+                // 2. POST /api/sync — Bulk Upsert Client State to Neon Postgres
                 // ============================================================
                 if (url.pathname === '/api/sync' && request.method === 'POST') {
                     const body = await request.json();
 
-                    if (db) {
-                        // --- Vehicles ---
-                        if (body.vehicles && Array.isArray(body.vehicles)) {
+                    if (sql) {
+                        // Bulk Upsert Vehicles
+                        if (Array.isArray(body.vehicles) && body.vehicles.length > 0) {
                             for (const v of body.vehicles) {
                                 try {
-                                    await db.prepare(`
-                                        INSERT OR REPLACE INTO gate_vehicles
-                                        (id, plate_ar, plate_en, vehicle_type, driver_name_ar, driver_name_en, driver_phone, company_ar, company_en, status, blacklist_reason, photo_url)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    `).bind(
-                                        v.id, v.plate_ar || '', v.plate_en || '',
-                                        v.vehicle_type || 'truckHeavy',
-                                        v.driver_name_ar || '', v.driver_name_en || '',
-                                        v.driver_phone || '', v.company_ar || '', v.company_en || '',
-                                        v.status || 'visitor', v.blacklist_reason || '', v.photo_url || ''
-                                    ).run();
+                                    await sql`
+                                        INSERT INTO gate_vehicles (id, plate_ar, plate_en, vehicle_type, driver_name_ar, driver_name_en, driver_phone, company_ar, company_en, status, blacklist_reason, photo_url)
+                                        VALUES (${v.id}, ${v.plate_ar}, ${v.plate_en || ''}, ${v.vehicle_type || 'truckHeavy'}, ${v.driver_name_ar || ''}, ${v.driver_name_en || ''}, ${v.driver_phone || ''}, ${v.company_ar || ''}, ${v.company_en || ''}, ${v.status || 'visitor'}, ${v.blacklist_reason || ''}, ${v.photo_url || ''})
+                                        ON CONFLICT (id) DO UPDATE SET
+                                            plate_ar = EXCLUDED.plate_ar,
+                                            plate_en = EXCLUDED.plate_en,
+                                            vehicle_type = EXCLUDED.vehicle_type,
+                                            driver_name_ar = EXCLUDED.driver_name_ar,
+                                            driver_name_en = EXCLUDED.driver_name_en,
+                                            driver_phone = EXCLUDED.driver_phone,
+                                            company_ar = EXCLUDED.company_ar,
+                                            company_en = EXCLUDED.company_en,
+                                            status = EXCLUDED.status,
+                                            blacklist_reason = EXCLUDED.blacklist_reason,
+                                            photo_url = CASE WHEN EXCLUDED.photo_url != '' THEN EXCLUDED.photo_url ELSE gate_vehicles.photo_url END
+                                    `;
                                 } catch (e) { console.error('[SYNC] vehicle upsert error:', e.message); }
                             }
                         }
 
-                        // --- Permits ---
-                        if (body.permits && Array.isArray(body.permits)) {
+                        // Bulk Upsert Permits
+                        if (Array.isArray(body.permits) && body.permits.length > 0) {
                             for (const p of body.permits) {
                                 try {
-                                    await db.prepare(`
-                                        INSERT OR REPLACE INTO gate_permits
-                                        (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    `).bind(
-                                        p.id, p.permit_code || '', p.pin_code || '',
-                                        p.vehicle_id, p.permit_type || 'entry',
-                                        p.destination_ar || '', p.destination_en || '',
-                                        p.purpose_ar || '', p.purpose_en || '',
-                                        p.cargo_details || '', p.invoice_no || '',
-                                        p.valid_from || '', p.valid_until || '',
-                                        p.status || 'active', p.created_by || 1
-                                    ).run();
+                                    await sql`
+                                        INSERT INTO gate_permits (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by)
+                                        VALUES (${p.id}, ${p.permit_code}, ${p.pin_code || ''}, ${p.vehicle_id}, ${p.permit_type || 'entry'}, ${p.destination_ar || ''}, ${p.destination_en || ''}, ${p.purpose_ar || ''}, ${p.purpose_en || ''}, ${p.cargo_details || ''}, ${p.invoice_no || ''}, ${p.valid_from || new Date().toISOString()}, ${p.valid_until || new Date(Date.now() + 8 * 3600000).toISOString()}, ${p.status || 'active'}, ${p.created_by || 1})
+                                        ON CONFLICT (id) DO UPDATE SET
+                                            permit_code = EXCLUDED.permit_code,
+                                            pin_code = EXCLUDED.pin_code,
+                                            vehicle_id = EXCLUDED.vehicle_id,
+                                            permit_type = EXCLUDED.permit_type,
+                                            destination_ar = EXCLUDED.destination_ar,
+                                            destination_en = EXCLUDED.destination_en,
+                                            purpose_ar = EXCLUDED.purpose_ar,
+                                            purpose_en = EXCLUDED.purpose_en,
+                                            cargo_details = EXCLUDED.cargo_details,
+                                            invoice_no = EXCLUDED.invoice_no,
+                                            valid_from = EXCLUDED.valid_from,
+                                            valid_until = EXCLUDED.valid_until,
+                                            status = EXCLUDED.status
+                                    `;
                                 } catch (e) { console.error('[SYNC] permit upsert error:', e.message); }
                             }
                         }
 
-                        // --- Logs ---
-                        if (body.logs && Array.isArray(body.logs)) {
+                        // Bulk Upsert Logs
+                        if (Array.isArray(body.logs) && body.logs.length > 0) {
                             for (const l of body.logs) {
                                 try {
-                                    await db.prepare(`
-                                        INSERT OR REPLACE INTO gate_logs
-                                        (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks, photo_url, exit_photo_url)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    `).bind(
-                                        l.id, l.vehicle_id, l.permit_id || null,
-                                        l.officer_id || null, l.gate_name || '',
-                                        l.action_type || 'entry',
-                                        l.timestamp || new Date().toISOString(),
-                                        l.exit_timestamp || null,
-                                        l.duration_minutes || null,
-                                        l.remarks || '', l.photo_url || '', l.exit_photo_url || ''
-                                    ).run();
+                                    await sql`
+                                        INSERT INTO gate_logs (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks, photo_url, exit_photo_url)
+                                        VALUES (${l.id}, ${l.vehicle_id}, ${l.permit_id || null}, ${l.officer_id || null}, ${l.gate_name || ''}, ${l.action_type || 'entry'}, ${l.timestamp || new Date().toISOString()}, ${l.exit_timestamp || null}, ${l.duration_minutes || null}, ${l.remarks || ''}, ${l.photo_url || ''}, ${l.exit_photo_url || ''})
+                                        ON CONFLICT (id) DO UPDATE SET
+                                            exit_timestamp = EXCLUDED.exit_timestamp,
+                                            duration_minutes = EXCLUDED.duration_minutes,
+                                            remarks = EXCLUDED.remarks,
+                                            exit_photo_url = EXCLUDED.exit_photo_url
+                                    `;
                                 } catch (e) { console.error('[SYNC] log upsert error:', e.message); }
                             }
                         }
 
-                        // --- Gates ---
-                        if (body.gates && Array.isArray(body.gates)) {
-                            try {
-                                await db.prepare("DELETE FROM gate_gates").run();
-                                for (const g of body.gates) {
-                                    const name = typeof g === 'string' ? g : g.name;
-                                    if (name) {
-                                        try { await db.prepare("INSERT INTO gate_gates (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] gate insert error:', e.message); }
-                                    }
-                                }
-                            } catch (e) { console.error('[SYNC] gates replace error:', e.message); }
-                        }
-
-                        // --- Destinations ---
-                        if (body.destinations && Array.isArray(body.destinations)) {
-                            try {
-                                await db.prepare("DELETE FROM gate_destinations").run();
-                                for (const d of body.destinations) {
-                                    const name = typeof d === 'string' ? d : d.name;
-                                    if (name) {
-                                        try { await db.prepare("INSERT INTO gate_destinations (name) VALUES (?)").bind(name).run(); } catch (e) { console.error('[SYNC] destination insert error:', e.message); }
-                                    }
-                                }
-                            } catch (e) { console.error('[SYNC] destinations replace error:', e.message); }
-                        }
-
-                        // --- Settings ---
-                        if (body.settings && typeof body.settings === 'object') {
-                            for (const [key, value] of Object.entries(body.settings)) {
-                                if (key && value !== undefined && value !== null) {
-                                    try { await db.prepare("INSERT OR REPLACE INTO gate_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))").bind(key, String(value)).run(); } catch (e) { console.error('[SYNC] settings upsert error:', e.message); }
-                                }
+                        // Bulk Upsert Gates
+                        if (Array.isArray(body.gates) && body.gates.length > 0) {
+                            for (const g of body.gates) {
+                                try {
+                                    await sql`INSERT INTO gate_gates (name) VALUES (${g}) ON CONFLICT (name) DO NOTHING`;
+                                } catch (e) {}
                             }
                         }
 
-                        // --- Users ---
-                        if (body.users && Array.isArray(body.users)) {
+                        // Bulk Upsert Destinations
+                        if (Array.isArray(body.destinations) && body.destinations.length > 0) {
+                            for (const d of body.destinations) {
+                                try {
+                                    await sql`INSERT INTO gate_destinations (name) VALUES (${d}) ON CONFLICT (name) DO NOTHING`;
+                                } catch (e) {}
+                            }
+                        }
+
+                        // Bulk Upsert Settings
+                        if (body.settings && typeof body.settings === 'object') {
+                            for (const [key, value] of Object.entries(body.settings)) {
+                                try {
+                                    await sql`
+                                        INSERT INTO gate_settings (key, value, updated_at)
+                                        VALUES (${key}, ${String(value)}, CURRENT_TIMESTAMP)
+                                        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
+                                    `;
+                                } catch (e) {}
+                            }
+                        }
+
+                        // Bulk Upsert Users
+                        if (Array.isArray(body.users) && body.users.length > 0) {
                             for (const u of body.users) {
                                 try {
-                                    await db.prepare(`
-                                        INSERT OR REPLACE INTO gate_users
-                                        (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                    `).bind(
-                                        u.id, u.badge_id || '', u.email || '',
-                                        u.password_hash || '', u.pin_code || '',
-                                        u.pin_hash || '',
-                                        u.name_ar || '', u.name_en || '',
-                                        u.role || 'officer', u.gate_assigned || ''
-                                    ).run();
+                                    await sql`
+                                        INSERT INTO gate_users (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
+                                        VALUES (${u.id}, ${u.badge_id || ''}, ${u.email || ''}, ${u.password_hash || ''}, ${u.pin_code || ''}, ${u.pin_hash || ''}, ${u.name_ar || ''}, ${u.name_en || ''}, ${u.role || 'officer'}, ${u.gate_assigned || ''})
+                                        ON CONFLICT (id) DO UPDATE SET
+                                            badge_id = EXCLUDED.badge_id,
+                                            email = EXCLUDED.email,
+                                            password_hash = CASE WHEN EXCLUDED.password_hash != '' THEN EXCLUDED.password_hash ELSE gate_users.password_hash END,
+                                            pin_hash = CASE WHEN EXCLUDED.pin_hash != '' THEN EXCLUDED.pin_hash ELSE gate_users.pin_hash END,
+                                            name_ar = EXCLUDED.name_ar,
+                                            name_en = EXCLUDED.name_en,
+                                            role = EXCLUDED.role,
+                                            gate_assigned = EXCLUDED.gate_assigned
+                                    `;
                                 } catch (e) { console.error('[SYNC] user upsert error:', e.message); }
                             }
                         }
@@ -188,262 +202,285 @@ export default {
                 }
 
                 // ============================================================
-                // REST Endpoints (/api/vehicles, /api/permits, /api/entry, /api/exit, /api/logs)
+                // 3. REST Endpoints (/api/vehicles, /api/permits, /api/entry, /api/exit, /api/logs)
                 // ============================================================
                 if (url.pathname === '/api/vehicles' && request.method === 'GET') {
-                    if (db) {
+                    if (sql) {
                         try {
-                            const res = await db.prepare("SELECT * FROM gate_vehicles ORDER BY id DESC").all();
-                            return new Response(JSON.stringify(res.results || []), { headers });
-                        } catch(e) {}
+                            const res = await sql`SELECT * FROM gate_vehicles ORDER BY id DESC`;
+                            return new Response(JSON.stringify(res || []), { headers });
+                        } catch (e) {}
+                    }
+                    return new Response(JSON.stringify([]), { headers });
+                }
+
+                if (url.pathname === '/api/vehicles' && request.method === 'POST') {
+                    const v = await request.json();
+                    const id = v.id || Date.now();
+                    if (sql) {
+                        try {
+                            await sql`
+                                INSERT INTO gate_vehicles (id, plate_ar, plate_en, vehicle_type, driver_name_ar, driver_name_en, driver_phone, company_ar, company_en, status, blacklist_reason, photo_url)
+                                VALUES (${id}, ${v.plate_ar}, ${v.plate_en || ''}, ${v.vehicle_type || 'truckHeavy'}, ${v.driver_name_ar || ''}, ${v.driver_name_en || ''}, ${v.driver_phone || ''}, ${v.company_ar || ''}, ${v.company_en || ''}, ${v.status || 'visitor'}, ${v.blacklist_reason || ''}, ${v.photo_url || ''})
+                                ON CONFLICT (id) DO UPDATE SET
+                                    plate_ar = EXCLUDED.plate_ar,
+                                    plate_en = EXCLUDED.plate_en,
+                                    driver_name_ar = EXCLUDED.driver_name_ar,
+                                    driver_phone = EXCLUDED.driver_phone,
+                                    company_ar = EXCLUDED.company_ar,
+                                    status = EXCLUDED.status
+                            `;
+                        } catch (e) {}
+                    }
+                    return new Response(JSON.stringify({ success: true, id }), { headers });
+                }
+
+                if (url.pathname === '/api/permits' && request.method === 'GET') {
+                    if (sql) {
+                        try {
+                            const res = await sql`SELECT * FROM gate_permits ORDER BY id DESC`;
+                            return new Response(JSON.stringify(res || []), { headers });
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify([]), { headers });
                 }
 
                 if (url.pathname === '/api/permits' && request.method === 'POST') {
                     const data = await request.json();
+                    const id = data.id || Date.now();
                     const permitCode = data.permit_code || `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
                     const pinCode = data.pin_code || Math.floor(10000 + Math.random() * 90000).toString();
-                    if (db) {
+
+                    if (sql) {
                         try {
-                            await db.prepare(`
-                                INSERT OR REPLACE INTO gate_permits
-                                (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            `).bind(
-                                data.id || Date.now(), permitCode, pinCode,
-                                data.vehicle_id, data.permit_type || 'entry',
-                                data.destination_ar || 'المستودع الرئيسي', data.destination_en || 'Main Plant',
-                                data.purpose_ar || 'تصريح دخول', data.purpose_en || 'Entry Pass',
-                                data.cargo_details || '', data.invoice_no || '',
-                                data.valid_from || new Date().toISOString(),
-                                data.valid_until || new Date(Date.now() + 8 * 3600000).toISOString(),
-                                data.status || 'active', data.created_by || 1
-                            ).run();
-                        } catch(e) {}
+                            await sql`
+                                INSERT INTO gate_permits (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by)
+                                VALUES (${id}, ${permitCode}, ${pinCode}, ${data.vehicle_id}, ${data.permit_type || 'entry'}, ${data.destination_ar || 'المستودع الرئيسي'}, ${data.destination_en || 'Main Plant'}, ${data.purpose_ar || 'تصريح دخول'}, ${data.purpose_en || 'Entry Pass'}, ${data.cargo_details || ''}, ${data.invoice_no || ''}, ${data.valid_from || new Date().toISOString()}, ${data.valid_until || new Date(Date.now() + 8 * 3600000).toISOString()}, ${data.status || 'active'}, ${data.created_by || 1})
+                                ON CONFLICT (id) DO UPDATE SET
+                                    status = EXCLUDED.status,
+                                    pin_code = EXCLUDED.pin_code
+                            `;
+                        } catch (e) {}
                     }
-                    return new Response(JSON.stringify({ success: true, id: data.id || Date.now(), permit_code: permitCode, pin_code: pinCode }), { headers });
+                    return new Response(JSON.stringify({ success: true, id, permit_code: permitCode, pin_code: pinCode }), { headers });
                 }
 
                 if (url.pathname === '/api/entry' && request.method === 'POST') {
                     const data = await request.json();
                     const newId = data.id || Date.now();
-                    if (db) {
+                    if (sql) {
                         try {
-                            await db.prepare(`
-                                INSERT OR REPLACE INTO gate_logs
-                                (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, remarks)
-                                VALUES (?, ?, ?, ?, ?, 'entry', ?, ?)
-                            `).bind(newId, data.vehicle_id, data.permit_id || null, data.officer_id || 2, data.gate_name || 'بوابة 1', data.timestamp || new Date().toISOString(), data.remarks || '').run();
-                        } catch(e) {}
+                            await sql`
+                                INSERT INTO gate_logs (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, remarks, photo_url)
+                                VALUES (${newId}, ${data.vehicle_id}, ${data.permit_id || null}, ${data.officer_id || 2}, ${data.gate_name || 'بوابة 1'}, ${data.timestamp || new Date().toISOString()}, ${data.remarks || 'دخول مصرح'}, ${data.photo_url || ''})
+                                ON CONFLICT (id) DO UPDATE SET
+                                    action_type = EXCLUDED.action_type
+                            `;
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify({ success: true, id: newId }), { headers });
                 }
 
                 if (url.pathname === '/api/exit' && request.method === 'POST') {
                     const data = await request.json();
-                    if (db) {
+                    if (sql) {
                         try {
-                            await db.prepare(`
+                            await sql`
                                 UPDATE gate_logs
                                 SET exit_timestamp = CURRENT_TIMESTAMP,
-                                    duration_minutes = ROUND((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(timestamp)) * 1440)
-                                WHERE vehicle_id = ? AND action_type = 'entry' AND exit_timestamp IS NULL
-                            `).bind(data.vehicle_id).run();
-                        } catch(e) {}
+                                    duration_minutes = ROUND(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - timestamp)) / 60)
+                                WHERE vehicle_id = ${data.vehicle_id} AND action_type = 'entry' AND exit_timestamp IS NULL
+                            `;
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify({ success: true }), { headers });
                 }
 
                 if (url.pathname === '/api/logs' && request.method === 'GET') {
-                    if (db) {
+                    if (sql) {
                         try {
-                            const res = await db.prepare("SELECT * FROM gate_logs ORDER BY id DESC LIMIT 100").all();
-                            return new Response(JSON.stringify(res.results || []), { headers });
-                        } catch(e) {}
+                            const res = await sql`SELECT * FROM gate_logs ORDER BY id DESC LIMIT 200`;
+                            return new Response(JSON.stringify(res || []), { headers });
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify([]), { headers });
                 }
 
-
                 // ============================================================
-                // GET /api/gates — Read gates
+                // 4. GET & POST /api/gates
                 // ============================================================
                 if (url.pathname === '/api/gates' && request.method === 'GET') {
-                    if (db) {
+                    if (sql) {
                         try {
-                            const { results } = await db.prepare("SELECT name FROM gate_gates ORDER BY id ASC").all();
-                            return new Response(JSON.stringify((results || []).map(r => r.name)), { headers });
-                        } catch (e) { console.error('[GATES GET] error:', e.message); }
+                            const res = await sql`SELECT name FROM gate_gates ORDER BY id ASC`;
+                            return new Response(JSON.stringify(res.map(r => r.name)), { headers });
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify([]), { headers });
                 }
 
-                // ============================================================
-                // POST /api/gates — Upsert gates array
-                // ============================================================
                 if (url.pathname === '/api/gates' && request.method === 'POST') {
-                    const body = await request.json();
-                    if (db && Array.isArray(body.gates)) {
+                    const data = await request.json();
+                    if (sql && data.name) {
                         try {
-                            await db.prepare("DELETE FROM gate_gates").run();
-                            for (const name of body.gates) {
-                                await db.prepare("INSERT OR IGNORE INTO gate_gates (name) VALUES (?)").bind(name).run();
-                            }
-                        } catch (e) { console.error('[GATES POST] error:', e.message); }
+                            await sql`INSERT INTO gate_gates (name) VALUES (${data.name}) ON CONFLICT (name) DO NOTHING`;
+                            const res = await sql`SELECT name FROM gate_gates ORDER BY id ASC`;
+                            return new Response(JSON.stringify({ success: true, gates: res.map(r => r.name) }), { headers });
+                        } catch (e) {}
                     }
-                    return new Response(JSON.stringify({ success: true }), { headers });
+                    return new Response(JSON.stringify({ success: false }), { headers });
                 }
 
                 // ============================================================
-                // GET /api/destinations — Read destinations
+                // 5. GET & POST /api/destinations
                 // ============================================================
                 if (url.pathname === '/api/destinations' && request.method === 'GET') {
-                    if (db) {
+                    if (sql) {
                         try {
-                            const { results } = await db.prepare("SELECT name FROM gate_destinations ORDER BY id ASC").all();
-                            return new Response(JSON.stringify((results || []).map(r => r.name)), { headers });
-                        } catch (e) { console.error('[DEST GET] error:', e.message); }
+                            const res = await sql`SELECT name FROM gate_destinations ORDER BY id ASC`;
+                            return new Response(JSON.stringify(res.map(r => r.name)), { headers });
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify([]), { headers });
                 }
 
-                // ============================================================
-                // POST /api/destinations — Upsert destinations array
-                // ============================================================
                 if (url.pathname === '/api/destinations' && request.method === 'POST') {
-                    const body = await request.json();
-                    if (db && Array.isArray(body.destinations)) {
+                    const data = await request.json();
+                    if (sql && data.name) {
                         try {
-                            await db.prepare("DELETE FROM gate_destinations").run();
-                            for (const name of body.destinations) {
-                                await db.prepare("INSERT OR IGNORE INTO gate_destinations (name) VALUES (?)").bind(name).run();
-                            }
-                        } catch (e) { console.error('[DEST POST] error:', e.message); }
+                            await sql`INSERT INTO gate_destinations (name) VALUES (${data.name}) ON CONFLICT (name) DO NOTHING`;
+                            const res = await sql`SELECT name FROM gate_destinations ORDER BY id ASC`;
+                            return new Response(JSON.stringify({ success: true, destinations: res.map(r => r.name) }), { headers });
+                        } catch (e) {}
                     }
-                    return new Response(JSON.stringify({ success: true }), { headers });
+                    return new Response(JSON.stringify({ success: false }), { headers });
                 }
 
                 // ============================================================
-                // GET /api/settings — Read settings as key-value object
+                // 6. GET & POST /api/settings
                 // ============================================================
                 if (url.pathname === '/api/settings' && request.method === 'GET') {
-                    if (db) {
+                    if (sql) {
                         try {
-                            const { results } = await db.prepare("SELECT key, value FROM gate_settings").all();
+                            const rows = await sql`SELECT key, value FROM gate_settings`;
                             const settings = {};
-                            (results || []).forEach(r => { settings[r.key] = r.value; });
+                            rows.forEach(r => { settings[r.key] = r.value; });
                             return new Response(JSON.stringify(settings), { headers });
-                        } catch (e) { console.error('[SETTINGS GET] error:', e.message); }
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify({}), { headers });
                 }
 
-                // ============================================================
-                // POST /api/settings — Upsert settings key-value pairs
-                // ============================================================
                 if (url.pathname === '/api/settings' && request.method === 'POST') {
-                    const body = await request.json();
-                    if (db && typeof body === 'object') {
+                    const data = await request.json();
+                    if (sql && typeof data === 'object') {
                         try {
-                            for (const [key, value] of Object.entries(body)) {
-                                if (key === 'gates' || key === 'destinations' || key === 'users') continue;
-                                await db.prepare(`
-                                    INSERT OR REPLACE INTO gate_settings (key, value, updated_at)
-                                    VALUES (?, ?, CURRENT_TIMESTAMP)
-                                `).bind(key, String(value)).run();
+                            for (const [k, v] of Object.entries(data)) {
+                                await sql`
+                                    INSERT INTO gate_settings (key, value, updated_at)
+                                    VALUES (${k}, ${String(v)}, CURRENT_TIMESTAMP)
+                                    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
+                                `;
                             }
-                        } catch (e) { console.error('[SETTINGS POST] error:', e.message); }
+                            return new Response(JSON.stringify({ success: true, settings: data }), { headers });
+                        } catch (e) {}
                     }
-                    return new Response(JSON.stringify({ success: true }), { headers });
+                    return new Response(JSON.stringify({ success: false }), { headers });
                 }
 
                 // ============================================================
-                // POST /api/users — Sync users array (hash passwords before storing)
+                // 7. GET & POST /api/users
                 // ============================================================
+                if (url.pathname === '/api/users' && request.method === 'GET') {
+                    if (sql) {
+                        try {
+                            const users = await sql`SELECT id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned FROM gate_users ORDER BY id ASC`;
+                            return new Response(JSON.stringify(users || []), { headers });
+                        } catch (e) {}
+                    }
+                    return new Response(JSON.stringify([]), { headers });
+                }
+
                 if (url.pathname === '/api/users' && request.method === 'POST') {
-                    const body = await request.json();
-                    if (db && Array.isArray(body.users)) {
+                    const user = await request.json();
+                    const id = user.id || Date.now();
+                    if (sql) {
                         try {
-                            for (const u of body.users) {
-                                await db.prepare(`
-                                    INSERT OR REPLACE INTO gate_users
-                                    (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                `).bind(
-                                    u.id, u.badge_id || '', u.email || '',
-                                    u.password_hash || '', u.pin_code || '',
-                                    u.pin_hash || '',
-                                    u.name_ar || '', u.name_en || '',
-                                    u.role || 'officer', u.gate_assigned || ''
-                                ).run();
-                            }
-                        } catch (e) { console.error('[USERS POST] error:', e.message); }
+                            await sql`
+                                INSERT INTO gate_users (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
+                                VALUES (${id}, ${user.badge_id || ''}, ${user.email || ''}, ${user.password_hash || ''}, ${user.pin_code || ''}, ${user.pin_hash || ''}, ${user.name_ar || ''}, ${user.name_en || ''}, ${user.role || 'officer'}, ${user.gate_assigned || ''})
+                                ON CONFLICT (id) DO UPDATE SET
+                                    badge_id = EXCLUDED.badge_id,
+                                    email = EXCLUDED.email,
+                                    password_hash = CASE WHEN EXCLUDED.password_hash != '' THEN EXCLUDED.password_hash ELSE gate_users.password_hash END,
+                                    pin_hash = CASE WHEN EXCLUDED.pin_hash != '' THEN EXCLUDED.pin_hash ELSE gate_users.pin_hash END,
+                                    name_ar = EXCLUDED.name_ar,
+                                    name_en = EXCLUDED.name_en,
+                                    role = EXCLUDED.role,
+                                    gate_assigned = EXCLUDED.gate_assigned
+                            `;
+                            return new Response(JSON.stringify({ success: true, user: { ...user, id } }), { headers });
+                        } catch (e) {}
                     }
-                    return new Response(JSON.stringify({ success: true }), { headers });
+                    return new Response(JSON.stringify({ success: false }), { headers });
                 }
 
                 // ============================================================
-                // POST /api/clear — Wipe ALL data from D1
+                // 8. DELETE /api/clear — Wipe Database while Retaining Push Subscriptions
                 // ============================================================
                 if (url.pathname === '/api/clear' && (request.method === 'DELETE' || request.method === 'POST')) {
-                    if (db) {
-                        try { await db.prepare("DELETE FROM gate_logs").run(); } catch (e) { console.error('[CLEAR] logs error:', e.message); }
-                        try { await db.prepare("DELETE FROM gate_permits").run(); } catch (e) { console.error('[CLEAR] permits error:', e.message); }
-                        try { await db.prepare("DELETE FROM gate_vehicles").run(); } catch (e) { console.error('[CLEAR] vehicles error:', e.message); }
-                        try { await db.prepare("DELETE FROM gate_notifications").run(); } catch (e) { console.error('[CLEAR] notifications error:', e.message); }
-                        try { await db.prepare("DELETE FROM push_vehicle_watchlist").run(); } catch (e) { console.error('[CLEAR] watchlist error:', e.message); }
-                        try { await db.prepare("DELETE FROM push_subscriptions").run(); } catch (e) { console.error('[CLEAR] push_subs error:', e.message); }
-                        try { await db.prepare("DELETE FROM gate_users WHERE role != 'admin'").run(); } catch (e) { console.error('[CLEAR] users error:', e.message); }
-                        try { await db.prepare("DELETE FROM gate_gates").run(); } catch (e) { console.error('[CLEAR] gates error:', e.message); }
-                        try { await db.prepare("DELETE FROM gate_destinations").run(); } catch (e) { console.error('[CLEAR] destinations error:', e.message); }
-                        try { await db.prepare("DELETE FROM gate_settings").run(); } catch (e) { console.error('[CLEAR] settings error:', e.message); }
+                    if (sql) {
+                        try {
+                            await Promise.all([
+                                sql`DELETE FROM gate_vehicles`,
+                                sql`DELETE FROM gate_permits`,
+                                sql`DELETE FROM gate_logs`,
+                                sql`DELETE FROM gate_notifications`
+                            ]);
+                            return new Response(JSON.stringify({ success: true, message: 'Neon Postgres gate data successfully cleared' }), { headers });
+                        } catch (e) {
+                            return new Response(JSON.stringify({ error: e.message }), { status: 500, headers });
+                        }
                     }
-                    return new Response(JSON.stringify({
-                        success: true,
-                        cleared_at: new Date().toISOString(),
-                        message: 'All data cleared from D1'
-                    }), { headers });
+                    return new Response(JSON.stringify({ success: true, message: 'Cleared' }), { headers });
                 }
 
                 // ============================================================
-                // POST /api/push/subscribe — Register push subscription
+                // 9. PUSH NOTIFICATIONS & DISPATCH (/api/push/*)
                 // ============================================================
                 if (url.pathname === '/api/push/subscribe' && request.method === 'POST') {
                     const data = await request.json();
-                    if (!data.endpoint) {
-                        return new Response(JSON.stringify({ error: 'Endpoint required' }), { status: 400, headers });
-                    }
-                    if (db) {
+                    if (sql && data.subscription?.endpoint) {
+                        const { endpoint, keys } = data.subscription;
                         try {
-                            await db.prepare(`
-                                INSERT OR REPLACE INTO push_subscriptions (user_id, role, endpoint, p256dh, auth)
-                                VALUES (?, ?, ?, ?, ?)
-                            `).bind(data.user_id || null, data.role || 'officer', data.endpoint, data.p256dh || '', data.auth || '').run();
+                            await sql`
+                                INSERT INTO push_subscriptions (user_id, role, endpoint, p256dh, auth, watch_all)
+                                VALUES (${data.user_id || null}, ${data.role || 'officer'}, ${endpoint}, ${keys?.p256dh || ''}, ${keys?.auth || ''}, ${data.watch_all !== undefined ? (data.watch_all ? 1 : 0) : 1})
+                                ON CONFLICT (endpoint) DO UPDATE SET
+                                    user_id = EXCLUDED.user_id,
+                                    role = EXCLUDED.role,
+                                    p256dh = EXCLUDED.p256dh,
+                                    auth = EXCLUDED.auth,
+                                    watch_all = EXCLUDED.watch_all
+                            `;
                         } catch (e) { console.error('[PUSH SUB] error:', e.message); }
                     }
-                    return new Response(JSON.stringify({ success: true, message: 'Push subscription registered' }), { headers });
+                    return new Response(JSON.stringify({ success: true, message: 'Push subscription registered in Neon Postgres' }), { headers });
                 }
 
-                // ============================================================
-                // POST /api/push/unsubscribe — Remove push subscription
-                // ============================================================
                 if (url.pathname === '/api/push/unsubscribe' && request.method === 'POST') {
                     const data = await request.json();
-                    if (data.endpoint && db) {
+                    if (sql && data.endpoint) {
                         try {
-                            await db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(data.endpoint).run();
-                        } catch (e) { console.error('[PUSH UNSUB] error:', e.message); }
+                            await sql`DELETE FROM push_subscriptions WHERE endpoint = ${data.endpoint}`;
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify({ success: true, message: 'Push subscription removed' }), { headers });
                 }
 
-                // ============================================================
-                // POST /api/push/notify & /api/push/send — Create notification & broadcast alert
-                // ============================================================
                 if ((url.pathname === '/api/push/notify' || url.pathname === '/api/push/send') && request.method === 'POST') {
                     const data = await request.json();
-                    if (db && (data.type || data.title) && (data.vehicle_plate || data.body)) {
+                    if (sql && (data.type || data.title) && (data.vehicle_plate || data.body)) {
                         const title = data.title || (data.type === 'entry'
                             ? `📥 دخول: ${data.vehicle_plate}`
                             : (data.type === 'exit' ? `📤 خروج: ${data.vehicle_plate}` : `🔔 ${data.vehicle_plate}`));
@@ -454,13 +491,13 @@ export default {
                         try {
                             const roles = data.roles || [data.role || 'manager'];
                             for (const role of roles) {
-                                const subs = (await db.prepare("SELECT user_id FROM push_subscriptions WHERE role = ?").bind(role).all()).results || [];
-                                const userIds = [...new Set(subs.map(s => s.user_id).filter(Boolean))];
+                                const subs = await sql`SELECT user_id FROM push_subscriptions WHERE role = ${role}`;
+                                const userIds = [...new Set((subs || []).map(s => s.user_id).filter(Boolean))];
                                 for (const uid of userIds) {
-                                    await db.prepare(`
+                                    await sql`
                                         INSERT INTO gate_notifications (user_id, type, title, body, vehicle_id, vehicle_plate, gate_name)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                                    `).bind(uid, data.type || 'alert', title, body, data.vehicle_id || null, data.vehicle_plate || '', data.gate_name || '').run();
+                                        VALUES (${uid}, ${data.type || 'alert'}, ${title}, ${body}, ${data.vehicle_id || null}, ${data.vehicle_plate || ''}, ${data.gate_name || ''})
+                                    `;
                                 }
                             }
                         } catch (e) { console.error('[PUSH NOTIFY] error:', e.message); }
@@ -468,72 +505,44 @@ export default {
                     return new Response(JSON.stringify({ success: true, broadcasted: true }), { headers });
                 }
 
-
-                // ============================================================
-                // GET /api/notifications?user_id=X — Get unread notifications for user
-                // ============================================================
                 if (url.pathname === '/api/notifications' && request.method === 'GET') {
                     const userId = url.searchParams.get('user_id');
-                    if (db && userId) {
+                    if (sql && userId) {
                         try {
-                            const notifs = (await db.prepare(
-                                "SELECT * FROM gate_notifications WHERE user_id = ? AND is_read = 0 ORDER BY created_at DESC LIMIT 50"
-                            ).bind(parseInt(userId)).all()).results || [];
-                            return new Response(JSON.stringify({ notifications: notifs }), { headers });
-                        } catch (e) { console.error('[NOTIFS GET] error:', e.message); }
+                            const notifs = await sql`
+                                SELECT * FROM gate_notifications
+                                WHERE user_id = ${parseInt(userId)} AND is_read = 0
+                                ORDER BY created_at DESC LIMIT 50
+                            `;
+                            return new Response(JSON.stringify({ notifications: notifs || [] }), { headers });
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify({ notifications: [] }), { headers });
                 }
 
-                // ============================================================
-                // POST /api/notifications/read — Mark notification(s) as read
-                // ============================================================
                 if (url.pathname === '/api/notifications/read' && request.method === 'POST') {
                     const data = await request.json();
-                    if (db) {
+                    if (sql) {
                         try {
                             if (data.id) {
-                                await db.prepare("UPDATE gate_notifications SET is_read = 1 WHERE id = ?").bind(data.id).run();
+                                await sql`UPDATE gate_notifications SET is_read = 1 WHERE id = ${data.id}`;
                             } else if (data.user_id) {
-                                await db.prepare("UPDATE gate_notifications SET is_read = 1 WHERE user_id = ?").bind(data.user_id).run();
+                                await sql`UPDATE gate_notifications SET is_read = 1 WHERE user_id = ${data.user_id}`;
                             }
-                        } catch (e) { console.error('[NOTIF READ] error:', e.message); }
+                        } catch (e) {}
                     }
                     return new Response(JSON.stringify({ success: true }), { headers });
                 }
 
-                // ============================================================
-                // POST /api/push/watchlist — Manage per-vehicle watchlist
-                // ============================================================
-                if (url.pathname === '/api/push/watchlist' && request.method === 'POST') {
-                    const data = await request.json();
-                    if (db && data.endpoint) {
-                        try {
-                            const sub = (await db.prepare("SELECT id FROM push_subscriptions WHERE endpoint = ?").bind(data.endpoint).all()).results || [];
-                            if (sub.length > 0) {
-                                const subId = sub[0].id;
-                                if (data.watch_all !== undefined) {
-                                    await db.prepare("UPDATE push_subscriptions SET watch_all = ? WHERE id = ?").bind(data.watch_all ? 1 : 0, subId).run();
-                                }
-                                if (data.vehicle_ids && Array.isArray(data.vehicle_ids)) {
-                                    await db.prepare("DELETE FROM push_vehicle_watchlist WHERE subscription_id = ?").bind(subId).run();
-                                    for (const vid of data.vehicle_ids) {
-                                        await db.prepare("INSERT INTO push_vehicle_watchlist (subscription_id, vehicle_id) VALUES (?, ?)").bind(subId, vid).run();
-                                    }
-                                }
-                            }
-                        } catch (e) { console.error('[WATCHLIST] error:', e.message); }
-                    }
-                    return new Response(JSON.stringify({ success: true }), { headers });
-                }
+                return new Response(JSON.stringify({ error: 'Endpoint not found', path: url.pathname }), { status: 404, headers });
 
-                return new Response(JSON.stringify({ status: 'ok', message: 'DOTRA Cloudflare Gate API (Unified)' }), { headers });
             } catch (err) {
-                console.error('[API] Unhandled error:', err.message, err.stack);
-                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
+                console.error('[WORKER ERROR]:', err);
+                return new Response(JSON.stringify({ error: 'Internal Server Error', message: err.message }), { status: 500, headers });
             }
         }
 
-        return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 });
+        // Static Asset Fallback
+        return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not Found', { status: 404 });
     }
 };
