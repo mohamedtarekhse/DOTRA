@@ -1,7 +1,8 @@
-const CACHE_NAME = 'dotra-gate-v1';
+const CACHE_NAME = 'dotra-gate-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './ceo.html',
   './manifest.json',
   './assets/logo.jpg',
   './css/styles.css',
@@ -10,6 +11,7 @@ const ASSETS_TO_CACHE = [
   './js/arabic-plate.js',
   './js/db.js',
   './js/auth.js',
+  './js/ceo.js',
   './js/manager.js',
   './js/officer.js',
   './js/app.js',

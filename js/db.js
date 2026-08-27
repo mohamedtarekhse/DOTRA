@@ -54,6 +54,15 @@ const SEED_USERS = [
         name_en: 'Officer Hossam Hassan',
         role: 'officer',
         gate_assigned: 'بوابة 2 الشحن والجمارك - دوترا'
+    },
+    {
+        id: 4,
+        badge_id: 'CEO-01',
+        email: 'ceo@dotra.com',
+        name_ar: 'الرئيس التنفيذي / الإدارة العليا',
+        name_en: 'Chief Executive Officer (CEO)',
+        role: 'ceo',
+        gate_assigned: ''
     }
 ];
 
@@ -620,7 +629,7 @@ class DatabaseService {
             return permits.find(p => p.permit_code === clean || p.pin_code === clean);
         }
         if (vehicleId) {
-            return permits.find(p => p.vehicle_id === vehicleId && p.status === 'active');
+            return permits.slice().reverse().find(p => p.vehicle_id === vehicleId && (p.status === 'active' || p.status === 'hold')) || permits.slice().reverse().find(p => p.vehicle_id === vehicleId);
         }
         return null;
     }
@@ -629,14 +638,14 @@ class DatabaseService {
         if (!pin) return null;
         const clean = pin.toString().trim();
         const permits = this.getPermits();
-        return permits.find(p => p.pin_code === clean && p.status === 'active') || permits.find(p => p.pin_code === clean);
+        return permits.find(p => p.pin_code === clean && (p.status === 'active' || p.status === 'hold')) || permits.find(p => p.pin_code === clean);
     }
 
     findActivePermitByPlate(plate) {
         const vehicle = this.findVehicleByPlate(plate);
         if (!vehicle) return null;
         const permits = this.getPermits();
-        return permits.find(p => p.vehicle_id === vehicle.id && p.status === 'active');
+        return permits.slice().reverse().find(p => p.vehicle_id === vehicle.id && (p.status === 'active' || p.status === 'hold'));
     }
 
     getEnrichedPermits() {
@@ -659,6 +668,39 @@ class DatabaseService {
                 officer
             };
         });
+    }
+
+    setPermitStatus(permitId, newStatus, reason = '') {
+        const user = window.Auth ? window.Auth.getCurrentUser() : null;
+        if (user && user.role !== 'manager') {
+            throw new Error('Unauthorized: Only managers can modify permit authorization status.');
+        }
+
+        const permits = this.getPermits();
+        const permit = permits.find(p => p.id === permitId);
+        if (!permit) return null;
+
+        permit.status = newStatus;
+        if (reason) permit.hold_reason = reason;
+        if (newStatus === 'active') permit.hold_reason = '';
+
+        localStorage.setItem('gate_permits', JSON.stringify(permits));
+
+        const vehicle = this.getVehicles().find(v => v.id === permit.vehicle_id);
+        const plate = vehicle ? vehicle.plate_ar : `مركبة #${permit.vehicle_id}`;
+
+        this.announce('PERMIT_STATUS_CHANGED', {
+            permit_id: permit.id,
+            permit_code: permit.permit_code,
+            plate: plate,
+            status: newStatus,
+            reason: reason
+        });
+
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        this.notifyVehicleEvent('permit_status', permit.vehicle_id, plate, newStatus === 'hold' ? 'تم تعليق التصريح بقرار الإدارة' : 'تم إعادة تفعيل التصريح');
+
+        return permit;
     }
 
     expireExistingPermitsForVehicle(vehicleId) {
@@ -802,6 +844,7 @@ class DatabaseService {
         const activeEntryIndex = logs.slice().reverse().findIndex(l => l.vehicle_id === vehicleId && l.action_type === 'entry' && !l.exit_timestamp);
         const vehicle = this.getVehicles().find(v => v.id === vehicleId);
 
+        let targetLog = null;
         if (activeEntryIndex !== -1) {
             const actualIndex = logs.length - 1 - activeEntryIndex;
             const entryLog = logs[actualIndex];
@@ -810,6 +853,8 @@ class DatabaseService {
             const durationMin = Math.max(0, Math.round((exitTime.getTime() - entryTime.getTime()) / 60000));
 
             entryLog.exit_timestamp = exitTime.toISOString();
+            entryLog.exit_gate_name = gateName;
+            entryLog.exit_officer_id = officerId;
             entryLog.duration_minutes = durationMin;
             entryLog.remarks = (entryLog.remarks ? entryLog.remarks + ' | ' : '') + `خروج عبر ${gateName}`;
             if (photoUrl) {
@@ -960,12 +1005,18 @@ class DatabaseService {
     addPermit(permitData) {
         const permits = this.getPermits();
         const pin = permitData.pin_code || Math.floor(10000 + Math.random() * 90000).toString();
+        const currentUser = window.Auth ? window.Auth.getCurrentUser() : null;
+        const creatorName = permitData.created_by_name || (currentUser ? (currentUser.name_ar || currentUser.name_en) : 'إدارة العمليات');
+        const approverName = permitData.approved_by_name || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'ceo') ? (currentUser.name_ar || currentUser.name_en) : 'م. أحمد فؤاد (مدير العمليات)');
+        const approverId = permitData.approved_by || (currentUser && (currentUser.role === 'manager' || currentUser.role === 'ceo') ? currentUser.id : 1);
+        const creatorId = permitData.created_by || (currentUser ? currentUser.id : 1);
+
         const newPermit = {
             id: this.generateId(),
-            permit_code: `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            permit_code: permitData.permit_code || `PER-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
             pin_code: pin,
             permit_type: permitData.permit_type || 'entry',
-            status: 'active',
+            status: permitData.status || 'active',
             invoice_no: permitData.invoice_no || '',
             cargo_details: permitData.cargo_details || 'بضائع ومواد مصرحة',
             vehicle_id: permitData.vehicle_id,
@@ -973,9 +1024,13 @@ class DatabaseService {
             destination_en: permitData.destination_en || '',
             purpose_ar: permitData.purpose_ar || '',
             purpose_en: permitData.purpose_en || '',
-            valid_from: permitData.valid_from || '',
-            valid_until: permitData.valid_until || '',
-            created_by: permitData.created_by || 1
+            valid_from: permitData.valid_from || new Date().toISOString(),
+            valid_until: permitData.valid_until || new Date(Date.now() + 8 * 3600000).toISOString(),
+            created_by: creatorId,
+            created_by_name: creatorName,
+            approved_by: approverId,
+            approved_by_name: approverName,
+            created_at: new Date().toISOString()
         };
         permits.push(newPermit);
         localStorage.setItem('gate_permits', JSON.stringify(permits));
@@ -993,6 +1048,85 @@ class DatabaseService {
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         this.notifyVehicleEvent('permit', newPermit.vehicle_id, plateStr, newPermit.destination_ar || 'المصنع');
         return newPermit;
+    }
+
+    getExecutiveMovementLogs() {
+        const logs = this.getLogs();
+        const permits = this.getPermits();
+        const vehicles = this.getVehicles();
+        const users = this.getUsers();
+        const settings = this.getSettings();
+
+        // Sort all logs chronologically (newest first)
+        const sortedLogs = logs.slice().sort((a, b) => {
+            const timeA = this.parseTimestamp(a.timestamp).getTime();
+            const timeB = this.parseTimestamp(b.timestamp).getTime();
+            return timeB - timeA || (b.id || 0) - (a.id || 0);
+        });
+
+        return sortedLogs.map(log => {
+            const vehicle = vehicles.find(v => v.id === log.vehicle_id) || {
+                id: log.vehicle_id,
+                plate_ar: 'مركبة غير مسجلة',
+                plate_en: 'UNREGISTERED',
+                vehicle_type: 'truckHeavy',
+                driver_name_ar: 'سائق غير مسجل',
+                company_ar: 'جهة غير محددة'
+            };
+
+            const permit = permits.find(p => p.id === log.permit_id || (p.vehicle_id === log.vehicle_id && p.status !== 'superseded')) || null;
+            const entryOfficer = users.find(u => u.id === log.officer_id);
+            const exitOfficer = users.find(u => u.id === log.exit_officer_id);
+            const creatorUser = permit ? users.find(u => u.id === permit.created_by) : null;
+            const approverUser = permit ? users.find(u => u.id === permit.approved_by) : null;
+
+            const isInside = log.action_type === 'entry' && !log.exit_timestamp;
+            const entryTime = this.parseTimestamp(log.timestamp);
+            const exitTime = log.exit_timestamp ? this.parseTimestamp(log.exit_timestamp) : null;
+
+            let durationMinutes = log.duration_minutes;
+            if (isInside) {
+                durationMinutes = Math.max(0, Math.round((Date.now() - entryTime.getTime()) / 60000));
+            } else if (exitTime && (durationMinutes === null || durationMinutes === undefined)) {
+                durationMinutes = Math.max(0, Math.round((exitTime.getTime() - entryTime.getTime()) / 60000));
+            }
+
+            const overstayHours = parseInt(settings.overstay_hours_threshold) || 3;
+            const isOverstay = isInside && (durationMinutes >= (overstayHours * 60));
+
+            let status = 'exited';
+            if (log.action_type === 'denied') status = 'denied';
+            else if (isOverstay) status = 'overstay';
+            else if (isInside) status = 'inside';
+            else if (permit && permit.status === 'hold') status = 'hold';
+
+            return {
+                id: log.id,
+                log_id: log.id,
+                vehicle_id: log.vehicle_id,
+                vehicle,
+                permit,
+                destination_ar: permit?.destination_ar || log.remarks || 'المستودع الرئيسي',
+                destination_en: permit?.destination_en || 'Main Warehouse',
+                cargo_details: permit?.cargo_details || 'بضائع ومواد مصرحة',
+                invoice_no: permit?.invoice_no || '',
+                created_by_name: permit?.created_by_name || (creatorUser ? creatorUser.name_ar : 'إدارة العمليات'),
+                approved_by_name: permit?.approved_by_name || (approverUser ? approverUser.name_ar : 'م. أحمد فؤاد (مدير العمليات)'),
+                entry_gate: log.gate_name || 'بوابة 1 الرئيسية - دوترا',
+                entry_timestamp: entryTime.toISOString(),
+                entry_officer_name: entryOfficer ? entryOfficer.name_ar : (log.officer_id ? `ضابط #${log.officer_id}` : 'حارس البوابة'),
+                exit_gate: log.exit_gate_name || (log.action_type === 'exit' ? log.gate_name : (log.exit_timestamp ? 'بوابة خروج المصنع' : '--')),
+                exit_timestamp: exitTime ? exitTime.toISOString() : null,
+                exit_officer_name: exitOfficer ? exitOfficer.name_ar : (log.exit_officer_id ? `ضابط #${log.exit_officer_id}` : (log.action_type === 'exit' && entryOfficer ? entryOfficer.name_ar : '--')),
+                duration_minutes: durationMinutes || 0,
+                duration_hours: ((durationMinutes || 0) / 60).toFixed(1),
+                status,
+                action_type: log.action_type,
+                remarks: log.remarks || '',
+                photo_url: log.photo_url || vehicle.photo_url || null,
+                exit_photo_url: log.exit_photo_url || null
+            };
+        });
     }
 
     updateVehicleStatus(vehicleId, status, blacklistReason = '') {

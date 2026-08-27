@@ -44,7 +44,7 @@ class AuthService {
 
     async loginManager(email, password) {
         const users = window.DB.getUsers();
-        const user = users.find(u => u.role === 'manager' && u.email.toLowerCase() === email.trim().toLowerCase());
+        const user = users.find(u => (u.role === 'manager' || u.role === 'ceo' || u.role === 'admin') && u.email && u.email.toLowerCase() === email.trim().toLowerCase());
 
         if (user && user.password_hash) {
             const isMatch = await this.verifyPassword(password.trim(), user.password_hash);

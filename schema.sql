@@ -1,175 +1,175 @@
+-- ============================================================
 -- Neon Serverless Postgres (Lakebase Postgres) Schema for DOTRA Gate Access System
--- مخطط قاعدة بيانات نيون بوستجريس لنظام تصاريح بوابات مصانع دوترا
+-- مخطط قاعدة بيانات نيون بوستجريس المعتمد لنظام تصاريح بوابات مصانع دوترا
+-- ============================================================
 
--- 1. USERS TABLE (مديرو العمليات وأفراد أمن البوابات)
-CREATE TABLE IF NOT EXISTS gate_users (
-    id BIGINT PRIMARY KEY,
-    badge_id TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE,
-    password_hash TEXT NOT NULL DEFAULT '',
-    pin_code TEXT DEFAULT '',
-    pin_hash TEXT DEFAULT '',
-    name_ar TEXT NOT NULL,
-    name_en TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('manager', 'officer', 'admin')),
-    gate_assigned TEXT DEFAULT 'Gate 1',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- 1. DESTINATIONS TABLE
+CREATE TABLE IF NOT EXISTS "gate_destinations" (
+	"id" serial PRIMARY KEY,
+	"name" varchar(100) NOT NULL CONSTRAINT "gate_destinations_name_key" UNIQUE
 );
 
--- 2. GATES TABLE (بوابات المصانع المعتمدة)
-CREATE TABLE IF NOT EXISTS gate_gates (
-    id BIGSERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+-- 2. GATES TABLE
+CREATE TABLE IF NOT EXISTS "gate_gates" (
+	"id" serial PRIMARY KEY,
+	"name" varchar(100) NOT NULL CONSTRAINT "gate_gates_name_key" UNIQUE
 );
 
--- 3. DESTINATIONS TABLE (الوجهات والمستودعات الداخلية)
-CREATE TABLE IF NOT EXISTS gate_destinations (
-    id BIGSERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+-- 3. SETTINGS TABLE
+CREATE TABLE IF NOT EXISTS "gate_settings" (
+	"key" varchar(100) PRIMARY KEY,
+	"value" text,
+	"updated_at" timestamp DEFAULT now()
 );
 
--- 4. SETTINGS TABLE (إعدادات النظام العامة والمفتاحية)
-CREATE TABLE IF NOT EXISTS gate_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+-- 4. USERS TABLE
+CREATE TABLE IF NOT EXISTS "gate_users" (
+	"id" serial PRIMARY KEY,
+	"badge_id" varchar(50) NOT NULL CONSTRAINT "gate_users_badge_id_key" UNIQUE,
+	"email" varchar(255),
+	"password_hash" varchar(255),
+	"pin_hash" varchar(255),
+	"pin_code" varchar(255),
+	"name_ar" varchar(255),
+	"name_en" varchar(255),
+	"role" varchar(20) DEFAULT 'officer' NOT NULL,
+	"gate_assigned" varchar(100),
+	"created_at" timestamp DEFAULT now(),
+	CONSTRAINT "gate_users_role_check" CHECK (((role)::text = ANY ((ARRAY['manager'::character varying, 'officer'::character varying, 'admin'::character varying, 'ceo'::character varying])::text[])))
 );
 
--- 5. VEHICLES TABLE (سجل المركبات والشاحنات المعتمدة والزائرة)
-CREATE TABLE IF NOT EXISTS gate_vehicles (
-    id BIGINT PRIMARY KEY,
-    plate_ar TEXT NOT NULL,
-    plate_en TEXT NOT NULL DEFAULT '',
-    vehicle_type TEXT NOT NULL DEFAULT 'truckHeavy',
-    driver_name_ar TEXT NOT NULL DEFAULT '',
-    driver_name_en TEXT NOT NULL DEFAULT '',
-    driver_phone TEXT DEFAULT '',
-    company_ar TEXT NOT NULL DEFAULT '',
-    company_en TEXT NOT NULL DEFAULT '',
-    status TEXT DEFAULT 'visitor',
-    blacklist_reason TEXT DEFAULT '',
-    photo_url TEXT DEFAULT '',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+-- 5. VEHICLES TABLE
+CREATE TABLE IF NOT EXISTS "gate_vehicles" (
+	"id" serial PRIMARY KEY,
+	"plate_ar" varchar(50),
+	"plate_en" varchar(50),
+	"vehicle_type" varchar(50),
+	"driver_name_ar" varchar(255),
+	"driver_name_en" varchar(255),
+	"driver_phone" varchar(50),
+	"company_ar" varchar(255),
+	"company_en" varchar(255),
+	"status" varchar(20) DEFAULT 'visitor',
+	"blacklist_reason" text,
+	"photo_url" text,
+	"created_at" timestamp DEFAULT now(),
+	CONSTRAINT "gate_vehicles_status_check" CHECK (((status)::text = ANY ((ARRAY['visitor'::character varying, 'blacklisted'::character varying])::text[])))
 );
 
--- 6. PERMITS TABLE (تصاريح الدخول والخروج الرسمية)
-CREATE TABLE IF NOT EXISTS gate_permits (
-    id BIGINT PRIMARY KEY,
-    permit_code TEXT NOT NULL,
-    pin_code TEXT NOT NULL DEFAULT '',
-    vehicle_id BIGINT NOT NULL,
-    permit_type TEXT DEFAULT 'entry',
-    destination_ar TEXT DEFAULT '',
-    destination_en TEXT DEFAULT '',
-    purpose_ar TEXT DEFAULT '',
-    purpose_en TEXT DEFAULT '',
-    cargo_details TEXT DEFAULT '',
-    invoice_no TEXT DEFAULT '',
-    valid_from TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    valid_until TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'active',
-    created_by BIGINT DEFAULT 1,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+-- 6. PERMITS TABLE
+CREATE TABLE IF NOT EXISTS "gate_permits" (
+	"id" serial PRIMARY KEY,
+	"permit_code" varchar(100) NOT NULL CONSTRAINT "gate_permits_permit_code_key" UNIQUE,
+	"pin_code" varchar(20) NOT NULL,
+	"vehicle_id" integer REFERENCES "gate_vehicles"("id") ON DELETE SET NULL,
+	"permit_type" varchar(20) NOT NULL,
+	"destination_ar" varchar(255),
+	"destination_en" varchar(255),
+	"purpose_ar" varchar(500),
+	"purpose_en" varchar(500),
+	"cargo_details" text,
+	"invoice_no" varchar(100),
+	"valid_from" timestamp,
+	"valid_until" timestamp,
+	"status" varchar(20) DEFAULT 'active',
+	"created_by" integer REFERENCES "gate_users"("id") ON DELETE SET NULL,
+	"created_by_name" varchar(255),
+	"approved_by" integer REFERENCES "gate_users"("id") ON DELETE SET NULL,
+	"approved_by_name" varchar(255),
+	"created_at" timestamp DEFAULT now(),
+	CONSTRAINT "gate_permits_permit_type_check" CHECK (((permit_type)::text = ANY ((ARRAY['entry'::character varying, 'exit'::character varying, 'both'::character varying])::text[]))),
+	CONSTRAINT "gate_permits_status_check" CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'hold'::character varying, 'expired'::character varying, 'revoked'::character varying, 'superseded'::character varying])::text[])))
 );
 
--- 7. ACCESS LOGS TABLE (سجل حركات الدخول والخروج والمنع الأمني)
-CREATE TABLE IF NOT EXISTS gate_logs (
-    id BIGINT PRIMARY KEY,
-    vehicle_id BIGINT NOT NULL,
-    permit_id BIGINT DEFAULT NULL,
-    officer_id BIGINT DEFAULT NULL,
-    gate_name TEXT NOT NULL DEFAULT '',
-    action_type TEXT NOT NULL DEFAULT 'entry',
-    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    exit_timestamp TIMESTAMPTZ DEFAULT NULL,
-    duration_minutes INTEGER DEFAULT NULL,
-    remarks TEXT DEFAULT '',
-    photo_url TEXT DEFAULT '',
-    exit_photo_url TEXT DEFAULT ''
+-- 7. ACCESS LOGS TABLE
+CREATE TABLE IF NOT EXISTS "gate_logs" (
+	"id" serial PRIMARY KEY,
+	"vehicle_id" integer REFERENCES "gate_vehicles"("id") ON DELETE SET NULL,
+	"permit_id" integer REFERENCES "gate_permits"("id") ON DELETE SET NULL,
+	"officer_id" integer REFERENCES "gate_users"("id") ON DELETE SET NULL,
+	"gate_name" varchar(100),
+	"action_type" varchar(20) NOT NULL,
+	"timestamp" timestamp DEFAULT now(),
+	"exit_timestamp" timestamp,
+	"exit_gate_name" varchar(100),
+	"exit_officer_id" integer REFERENCES "gate_users"("id") ON DELETE SET NULL,
+	"duration_minutes" integer,
+	"remarks" text,
+	"photo_url" text,
+	"exit_photo_url" text,
+	CONSTRAINT "gate_logs_action_type_check" CHECK (((action_type)::text = ANY ((ARRAY['entry'::character varying, 'exit'::character varying, 'denied'::character varying])::text[])))
 );
 
--- 8. PUSH SUBSCRIPTIONS TABLE (اشتراكات إشعارات الويب للمدير والحراس)
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT,
-    role TEXT NOT NULL DEFAULT 'officer',
-    endpoint TEXT NOT NULL UNIQUE,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-    watch_all INTEGER DEFAULT 1,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+-- 8. PUSH SUBSCRIPTIONS TABLE
+CREATE TABLE IF NOT EXISTS "push_subscriptions" (
+	"id" serial PRIMARY KEY,
+	"user_id" integer,
+	"role" varchar(20),
+	"endpoint" text NOT NULL CONSTRAINT "push_subscriptions_endpoint_key" UNIQUE,
+	"p256dh" text,
+	"auth" text,
+	"watch_all" integer DEFAULT 1,
+	"created_at" timestamp DEFAULT now()
 );
 
--- 9. PUSH VEHICLE WATCHLIST (قائمة المراقبة المخصصة للإشعارات)
-CREATE TABLE IF NOT EXISTS push_vehicle_watchlist (
-    id BIGSERIAL PRIMARY KEY,
-    subscription_id BIGINT NOT NULL REFERENCES push_subscriptions(id) ON DELETE CASCADE,
-    vehicle_id BIGINT NOT NULL REFERENCES gate_vehicles(id) ON DELETE CASCADE
+-- 9. PUSH VEHICLE WATCHLIST TABLE
+CREATE TABLE IF NOT EXISTS "push_vehicle_watchlist" (
+	"id" serial PRIMARY KEY,
+	"subscription_id" integer REFERENCES "push_subscriptions"("id") ON DELETE CASCADE,
+	"vehicle_id" integer REFERENCES "gate_vehicles"("id") ON DELETE CASCADE
 );
 
--- 10. NOTIFICATIONS QUEUE (طابور الإشعارات والتنبيهات المباشرة)
-CREATE TABLE IF NOT EXISTS gate_notifications (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT,
-    type TEXT NOT NULL DEFAULT 'entry',
-    title TEXT NOT NULL DEFAULT '',
-    body TEXT NOT NULL DEFAULT '',
-    vehicle_id BIGINT,
-    vehicle_plate TEXT DEFAULT '',
-    gate_name TEXT DEFAULT '',
-    is_read INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+-- 10. NOTIFICATIONS QUEUE TABLE
+CREATE TABLE IF NOT EXISTS "gate_notifications" (
+	"id" serial PRIMARY KEY,
+	"user_id" integer,
+	"type" varchar(50),
+	"title" varchar(255),
+	"body" text,
+	"vehicle_id" integer,
+	"vehicle_plate" varchar(50),
+	"gate_name" varchar(100),
+	"is_read" integer DEFAULT 0,
+	"created_at" timestamp DEFAULT now()
 );
 
 -- ============================================================
--- PostgreSQL Indexes for Sub-Millisecond Queries
+-- Indexes
 -- ============================================================
-CREATE INDEX IF NOT EXISTS idx_gate_vehicles_plate ON gate_vehicles(plate_ar);
-CREATE INDEX IF NOT EXISTS idx_gate_vehicles_status ON gate_vehicles(status);
-CREATE INDEX IF NOT EXISTS idx_gate_permits_vehicle ON gate_permits(vehicle_id);
-CREATE INDEX IF NOT EXISTS idx_gate_permits_code ON gate_permits(permit_code);
-CREATE INDEX IF NOT EXISTS idx_gate_permits_status ON gate_permits(status);
-CREATE INDEX IF NOT EXISTS idx_gate_logs_vehicle ON gate_logs(vehicle_id);
-CREATE INDEX IF NOT EXISTS idx_gate_logs_action ON gate_logs(action_type);
-CREATE INDEX IF NOT EXISTS idx_gate_logs_timestamp ON gate_logs(timestamp);
-CREATE INDEX IF NOT EXISTS idx_push_role ON push_subscriptions(role);
-CREATE INDEX IF NOT EXISTS idx_push_endpoint ON push_subscriptions(endpoint);
-CREATE INDEX IF NOT EXISTS idx_watchlist_sub ON push_vehicle_watchlist(subscription_id);
-CREATE INDEX IF NOT EXISTS idx_watchlist_vehicle ON push_vehicle_watchlist(vehicle_id);
-CREATE INDEX IF NOT EXISTS idx_notif_user ON gate_notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_notif_read ON gate_notifications(is_read);
+CREATE INDEX IF NOT EXISTS "idx_gate_logs_action" ON "gate_logs" ("action_type");
+CREATE INDEX IF NOT EXISTS "idx_gate_logs_timestamp" ON "gate_logs" ("timestamp");
+CREATE INDEX IF NOT EXISTS "idx_gate_logs_vehicle" ON "gate_logs" ("vehicle_id");
+CREATE INDEX IF NOT EXISTS "idx_logs_timestamp" ON "gate_logs" ("timestamp");
+CREATE INDEX IF NOT EXISTS "idx_logs_vehicle" ON "gate_logs" ("vehicle_id");
+CREATE INDEX IF NOT EXISTS "idx_notif_read" ON "gate_notifications" ("is_read");
+CREATE INDEX IF NOT EXISTS "idx_notif_user" ON "gate_notifications" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_notifications_user" ON "gate_notifications" ("user_id","is_read");
+CREATE INDEX IF NOT EXISTS "idx_gate_permits_code" ON "gate_permits" ("permit_code");
+CREATE INDEX IF NOT EXISTS "idx_gate_permits_status" ON "gate_permits" ("status");
+CREATE INDEX IF NOT EXISTS "idx_gate_permits_vehicle" ON "gate_permits" ("vehicle_id");
+CREATE INDEX IF NOT EXISTS "idx_permits_status" ON "gate_permits" ("status");
+CREATE INDEX IF NOT EXISTS "idx_permits_vehicle" ON "gate_permits" ("vehicle_id");
+CREATE INDEX IF NOT EXISTS "idx_gate_vehicles_plate" ON "gate_vehicles" ("plate_ar");
+CREATE INDEX IF NOT EXISTS "idx_gate_vehicles_status" ON "gate_vehicles" ("status");
+CREATE INDEX IF NOT EXISTS "idx_vehicles_plate" ON "gate_vehicles" ("plate_en");
+CREATE INDEX IF NOT EXISTS "idx_push_endpoint" ON "push_subscriptions" ("endpoint");
+CREATE INDEX IF NOT EXISTS "idx_push_role" ON "push_subscriptions" ("role");
+CREATE INDEX IF NOT EXISTS "idx_watchlist_sub" ON "push_vehicle_watchlist" ("subscription_id");
+CREATE INDEX IF NOT EXISTS "idx_watchlist_vehicle" ON "push_vehicle_watchlist" ("vehicle_id");
 
 -- ============================================================
 -- SEED DATA: Initial Users, Gates, Destinations, Settings
 -- ============================================================
-INSERT INTO gate_users (id, badge_id, email, password_hash, pin_code, pin_hash, name_ar, name_en, role, gate_assigned)
+INSERT INTO "gate_users" ("id", "badge_id", "email", "password_hash", "pin_code", "pin_hash", "name_ar", "name_en", "role", "gate_assigned")
 VALUES
-    (1, 'MGR-01', 'manager@dotra.com', '408e180e62c0d777915d5e95a367b1cb:d6dffc554dcfc484cda2b4838c7cd60bae796a2dd44640ce004d1931324730c2', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', ''),
+    (1, 'MGR-01', 'manager@dotra.com', '5f2338021caf29159b9c5a502d47145b:9ff1522e5f8a0539d6e4171c089555338942faaa7c70789f64a2efa041c8b5e8', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', ''),
     (2, 'GT-01', 'officer1@dotra.com', '', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية - دوترا')
-ON CONFLICT (badge_id) DO NOTHING;
+ON CONFLICT ("id") DO UPDATE SET
+    "password_hash" = EXCLUDED."password_hash",
+    "badge_id" = EXCLUDED."badge_id";
 
-INSERT INTO gate_gates (name) VALUES
-    ('بوابة 1 الرئيسية - دوترا'),
-    ('بوابة 2 الشحن والجمارك - دوترا'),
-    ('بوابة 3 المواد الخام والكيماويات'),
-    ('بوابة 4 خروج الإنتاج والشاحنات')
-ON CONFLICT (name) DO NOTHING;
-
-INSERT INTO gate_destinations (name) VALUES
-    ('المستودع الرئيسي'),
-    ('مصنع الأسمدة والمخصبات'),
-    ('مصنع المبيدات والكيماويات'),
-    ('منطقة التحميل والتفريغ'),
-    ('ميزان البسكول'),
-    ('مبنى الإدارة العامة')
-ON CONFLICT (name) DO NOTHING;
-
-INSERT INTO gate_settings (key, value) VALUES
-    ('default_whatsapp', '01012345678'),
-    ('company_name_ar', 'مجموعة دوترا'),
-    ('company_name_en', 'DOTRA Group'),
-    ('gate_name_ar', 'بوابة مصانع دوترا الرئيسية'),
-    ('gate_name_en', 'DOTRA Factory Main Gate')
-ON CONFLICT (key) DO NOTHING;
+INSERT INTO "gate_gates" ("name") VALUES ('بوابة 1 الرئيسية - دوترا'), ('بوابة 2 شحن وتفريغ') ON CONFLICT ("name") DO NOTHING;
+INSERT INTO "gate_destinations" ("name") VALUES ('المستودع الرئيسي A'), ('خط الإنتاج 1'), ('إدارة الجودة') ON CONFLICT ("name") DO NOTHING;
+INSERT INTO "gate_settings" ("key", "value") VALUES ('maxStayHours', '8'), ('companyNameAr', 'مجموعة دوترا') ON CONFLICT ("key") DO NOTHING;

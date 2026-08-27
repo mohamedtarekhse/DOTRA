@@ -54,10 +54,10 @@ class ManagerController {
                 <tr>
                     <th class="py-3.5 px-4">${lang === 'ar' ? 'كود التصريح ورمز PIN' : 'Permit Code & PIN'}</th>
                     <th class="py-3.5 px-4">${lang === 'ar' ? 'لوحة الشاحنة' : 'Plate Number'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'نوع التصريح والوجهة' : 'Type & Destination'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'الموقع والوجهة بالمصنع' : 'Factory Destination'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة وتوقيت الدخول' : 'Last Entry Gate & Timing'}</th>
                     <th class="py-3.5 px-4">${lang === 'ar' ? 'السائق والجهة / الواتساب' : 'Driver / WhatsApp'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التصريح' : 'Permit Status'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ الإصدار وحركة البوابة' : 'Issued Date & Gate'}</th>
+                    <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التصريح والتواجد' : 'Permit & Gate Status'}</th>
                     <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
                 </tr>
             `;
@@ -65,10 +65,10 @@ class ManagerController {
         return `
             <tr>
                 <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
-                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع وحالة المركبة' : 'Last Location & Status'}</th>
-                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة' : 'Last Gate'}</th>
-                <th class="py-3.5 px-4">${lang === 'ar' ? 'فرد الأمن المسجل' : 'Officer'}</th>
-                <th class="py-3.5 px-4">${lang === 'ar' ? 'تاريخ ووقت الحركة والمدة' : 'Date, Time & Duration'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع ووجهة داخل المصنع' : 'Last Place in Factory'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة دخول للمصنع' : 'Last Entry Gate'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'توقيت وتاريخ الدخول والمدة' : 'Entry Time & Duration'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التواجد' : 'Current Status'}</th>
                 <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
                 <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
             </tr>
@@ -500,10 +500,13 @@ class ManagerController {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
             const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
             const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
-            const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
-            const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
-            const officerDisplayName = lastOfficer ? (lang === 'ar' ? lastOfficer.name_ar : lastOfficer.name_en) : (lastLog ? `ضابط #${lastLog.officer_id}` : '--');
-            const lastGateName = lastLog ? lastLog.gate_name : '--';
+            const sortedLogs = vehicleLogs.slice().sort((a, b) => window.DB.parseTimestamp(b.timestamp).getTime() - window.DB.parseTimestamp(a.timestamp).getTime() || (b.id || 0) - (a.id || 0));
+            const lastEntryLog = sortedLogs.find(l => l.action_type === 'entry') || null;
+            const lastExitLog = sortedLogs.find(l => l.action_type === 'exit' || l.exit_timestamp) || null;
+            
+            const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : '--';
+            const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : null;
+            const entryOfficerName = entryOfficer ? (lang === 'ar' ? entryOfficer.name_ar : entryOfficer.name_en) : (lastEntryLog ? `ضابط #${lastEntryLog.officer_id}` : '--');
             
             let statusBadge = '';
             let timeInfoHtml = '';
@@ -515,20 +518,19 @@ class ManagerController {
                 const entryTimeStr = entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const diffMinutes = Math.max(0, Math.round((Date.now() - entryTime.getTime()) / 60000));
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-inside flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-[#107e3e] animate-pulse"></span> <span>${window.i18n.t('statusInside')}</span></span>`;
-                timeInfoHtml = `<div class="text-xs text-[#107e3e] font-bold">📥 دخلت: ${entryTimeStr} (${diffMinutes} دقيقة)</div>`;
+                timeInfoHtml = `<div class="text-xs text-[#107e3e] font-bold">📥 دخلت: ${entryTimeStr} (${diffMinutes} دقيقة بالداخل)</div>`;
             } else {
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-exited flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : 'Exited'}</span></span>`;
-                const exitLog = vehicleLogs.slice().reverse().find(l => l.action_type === 'exit' || l.exit_timestamp);
-                if (exitLog) {
-                    const exitTime = window.DB.parseTimestamp(exitLog.exit_timestamp || exitLog.timestamp);
+                if (lastExitLog) {
+                    const exitTime = window.DB.parseTimestamp(lastExitLog.exit_timestamp || lastExitLog.timestamp);
                     const exitTimeStr = exitTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    timeInfoHtml = `<div class="text-xs text-[#0070f2] font-bold">📤 خرجت: ${exitTimeStr} (المدة: ${exitLog.duration_minutes || 0} د)</div>`;
+                    timeInfoHtml = `<div class="text-xs text-[#0070f2] font-bold">📤 خرجت: ${exitTimeStr} (المدة: ${lastExitLog.duration_minutes || 0} د)</div>`;
                 }
             }
 
             const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
             const companyName = (lang === 'ar' ? vehicle.company_ar : vehicle.company_en) || 'عام';
-            const destination = permit ? (lang === 'ar' ? permit.destination_ar : permit.destination_en) : 'المستودع الرئيسي';
+            const destination = permit ? (lang === 'ar' ? (permit.destination_ar || permit.destination_en) : (permit.destination_en || permit.destination_ar)) : (lastEntryLog?.remarks || 'المستودع الرئيسي');
 
             return `
                 <div class="sap-card p-4 bg-white border border-[#b0cfee] shadow-sm animate-fadeIn text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
@@ -573,12 +575,12 @@ class ManagerController {
                             </div>
                         ` : ''}
                         <div class="flex justify-between items-center">
-                            <span class="text-[#556b82] font-bold">الموقع والوجهة:</span>
+                            <span class="text-[#556b82] font-bold">📍 الموقع والوجهة:</span>
                             <span class="font-bold text-[#002b66]">📍 ${destination}</span>
                         </div>
                         <div class="flex justify-between items-center">
-                            <span class="text-[#556b82] font-bold">آخر حركة:</span>
-                            <span class="font-mono font-bold text-[#556b82]">🚪 ${lastGateName} (👮 ${officerDisplayName})</span>
+                            <span class="text-[#556b82] font-bold">🚪 آخر بوابة دخلت منها:</span>
+                            <span class="font-mono font-bold text-[#002b66]">🚪 ${entryGateName} ${entryOfficerName !== '--' ? `(👮 ${entryOfficerName})` : ''}</span>
                         </div>
                         ${timeInfoHtml ? `<div class="pt-1 border-t border-[#e7eff7]">${timeInfoHtml}</div>` : ''}
                     </div>
@@ -642,8 +644,13 @@ class ManagerController {
                     : (isExit ? `<span class="px-2.5 py-1 rounded-full text-xs bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 تصريح خروج</span>` : `<span class="px-2.5 py-1 rounded-full text-xs bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
                 
                 let statusTag = '';
+                let holdActionBtn = '';
                 if (p.status === 'active') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>ساري وصالح</span></span>`;
+                    holdActionBtn = `<button type="button" title="تعليق وتجميد الصلاحية" onclick="Manager.togglePermitHold(${p.id}, 'hold')" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⏸️ تعليق</span></button>`;
+                } else if (p.status === 'hold') {
+                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-amber-100 text-amber-900 font-bold border border-amber-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> <span>⏸️ معلق بقرار الإدارة</span></span>`;
+                    holdActionBtn = `<button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.togglePermitHold(${p.id}, 'active')" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ تفعيل</span></button>`;
                 } else if (p.status === 'used') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-blue-100 text-blue-800 font-bold border border-blue-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> <span>تم الاستخدام</span></span>`;
                 } else {
@@ -654,7 +661,7 @@ class ManagerController {
                 const createdTime = new Date(p.valid_from || p.id).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                 return `
-                    <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors">
+                    <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors ${p.status === 'hold' ? 'bg-amber-50/40' : ''}">
                         <td class="py-3.5 px-4">
                             <div class="font-mono font-black text-sm text-[#0070f2]">${p.permit_code}</div>
                             <div class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-lg bg-[#001940] text-amber-300 font-mono font-black text-xs shadow-inner">
@@ -668,9 +675,23 @@ class ManagerController {
                         <td class="py-3.5 px-4">
                             <div class="flex flex-col gap-1">
                                 ${typeTag}
-                                <span class="text-xs font-bold text-[#002b66] mt-0.5">📍 ${p.destination_ar}</span>
+                                <span class="text-xs font-black text-[#002b66] mt-0.5">📍 ${p.destination_ar || 'المستودع الرئيسي'}</span>
+                                ${p.cargo_details ? `<span class="text-[11px] text-[#556b82] font-semibold">📦 ${p.cargo_details}</span>` : ''}
                                 ${p.invoice_no ? `<span class="text-[11px] text-[#107e3e] font-mono font-bold">📄 إذن: ${p.invoice_no}</span>` : ''}
                             </div>
+                        </td>
+                        <td class="py-3.5 px-4 text-xs font-mono">
+                            ${p.entryLog ? `
+                                <div class="inline-flex items-center gap-1 font-bold text-xs text-[#002b66] bg-[#ebf3fb] px-2 py-0.5 rounded-lg border border-[#b3d5fa] mb-1">
+                                    <span>🚪</span>
+                                    <span>${p.entryLog.gate_name}</span>
+                                </div>
+                                <div class="text-[#107e3e] font-bold text-[11px]">📥 ${new Date(window.DB.parseTimestamp(p.entryLog.timestamp)).toLocaleDateString()} • ${new Date(window.DB.parseTimestamp(p.entryLog.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                ${p.officer ? `<div class="text-[10px] text-[#556b82]">👮 ${lang === 'ar' ? p.officer.name_ar : p.officer.name_en}</div>` : ''}
+                            ` : `
+                                <div class="text-[#556b82] font-sans font-semibold text-xs">⏳ لم تسجل دخول بعد</div>
+                                <div class="text-[10px] text-[#8898aa]">📅 إصدار: ${createdDate}</div>
+                            `}
                         </td>
                         <td class="py-3.5 px-4">
                             <div class="font-bold text-[#1d2d3e] text-xs">${p.vehicle.driver_name_ar}</div>
@@ -683,17 +704,16 @@ class ManagerController {
                         </td>
                         <td class="py-3.5 px-4">
                             ${statusTag}
-                        </td>
-                        <td class="py-3.5 px-4 text-xs font-mono">
-                            <div class="text-[#1d2d3e] font-bold">📅 ${createdDate}</div>
-                            <div class="text-[#556b82] text-[11px]">⏰ ${createdTime}</div>
-                            ${p.entryLog ? `<div class="text-[#107e3e] font-bold text-[11px] mt-1">🚪 دخل: ${p.entryLog.gate_name}</div>` : ''}
+                            ${p.hold_reason ? `<div class="text-[10px] text-amber-800 font-semibold mt-1">⚠️ سبب التعليق: ${p.hold_reason}</div>` : ''}
                         </td>
                         <td class="py-3.5 px-4 text-center">
-                            <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${p.id})" class="px-3 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold inline-flex items-center gap-1 shadow-sm">
-                                ${icon('qrcode', 'w-3.5 h-3.5')}
-                                <span>عرض الكارت A4</span>
-                            </button>
+                            <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${p.id})" class="px-3 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold inline-flex items-center gap-1 shadow-sm">
+                                    ${icon('qrcode', 'w-3.5 h-3.5')}
+                                    <span>عرض الكارت</span>
+                                </button>
+                                ${holdActionBtn}
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -719,30 +739,16 @@ class ManagerController {
 
             const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
             const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
-            const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
-            const officerName = lastOfficer ? `${lastOfficer.name_ar} ${lastOfficer.name_en}`.toLowerCase() : '';
-            const gateName = lastLog ? (lastLog.gate_name || '').toLowerCase() : '';
-            const timestampText = lastLog ? new Date(lastLog.timestamp).toLocaleString().toLowerCase() : '';
-            const destination = permit ? `${permit.destination_ar} ${permit.destination_en}`.toLowerCase() : '';
-            const pinCode = permit && permit.pin_code ? permit.pin_code.toLowerCase() : '';
-            const permitCode = permit && permit.permit_code ? permit.permit_code.toLowerCase() : '';
-            const driverName = `${vehicle.driver_name_ar || ''} ${vehicle.driver_name_en || ''}`.toLowerCase();
-            const plateAr = (vehicle.plate_ar || '').toLowerCase();
-            const plateEn = (vehicle.plate_en || '').toLowerCase();
-            const phone = (vehicle.driver_phone || '').toLowerCase();
-            const company = `${vehicle.company_ar || ''} ${vehicle.company_en || ''}`.toLowerCase();
+            const officer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
 
-            return plateAr.includes(q) ||
-                   plateEn.includes(q) ||
-                   driverName.includes(q) ||
-                   phone.includes(q) ||
-                   company.includes(q) ||
-                   destination.includes(q) ||
-                   gateName.includes(q) ||
-                   officerName.includes(q) ||
-                   timestampText.includes(q) ||
-                   pinCode.includes(q) ||
-                   permitCode.includes(q);
+            const matchPlate = (vehicle.plate_ar || '').includes(q) || (vehicle.plate_en || '').toLowerCase().includes(q);
+            const matchDriver = (vehicle.driver_name_ar || '').includes(q) || (vehicle.driver_name_en || '').toLowerCase().includes(q);
+            const matchCompany = (vehicle.company_ar || '').includes(q) || (vehicle.company_en || '').toLowerCase().includes(q);
+            const matchPermit = permit && ((permit.permit_code || '').toLowerCase().includes(q) || (permit.pin_code || '').includes(q));
+            const matchGate = lastLog && (lastLog.gate_name || '').includes(q);
+            const matchOfficer = officer && ((officer.name_ar || '').includes(q) || (officer.name_en || '').toLowerCase().includes(q));
+
+            return matchPlate || matchDriver || matchCompany || matchPermit || matchGate || matchOfficer;
         });
 
         if (filteredVehicles.length === 0) {
@@ -753,10 +759,7 @@ class ManagerController {
                             ${icon('truck', 'w-7 h-7')}
                         </div>
                         <p class="font-black text-base text-[#1d2d3e]">
-                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching results for "${this.searchQuery}"`) : (lang === 'ar' ? 'قاعدة البيانات جاهزة - لا توجد حركات مسجلة حالياً' : 'Database Ready - No entries recorded')}
-                        </p>
-                        <p class="text-xs text-[#556b82] mt-1 font-medium">
-                            ${this.searchQuery ? (lang === 'ar' ? 'تأكد من كتابة رقم اللوحة، اسم الضابط، البوابة أو الوقت بشكل صحيح' : 'Check your search query') : (lang === 'ar' ? 'ابدأ بإصدار تصريح دخول أو خروج جديد لأي شاحنة أو زائر' : 'Start by issuing a new pass for any vehicle')}
+                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching records for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد حركات مسجلة حالياً' : 'No records yet')}
                         </p>
                         ${!this.searchQuery ? `
                             <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 inline-flex items-center gap-2 px-5 py-2.5 sap-btn-primary text-xs font-bold shadow-md">
@@ -773,10 +776,13 @@ class ManagerController {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
             const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
             const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
-            const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
-            const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
-            const officerDisplayName = lastOfficer ? (lang === 'ar' ? lastOfficer.name_ar : lastOfficer.name_en) : (lastLog ? `ضابط #${lastLog.officer_id}` : '--');
-            const lastGateName = lastLog ? lastLog.gate_name : '--';
+            const sortedLogs = vehicleLogs.slice().sort((a, b) => window.DB.parseTimestamp(b.timestamp).getTime() - window.DB.parseTimestamp(a.timestamp).getTime() || (b.id || 0) - (a.id || 0));
+            const lastEntryLog = sortedLogs.find(l => l.action_type === 'entry') || null;
+            const lastExitLog = sortedLogs.find(l => l.action_type === 'exit' || l.exit_timestamp) || null;
+            
+            const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : (insideLog ? insideLog.gate_name : '--');
+            const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : (insideLog ? users.find(u => u.id === insideLog.officer_id) : null);
+            const entryOfficerName = entryOfficer ? (lang === 'ar' ? entryOfficer.name_ar : entryOfficer.name_en) : (lastEntryLog ? `ضابط #${lastEntryLog.officer_id}` : '--');
             
             let statusBadge = '';
             let durationText = '--';
@@ -805,10 +811,8 @@ class ManagerController {
 
             const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
             const companyName = (lang === 'ar' ? vehicle.company_ar : vehicle.company_en) || 'عام';
-            const destination = permit ? (lang === 'ar' ? permit.destination_ar : permit.destination_en) : 'المستودع الرئيسي';
+            const destination = permit ? (lang === 'ar' ? (permit.destination_ar || permit.destination_en) : (permit.destination_en || permit.destination_ar)) : (lastEntryLog?.remarks || 'المستودع الرئيسي');
 
-            // Find last exit event
-            const exitLog = vehicleLogs.slice().reverse().find(l => l.action_type === 'exit' || l.exit_timestamp);
             let timeCellHtml = '';
 
             if (insideLog) {
@@ -824,15 +828,15 @@ class ManagerController {
                         <span>${durationText}</span>
                     </div>
                 `;
-            } else if (exitLog) {
-                const exitTimeDate = window.DB.parseTimestamp(exitLog.exit_timestamp || exitLog.timestamp);
+            } else if (lastExitLog) {
+                const exitTimeDate = window.DB.parseTimestamp(lastExitLog.exit_timestamp || lastExitLog.timestamp);
                 const exitDateStr = exitTimeDate.toLocaleDateString();
                 const exitTimeStr = exitTimeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const durMin = exitLog.duration_minutes !== null && exitLog.duration_minutes !== undefined ? exitLog.duration_minutes : 0;
+                const durMin = lastExitLog.duration_minutes !== null && lastExitLog.duration_minutes !== undefined ? lastExitLog.duration_minutes : 0;
                 
                 timeCellHtml = `
                     <div class="font-bold text-[#0070f2] flex items-center gap-1">
-                        <span>📤 خروج:</span>
+                        <span>📤 آخر خروج:</span>
                         <span>${exitDateStr} • ${exitTimeStr}</span>
                     </div>
                     <div class="text-[11px] text-[#556b82] mt-0.5">
@@ -851,29 +855,39 @@ class ManagerController {
                     </td>
                     <td class="py-3.5 px-4">
                         <div class="flex flex-col gap-1">
-                            ${statusBadge}
-                            <span class="text-xs font-bold text-[#002b66]">
-                                📍 ${destination}
+                            <span class="text-xs font-black text-[#002b66] flex items-center gap-1">
+                                <span>📍</span>
+                                <span>${destination}</span>
                             </span>
+                            ${permit?.cargo_details ? `<span class="text-[11px] text-[#556b82] font-semibold">📦 ${permit.cargo_details}</span>` : ''}
+                            ${permit?.invoice_no ? `<span class="text-[11px] text-[#107e3e] font-mono font-bold">📄 إذن: ${permit.invoice_no}</span>` : ''}
                         </div>
                     </td>
                     <td class="py-3.5 px-4">
-                        <span class="px-2.5 py-1 bg-[#f0f4f8] rounded-lg text-xs font-mono font-bold text-[#002b66] border border-[#d7e2ee]">
-                            🚪 ${lastGateName}
-                        </span>
-                    </td>
-                    <td class="py-3.5 px-4 text-xs font-bold text-[#1d2d3e]">
-                        <div class="flex items-center gap-1.5">
-                            <span>👮</span>
-                            <span>${officerDisplayName}</span>
-                        </div>
+                        ${entryGateName !== '--' ? `
+                            <div class="inline-flex items-center gap-1 font-bold text-xs text-[#002b66] bg-[#ebf3fb] px-2.5 py-1 rounded-xl border border-[#b3d5fa]">
+                                <span>🚪</span>
+                                <span>${entryGateName}</span>
+                            </div>
+                            <div class="text-[10px] text-[#556b82] font-semibold mt-1">👮 ${entryOfficerName}</div>
+                        ` : `
+                            <span class="text-[#556b82] text-xs font-mono">--</span>
+                        `}
                     </td>
                     <td class="py-3.5 px-4 text-xs font-mono">
                         ${timeCellHtml}
                     </td>
                     <td class="py-3.5 px-4">
+                        ${statusBadge}
+                    </td>
+                    <td class="py-3.5 px-4">
                         <div class="font-bold text-[#1d2d3e] text-xs">${driverName}</div>
                         <div class="text-[11px] text-[#556b82] font-semibold">${companyName}</div>
+                        ${vehicle.driver_phone ? `
+                            <a href="https://wa.me/2${vehicle.driver_phone.replace(/\D/g, '')}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-[#107e3e] hover:underline font-mono font-bold mt-1">
+                                <span>📱 ${vehicle.driver_phone}</span>
+                            </a>
+                        ` : ''}
                     </td>
                     <td class="py-3.5 px-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
@@ -1917,6 +1931,17 @@ class ManagerController {
                                 </div>
                             </div>
 
+                            <div class="grid grid-cols-2 gap-2 border-b border-[#e7eff7] pb-1.5">
+                                <div>
+                                    <span class="text-[#556b82] font-bold">منشئ التصريح: </span>
+                                    <span class="font-bold text-[#1d2d3e]">${permit.created_by_name || 'إدارة العمليات'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[#556b82] font-bold">معتمد التصريح: </span>
+                                    <span class="font-black text-[#002b66]">${permit.approved_by_name || 'م. أحمد فؤاد (مدير العمليات)'}</span>
+                                </div>
+                            </div>
+
                             ${permit.invoice_no ? `
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
@@ -1961,6 +1986,30 @@ class ManagerController {
                             <span>${lang === 'ar' ? `إرسال للرقم الافتراضي للبوابة / الإدارة (${settings.default_whatsapp})` : 'Send to Default Dispatcher'}</span>
                         </button>
 
+                        <!-- Manager Authority Controls: Hold / Suspend vs Reactivate -->
+                        <div class="p-3 rounded-2xl border ${permit.status === 'hold' ? 'bg-amber-50 border-amber-300' : 'bg-[#f8fafc] border-[#d7e2ee]'} text-xs">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-bold text-[#002b66] flex items-center gap-1.5">
+                                    <span>🛡️</span>
+                                    <span>صلاحيات وتصرفات مدير العمليات:</span>
+                                </span>
+                                <span class="text-[11px] font-bold ${permit.status === 'hold' ? 'text-amber-800' : 'text-emerald-700'}">
+                                    الحالة: ${permit.status === 'hold' ? '⏸️ معلق بقرار الإدارة' : '🟢 تصريح ساري وصالح'}
+                                </span>
+                            </div>
+                            ${permit.status === 'hold' ? `
+                                <button type="button" onclick="Manager.togglePermitHold(${permit.id}, 'active')" class="w-full py-2.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                                    <span>▶️</span>
+                                    <span>إلغاء التعليق وإعادة تفعيل التصريح للبوابة</span>
+                                </button>
+                            ` : `
+                                <button type="button" onclick="Manager.togglePermitHold(${permit.id}, 'hold')" class="w-full py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                                    <span>⏸️</span>
+                                    <span>تعليق هذا التصريح وتجميد الصلاحية مؤقتاً (Hold)</span>
+                                </button>
+                            `}
+                        </div>
+
                         <div class="grid grid-cols-2 gap-2">
                             <button type="button" onclick="Manager.printPass()" class="py-2.5 sap-btn-secondary text-xs flex items-center justify-center gap-1.5 font-bold">
                                 ${icon('printer', 'w-4 h-4')}
@@ -1979,6 +2028,39 @@ class ManagerController {
         const qrBox = document.getElementById('qrcode-canvas-box');
         if (window.QREngine && qrBox && typeof qrBox.appendChild === 'function') {
             window.QREngine.render('qrcode-canvas-box', qrPayload, { size: 160 });
+        }
+    }
+
+    async togglePermitHold(permitId, desiredStatus) {
+        const lang = window.i18n.getLang();
+        const permits = window.DB.getPermits();
+        const permit = permits.find(p => p.id === permitId);
+        if (!permit) return;
+
+        let reason = '';
+        if (desiredStatus === 'hold') {
+            const promptMsg = lang === 'ar' ? 'يرجى كتابة سبب تعليق / تجميد التصريح (اختياري):' : 'Enter reason for suspending pass (optional):';
+            reason = prompt(promptMsg, 'مراجعة إدارية / تعليق مؤقت') || 'مراجعة إدارية';
+        }
+
+        try {
+            window.DB.setPermitStatus(permitId, desiredStatus, reason);
+            const msg = desiredStatus === 'hold' 
+                ? (lang === 'ar' ? '⏸️ تم تعليق التصريح وتجميد صلاحية الدخول عند البوابة بنجاح' : 'Permit put on hold')
+                : (lang === 'ar' ? '✅ تم إلغاء التعليق وإعادة تفعيل التصريح بنجاح' : 'Permit reactivated');
+            
+            if (window.App && typeof window.App.showToast === 'function') {
+                window.App.showToast(lang === 'ar' ? 'صلاحيات التصاريح' : 'Permit Authority', msg, desiredStatus === 'hold' ? 'warning' : 'success');
+            }
+            
+            // Re-render
+            this.renderDashboard();
+            const modal = document.getElementById('printable-pass-card');
+            if (modal) {
+                this.showPassModal(permitId);
+            }
+        } catch (err) {
+            alert(err.message);
         }
     }
 

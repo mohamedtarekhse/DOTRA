@@ -16,5 +16,8 @@
     "vehicle-authorization"
   ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0"
+  }
 }

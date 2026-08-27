@@ -17,7 +17,13 @@ class AppController {
 
         const currentUser = window.Auth.getCurrentUser();
         if (currentUser) {
-            this.currentView = currentUser.role === 'manager' ? 'manager' : 'officer';
+            if (currentUser.role === 'ceo') {
+                this.currentView = 'ceo';
+            } else if (currentUser.role === 'manager' || currentUser.role === 'admin') {
+                this.currentView = 'manager';
+            } else {
+                this.currentView = 'officer';
+            }
         } else if (window.DB.needsSetup()) {
             this.currentView = 'setup';
         } else {
@@ -35,7 +41,9 @@ class AppController {
         // 1. Instant Real-time synchronization across local tabs/windows (<1ms)
         window.addEventListener('storage', (e) => {
             if (e.key && e.key.startsWith('gate_')) {
-                if (this.currentView === 'manager' && window.Manager) {
+                if (this.currentView === 'ceo' && window.CEO) {
+                    window.CEO.renderDashboard();
+                } else if (this.currentView === 'manager' && window.Manager) {
                     window.Manager.renderDashboard();
                 } else if (this.currentView === 'officer' && window.Officer) {
                     window.Officer.renderTerminal();
@@ -60,7 +68,9 @@ class AppController {
                 if (typeof navigator !== 'undefined' && navigator.onLine && window.DB && typeof window.DB.syncFromCloud === 'function') {
                     const changed = await window.DB.syncFromCloud();
                     if (changed) {
-                        if (this.currentView === 'manager' && window.Manager) {
+                        if (this.currentView === 'ceo' && window.CEO) {
+                            window.CEO.renderDashboard();
+                        } else if (this.currentView === 'manager' && window.Manager) {
                             window.Manager.renderDashboard();
                         } else if (this.currentView === 'officer' && window.Officer) {
                             window.Officer.renderTerminal();
@@ -102,7 +112,9 @@ class AppController {
         }
 
         // Re-render current view with updated state
-        if (this.currentView === 'manager' && window.Manager) {
+        if (this.currentView === 'ceo' && window.CEO) {
+            window.CEO.renderDashboard();
+        } else if (this.currentView === 'manager' && window.Manager) {
             window.Manager.renderDashboard();
         } else if (this.currentView === 'officer' && window.Officer) {
             window.Officer.renderTerminal();
@@ -288,15 +300,33 @@ class AppController {
                                 </button>
                             </div>
 
+                            ${user && (user.role === 'manager' || user.role === 'admin' || user.role === 'ceo') ? `
+                                <!-- Portal Navigation Switcher (CEO / Manager / Gate) -->
+                                <div class="flex items-center bg-black/30 border border-white/20 p-0.5 rounded-xl text-xs font-bold shadow-inner">
+                                    <button type="button" onclick="App.switchView('ceo')" class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${this.currentView === 'ceo' ? 'bg-amber-400 text-slate-950 font-black shadow-sm' : 'text-blue-200 hover:text-white'}">
+                                        <span>🏛️</span>
+                                        <span>${lang === 'ar' ? 'الرقابة (CEO)' : 'CEO Audit'}</span>
+                                    </button>
+                                    <button type="button" onclick="App.switchView('manager')" class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${this.currentView === 'manager' ? 'bg-[#0070f2] text-white font-black shadow-sm' : 'text-blue-200 hover:text-white'}">
+                                        <span>📊</span>
+                                        <span>${lang === 'ar' ? 'العمليات' : 'Operations'}</span>
+                                    </button>
+                                    <button type="button" onclick="App.switchView('officer')" class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${this.currentView === 'officer' ? 'bg-[#107e3e] text-white font-black shadow-sm' : 'text-blue-200 hover:text-white'}">
+                                        <span>🛡️</span>
+                                        <span>${lang === 'ar' ? 'البوابة' : 'Gate'}</span>
+                                    </button>
+                                </div>
+                            ` : ''}
+
                             ${user ? `
                                 <!-- User Profile Badge -->
                                 <div class="flex items-center gap-2 bg-white/10 border border-white/20 py-1 px-2.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
                                     <span class="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center text-white text-xs">
-                                        ${icon(user.role === 'manager' ? 'building' : 'shield', 'w-3.5 h-3.5')}
+                                        ${icon(user.role === 'ceo' ? 'building' : (user.role === 'manager' ? 'building' : 'shield'), 'w-3.5 h-3.5')}
                                     </span>
                                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                                         <div class="font-bold text-white text-xs leading-none">${lang === 'ar' ? user.name_ar : user.name_en}</div>
-                                        <div class="text-[9px] text-blue-200 font-mono font-semibold mt-0.5">${user.role === 'manager' ? 'OPERATIONS MGR' : user.badge_id}</div>
+                                        <div class="text-[9px] text-blue-200 font-mono font-semibold mt-0.5">${user.role === 'ceo' ? 'CHIEF EXECUTIVE (CEO)' : (user.role === 'manager' ? 'OPERATIONS MGR' : user.badge_id)}</div>
                                     </div>
                                     <button type="button" onclick="window.Auth.logout()" title="${window.i18n.t('logout')}" class="p-1 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition-colors mr-1">
                                         ${icon('logout', 'w-3.5 h-3.5')}
@@ -328,16 +358,31 @@ class AppController {
                             <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md">
                                 <div class="flex items-center gap-2.5">
                                     <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-white">
-                                        ${icon(user.role === 'manager' ? 'building' : 'shield', 'w-4 h-4')}
+                                        ${icon(user.role === 'ceo' ? 'building' : (user.role === 'manager' ? 'building' : 'shield'), 'w-4 h-4')}
                                     </div>
                                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                                         <div class="font-bold text-white text-xs">${lang === 'ar' ? user.name_ar : user.name_en}</div>
-                                        <div class="text-[10px] text-blue-200 font-mono">${user.role === 'manager' ? 'MANAGER' : (user.badge_id + (user.gate_assigned ? ' • ' + user.gate_assigned : ''))}</div>
+                                        <div class="text-[10px] text-blue-200 font-mono">${user.role === 'ceo' ? 'CEO EXECUTIVE' : (user.role === 'manager' ? 'MANAGER' : (user.badge_id + (user.gate_assigned ? ' • ' + user.gate_assigned : '')))}</div>
                                     </div>
                                 </div>
                                 <button type="button" onclick="window.Auth.logout()" class="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all">
                                     ${icon('logout', 'w-3.5 h-3.5')}
                                     <span>${window.i18n.t('logout')}</span>
+                                </button>
+                            </div>
+                        ` : ''}
+
+                        ${user && (user.role === 'manager' || user.role === 'admin' || user.role === 'ceo') ? `
+                            <!-- Mobile Role View Switcher -->
+                            <div class="grid grid-cols-3 gap-1.5 bg-black/25 p-1 rounded-xl border border-white/15">
+                                <button type="button" onclick="App.switchView('ceo')" class="py-2 rounded-lg text-xs font-bold text-center ${this.currentView === 'ceo' ? 'bg-amber-400 text-slate-950 font-black' : 'text-white/80'}">
+                                    🏛️ CEO
+                                </button>
+                                <button type="button" onclick="App.switchView('manager')" class="py-2 rounded-lg text-xs font-bold text-center ${this.currentView === 'manager' ? 'bg-[#0070f2] text-white font-black' : 'text-white/80'}">
+                                    📊 مدير
+                                </button>
+                                <button type="button" onclick="App.switchView('officer')" class="py-2 rounded-lg text-xs font-bold text-center ${this.currentView === 'officer' ? 'bg-[#107e3e] text-white font-black' : 'text-white/80'}">
+                                    🛡️ بوابة
                                 </button>
                             </div>
                         ` : ''}
@@ -385,11 +430,18 @@ class AppController {
             this.renderSetupScreen();
         } else if (this.currentView === 'login') {
             this.renderLoginScreen();
+        } else if (this.currentView === 'ceo') {
+            if (window.CEO) window.CEO.renderDashboard();
         } else if (this.currentView === 'manager') {
-            window.Manager.renderDashboard();
+            if (window.Manager) window.Manager.renderDashboard();
         } else if (this.currentView === 'officer') {
-            window.Officer.renderTerminal();
+            if (window.Officer) window.Officer.renderTerminal();
         }
+    }
+
+    switchView(viewName) {
+        this.currentView = viewName;
+        this.renderApp();
     }
 
     renderLoginScreen() {

@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مجموعة دوترا | نظام تصاريح بوابات المركبات</title>
+    <title>مجموعة دوترا | بوابة الإدارة التنفيذية والرقابة العامة (CEO Portal)</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#002b66">
+    <meta name="theme-color" content="#001940">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="بوابات دوترا">
+    <meta name="apple-mobile-web-app-title" content="بوابة الإدارة دوترا">
     <link rel="apple-touch-icon" href="assets/logo.jpg">
 
     <!-- Tailwind CSS Enterprise JIT Engine -->
     <script>
-        // Suppress developer-only console notice for production PWA deployment
         const origWarn = console.warn;
         console.warn = function(...args) {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
@@ -31,7 +30,7 @@
                         sap: {
                             blue: '#0070f2',
                             'blue-hover': '#005cbd',
-                            header: '#002b66',
+                            header: '#001940',
                             bg: '#f5f8fc',
                             border: '#d7e2ee',
                             card: '#ffffff',
@@ -44,12 +43,12 @@
         }
     </script>
 
-    <!-- Google Fonts: Cairo & Tajawal for Arabic, Inter for Latin -->
+    <!-- Google Fonts: Cairo & Tajawal -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- QR Code Generator & Scanner (Self-Contained Engine) -->
+    <!-- QR Code Generator & Scanner -->
     <script src="js/qr-engine.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -63,7 +62,7 @@
 
     <!-- Main Dynamic Content Region -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6" id="main-content">
-        <!-- Content injected by App controller -->
+        <!-- Content injected by CEO controller -->
     </main>
 
     <!-- Modal Container for Passes, Permits & Forms -->
@@ -76,13 +75,13 @@
     <footer class="mt-auto border-t border-[#d7e2ee] bg-[#ffffff] py-3.5 px-4 text-center text-xs text-[#556b82]">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
             <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e]"></span>
-                <span class="font-semibold text-[#1d2d3e]">DOTRA Group Gate Access Control</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-[#001940]"></span>
+                <span class="font-black text-[#002b66]">DOTRA Executive Governance & Audit Center</span>
                 <span class="text-[#d7e2ee]">|</span>
-                <span>SAP Enterprise Fiori Edition (Offline Enabled)</span>
+                <span>بوابة المتابعة العليا والرقابة على تدفق الشاحنات</span>
             </div>
             <div class="font-mono text-[11px] text-[#556b82]">
-                <span id="pwa-status-badge">⚡ Offline Ready (PWA Cache)</span>
+                <span>🏛️ Executive Access Mode</span>
             </div>
         </div>
     </footer>
@@ -99,15 +98,17 @@
     <script src="js/push.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Service Worker Registration for 100% Offline Mode -->
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('🛡️ DOTRA Offline Service Worker Registered:', reg.scope))
-                    .catch(err => console.log('SW registration note:', err));
-            });
-        }
+        // Directly launch CEO view upon loading ceo.html
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (window.DB && typeof window.DB.syncFromCloud === 'function') {
+                await window.DB.syncFromCloud();
+            }
+            if (window.App) {
+                window.App.currentView = 'ceo';
+                window.App.renderApp();
+            }
+        });
     </script>
 </body>
 </html>

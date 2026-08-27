@@ -165,8 +165,8 @@ export default {
                             for (const p of body.permits) {
                                 try {
                                     await sql`
-                                        INSERT INTO gate_permits (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by)
-                                        VALUES (${p.id}, ${p.permit_code}, ${p.pin_code || ''}, ${p.vehicle_id}, ${p.permit_type || 'entry'}, ${p.destination_ar || ''}, ${p.destination_en || ''}, ${p.purpose_ar || ''}, ${p.purpose_en || ''}, ${p.cargo_details || ''}, ${p.invoice_no || ''}, ${p.valid_from || new Date().toISOString()}, ${p.valid_until || new Date(Date.now() + 8 * 3600000).toISOString()}, ${p.status || 'active'}, ${p.created_by || 1})
+                                        INSERT INTO gate_permits (id, permit_code, pin_code, vehicle_id, permit_type, destination_ar, destination_en, purpose_ar, purpose_en, cargo_details, invoice_no, valid_from, valid_until, status, created_by, created_by_name, approved_by, approved_by_name)
+                                        VALUES (${p.id}, ${p.permit_code}, ${p.pin_code || ''}, ${p.vehicle_id}, ${p.permit_type || 'entry'}, ${p.destination_ar || ''}, ${p.destination_en || ''}, ${p.purpose_ar || ''}, ${p.purpose_en || ''}, ${p.cargo_details || ''}, ${p.invoice_no || ''}, ${p.valid_from || new Date().toISOString()}, ${p.valid_until || new Date(Date.now() + 8 * 3600000).toISOString()}, ${p.status || 'active'}, ${p.created_by || 1}, ${p.created_by_name || ''}, ${p.approved_by || null}, ${p.approved_by_name || ''})
                                         ON CONFLICT (id) DO UPDATE SET
                                             permit_code = EXCLUDED.permit_code,
                                             pin_code = EXCLUDED.pin_code,
@@ -180,7 +180,10 @@ export default {
                                             invoice_no = EXCLUDED.invoice_no,
                                             valid_from = EXCLUDED.valid_from,
                                             valid_until = EXCLUDED.valid_until,
-                                            status = EXCLUDED.status
+                                            status = EXCLUDED.status,
+                                            created_by_name = EXCLUDED.created_by_name,
+                                            approved_by = EXCLUDED.approved_by,
+                                            approved_by_name = EXCLUDED.approved_by_name
                                     `;
                                 } catch (e) { console.error('[SYNC] permit upsert error:', e.message); }
                             }
@@ -191,10 +194,12 @@ export default {
                             for (const l of body.logs) {
                                 try {
                                     await sql`
-                                        INSERT INTO gate_logs (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, duration_minutes, remarks, photo_url, exit_photo_url)
-                                        VALUES (${l.id}, ${l.vehicle_id}, ${l.permit_id || null}, ${l.officer_id || null}, ${l.gate_name || ''}, ${l.action_type || 'entry'}, ${l.timestamp || new Date().toISOString()}, ${l.exit_timestamp || null}, ${l.duration_minutes || null}, ${l.remarks || ''}, ${l.photo_url || ''}, ${l.exit_photo_url || ''})
+                                        INSERT INTO gate_logs (id, vehicle_id, permit_id, officer_id, gate_name, action_type, timestamp, exit_timestamp, exit_gate_name, exit_officer_id, duration_minutes, remarks, photo_url, exit_photo_url)
+                                        VALUES (${l.id}, ${l.vehicle_id}, ${l.permit_id || null}, ${l.officer_id || null}, ${l.gate_name || ''}, ${l.action_type || 'entry'}, ${l.timestamp || new Date().toISOString()}, ${l.exit_timestamp || null}, ${l.exit_gate_name || ''}, ${l.exit_officer_id || null}, ${l.duration_minutes || null}, ${l.remarks || ''}, ${l.photo_url || ''}, ${l.exit_photo_url || ''})
                                         ON CONFLICT (id) DO UPDATE SET
                                             exit_timestamp = EXCLUDED.exit_timestamp,
+                                            exit_gate_name = EXCLUDED.exit_gate_name,
+                                            exit_officer_id = EXCLUDED.exit_officer_id,
                                             duration_minutes = EXCLUDED.duration_minutes,
                                             remarks = EXCLUDED.remarks,
                                             exit_photo_url = EXCLUDED.exit_photo_url

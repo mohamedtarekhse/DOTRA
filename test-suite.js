@@ -196,12 +196,25 @@ assert(initialDests.length >= 6, `Initial destinations loaded: ${initialDests.le
 window.DB.addDestination('مستودع التصدير الخارجي');
 assert(window.DB.getDestinations().includes('مستودع التصدير الخارجي'), 'Custom destination added dynamically');
 
+// Load all app modules
+const authCode = fs.readFileSync('js/auth.js', 'utf8');
+eval(authCode);
+const i18nCode = fs.readFileSync('js/i18n.js', 'utf8');
+eval(i18nCode);
+const mgrCode = fs.readFileSync('js/manager.js', 'utf8');
+eval(mgrCode);
+const offCode = fs.readFileSync('js/officer.js', 'utf8');
+eval(offCode);
+const pushCode = fs.readFileSync('js/push.js', 'utf8');
+eval(pushCode);
+
+
 // 9. Test Security Officers & Gate Assignment
 console.log("\n[8] Testing Security Officers & Gate Assignments:");
 const initialOfficers = window.DB.getOfficers();
 assert(initialOfficers.length >= 2, `Officers count loaded: ${initialOfficers.length} officers`);
 
-const newOfficer = window.DB.addOfficer({
+const newOfficer = await window.DB.addOfficer({
     name_ar: 'رقيب أول / ياسر جلال',
     name_en: 'Officer Yasser Galal',
     badge_id: 'GT-09',
@@ -216,16 +229,6 @@ assert(updatedOfficer.gate_assigned === 'بوابة 1 الرئيسية - دوت�
 
 // 10. Test Manager & Officer Lifecycle
 console.log("\n[9] Testing Full Permit Lifecycle & Officer Gate Scanner:");
-const authCode = fs.readFileSync('js/auth.js', 'utf8');
-eval(authCode);
-const i18nCode = fs.readFileSync('js/i18n.js', 'utf8');
-eval(i18nCode);
-const mgrCode = fs.readFileSync('js/manager.js', 'utf8');
-eval(mgrCode);
-const offCode = fs.readFileSync('js/officer.js', 'utf8');
-eval(offCode);
-const pushCode = fs.readFileSync('js/push.js', 'utf8');
-eval(pushCode);
 
 // Manager creates permit
 const freshTruck = window.DB.addVehicle({
@@ -364,26 +367,42 @@ assert(typeof window.DB.announce === 'function', 'DatabaseService.announce metho
 window.DB.announce('TEST_ANNOUNCEMENT', { plate: 'ط ر ق ٩ ٨ ٢ ١', gate: 'بوابة 1' });
 assert(true, 'Live event broadcast triggered across open tabs successfully');
 
-// 9. Test Backend Worker API Integrity
-console.log("\n[8] Testing Cloudflare Worker Backend Routes (_worker.js):");
+// 9. Test Backend Worker API Integrity (Neon Serverless Postgres)
+console.log("\n[8] Testing Cloudflare Worker Backend Routes with Neon Postgres (_worker.js):");
 const workerModule = await import('./_worker.js');
 const worker = workerModule.default;
 
-const mockD1Results = [];
-const mockD1 = {
-    prepare: (sql) => ({
-        bind: (...args) => ({
-            run: async () => ({ meta: { last_row_id: 101 } }),
-            all: async () => ({ results: mockD1Results })
-        }),
-        all: async () => ({ results: mockD1Results }),
-        run: async () => ({ meta: { last_row_id: 101 } })
-    })
+const mockNeonStore = {
+    vehicles: [{ id: 1, plate_ar: 'ط ر ق ٩ ٨ ٢ ١' }],
+    permits: [{ id: 1, permit_code: 'PER-2026-84920' }],
+    logs: [{ id: 1, vehicle_id: 1, action_type: 'entry' }],
+    gates: [{ name: 'بوابة 1 الرئيسية - دوترا' }],
+    destinations: [{ name: 'المستودع الرئيسي' }],
+    settings: [{ key: 'default_whatsapp', value: '01012345678' }],
+    users: [{ id: 1, badge_id: 'MGR-01', role: 'manager' }],
+    push_subscriptions: [{ role: 'manager', user_id: 1, endpoint: 'test-endpoint' }],
+    gate_notifications: []
 };
 
+const mockSql = async (strings, ...values) => {
+    const query = strings.join('?');
+    if (query.includes('FROM gate_vehicles')) return mockNeonStore.vehicles;
+    if (query.includes('FROM gate_permits')) return mockNeonStore.permits;
+    if (query.includes('FROM gate_logs')) return mockNeonStore.logs;
+    if (query.includes('FROM gate_gates')) return mockNeonStore.gates;
+    if (query.includes('FROM gate_destinations')) return mockNeonStore.destinations;
+    if (query.includes('FROM gate_settings')) return mockNeonStore.settings;
+    if (query.includes('FROM gate_users')) return mockNeonStore.users;
+    if (query.includes('FROM push_subscriptions')) return mockNeonStore.push_subscriptions;
+    if (query.includes('FROM gate_notifications')) return mockNeonStore.gate_notifications;
+    return [];
+};
+
+const mockNeonEnv = { sql: mockSql };
+
 const reqVehicles = new Request('https://dotra.pages.dev/api/vehicles', { method: 'GET' });
-const resVehicles = await worker.fetch(reqVehicles, { DB: mockD1 });
-assert(resVehicles.status === 200, 'Worker GET /api/vehicles responded with HTTP 200');
+const resVehicles = await worker.fetch(reqVehicles, mockNeonEnv);
+assert(resVehicles.status === 200, 'Worker GET /api/vehicles responded with HTTP 200 from Neon Postgres');
 
 const reqNewPermit = new Request('https://dotra.pages.dev/api/permits', {
     method: 'POST',
@@ -394,42 +413,42 @@ const reqNewPermit = new Request('https://dotra.pages.dev/api/permits', {
         cargo_details: 'شحنة خامات'
     })
 });
-const resNewPermit = await worker.fetch(reqNewPermit, { DB: mockD1 });
+const resNewPermit = await worker.fetch(reqNewPermit, mockNeonEnv);
 const resNewPermitJson = await resNewPermit.json();
-assert(resNewPermit.status === 200 && resNewPermitJson.success === true, 'Worker POST /api/permits created permit successfully');
+assert(resNewPermit.status === 200 && resNewPermitJson.success === true, 'Worker POST /api/permits created permit successfully in Neon Postgres');
 
 const reqEntry = new Request('https://dotra.pages.dev/api/entry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ vehicle_id: 1, permit_id: 101, officer_id: 2, gate_name: 'Gate 1' })
 });
-const resEntry = await worker.fetch(reqEntry, { DB: mockD1 });
+const resEntry = await worker.fetch(reqEntry, mockNeonEnv);
 const resEntryJson = await resEntry.json();
-assert(resEntry.status === 200 && resEntryJson.success === true, 'Worker POST /api/entry recorded entry successfully');
+assert(resEntry.status === 200 && resEntryJson.success === true, 'Worker POST /api/entry recorded entry successfully in Neon Postgres');
 
 const reqExit = new Request('https://dotra.pages.dev/api/exit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ vehicle_id: 1 })
 });
-const resExit = await worker.fetch(reqExit, { DB: mockD1 });
+const resExit = await worker.fetch(reqExit, mockNeonEnv);
 const resExitJson = await resExit.json();
-assert(resExit.status === 200 && resExitJson.success === true, 'Worker POST /api/exit recorded exit successfully');
+assert(resExit.status === 200 && resExitJson.success === true, 'Worker POST /api/exit recorded exit successfully in Neon Postgres');
 
 // Test Worker Cloud Sync Endpoints
 const reqGetSync = new Request('https://dotra.pages.dev/api/sync', { method: 'GET' });
-const resGetSync = await worker.fetch(reqGetSync, { DB: mockD1 });
+const resGetSync = await worker.fetch(reqGetSync, mockNeonEnv);
 const resGetSyncJson = await resGetSync.json();
-assert(resGetSync.status === 200 && Array.isArray(resGetSyncJson.vehicles), 'Worker GET /api/sync returned valid cloud dataset');
+assert(resGetSync.status === 200 && Array.isArray(resGetSyncJson.vehicles), 'Worker GET /api/sync returned valid Neon Postgres dataset');
 
 const reqPostSync = new Request('https://dotra.pages.dev/api/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ vehicles: [], permits: [], logs: [] })
 });
-const resPostSync = await worker.fetch(reqPostSync, { DB: mockD1 });
+const resPostSync = await worker.fetch(reqPostSync, mockNeonEnv);
 const resPostSyncJson = await resPostSync.json();
-assert(resPostSync.status === 200 && resPostSyncJson.success === true, 'Worker POST /api/sync accepted cloud dataset synchronization');
+assert(resPostSync.status === 200 && resPostSyncJson.success === true, 'Worker POST /api/sync accepted cloud dataset synchronization in Neon Postgres');
 
 assert(typeof window.DB.pushToCloud === 'function', 'DatabaseService.pushToCloud is defined and ready');
 
@@ -442,7 +461,7 @@ const id2 = window.DB.generateId();
 assert(typeof id1 === 'number' && id1 > 0, 'generateId() produces a valid numeric ID');
 assert(id1 !== id2, 'generateId() produces unique IDs on successive calls (no Date.now() collisions)');
 
-// RC-2 + RC-1: Worker POST /api/sync now writes to D1
+// RC-2 + RC-1: Worker POST /api/sync writes to Neon Postgres
 const reqPostSyncFull = new Request('https://dotra.pages.dev/api/sync', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -452,34 +471,33 @@ const reqPostSyncFull = new Request('https://dotra.pages.dev/api/sync', {
         logs: [{ id: 99993, vehicle_id: 99991, permit_id: 99992, officer_id: 2, gate_name: 'بوابة الاختبار', action_type: 'entry', timestamp: new Date().toISOString() }]
     })
 });
-const resPostSyncFull = await worker.fetch(reqPostSyncFull, { DB: mockD1 });
+const resPostSyncFull = await worker.fetch(reqPostSyncFull, mockNeonEnv);
 const resPostSyncFullJson = await resPostSyncFull.json();
-assert(resPostSyncFull.status === 200 && resPostSyncFullJson.success === true, 'RC-2 FIXED: POST /api/sync with full dataset succeeds and writes to D1');
+assert(resPostSyncFull.status === 200 && resPostSyncFullJson.success === true, 'RC-2 FIXED: POST /api/sync with full dataset succeeds and writes to Neon Postgres');
 assert(resPostSyncFullJson.counts && resPostSyncFullJson.counts.vehicles >= 1, 'RC-1 FIXED: Worker returns counts proving data was merged into persistent state');
 
-// RC-3: Verify syncFromCloud always returns true on valid response
+// RC-3: Verify syncFromCloud returns true only when new events/changes occur
 const syncCodePath = window.DB.syncFromCloud.toString();
-assert(syncCodePath.includes('return true'), 'RC-3 FIXED: syncFromCloud unconditionally returns true on valid cloud response (forces UI re-render)');
+assert(syncCodePath.includes('return changed'), 'RC-3: syncFromCloud returns changed boolean flag to refresh UI only when new events/data occur');
+
 
 // RC-5: Merge deduplicates by plate_ar not just ID
 const vBefore = window.DB.getVehicles().length;
 assert(typeof vBefore === 'number', 'RC-5: Local merge deduplication working correctly');
 
-// NEW: Test DELETE /api/clear wipes D1 and CLOUD_STATE
+// Test DELETE /api/clear wipes Neon Postgres
 const reqClear = new Request('https://dotra.pages.dev/api/clear', { method: 'DELETE' });
-const resClear = await worker.fetch(reqClear, { DB: mockD1 });
+const resClear = await worker.fetch(reqClear, mockNeonEnv);
 const resClearJson = await resClear.json();
-assert(resClear.status === 200 && resClearJson.success === true, 'NEW: DELETE /api/clear wipes D1 and resets CLOUD_STATE to empty arrays');
+assert(resClear.status === 200 && resClearJson.success === true, 'NEW: DELETE /api/clear wipes Neon Postgres tables and preserves push subscriptions');
 
-// NEW: clearPermitsOnly exists in DB layer
+// clearPermitsOnly exists in DB layer
 assert(typeof window.DB.clearPermitsOnly === 'function', 'NEW: DatabaseService.clearPermitsOnly is defined and wired to cloud');
 
-// NEW: clearLogsOnly exists in DB layer
+// clearLogsOnly exists in DB layer
 assert(typeof window.DB.clearLogsOnly === 'function', 'NEW: DatabaseService.clearLogsOnly is defined and wired to cloud');
 
-// NEW: syncFromCloud handles cloud-is-empty scenario (after clear)
-// After /api/clear, CLOUD_STATE is empty. Add a permit locally, then sync
-// should wipe it because cloud is authoritative with empty state
+// syncFromCloud handles cloud-is-empty scenario (after clear)
 window.DB.addPermit({ vehicle_id: 1, destination_ar: 'test', destination_en: 'test', purpose_ar: 'p', purpose_en: 'p', valid_from: new Date().toISOString(), valid_until: new Date().toISOString() });
 const localPermitsBefore = window.DB.getPermits().length;
 assert(localPermitsBefore > 0, 'NEW: Local permit added for clear-propagation test');
@@ -496,9 +514,9 @@ assert(swSource.includes("addEventListener('push'"), 'sw.js contains push event 
 assert(swSource.includes("addEventListener('notificationclick'"), 'sw.js contains notificationclick handler to focus app on tap');
 assert(swSource.includes("'./js/push.js'"), 'sw.js caches js/push.js in offline asset bundle');
 
-// Test Schema.sql for push_subscriptions table
+// Test Schema.sql for push_subscriptions table in Postgres
 const schemaSource = fs.readFileSync('schema.sql', 'utf8');
-assert(schemaSource.includes('CREATE TABLE IF NOT EXISTS push_subscriptions'), 'schema.sql includes push_subscriptions table');
+assert(schemaSource.includes('push_subscriptions'), 'schema.sql includes push_subscriptions table');
 assert(schemaSource.includes('idx_push_role'), 'schema.sql includes index for push_subscriptions role filtering');
 
 // Test Worker POST /api/push/subscribe
@@ -513,9 +531,9 @@ const reqPushSub = new Request('https://dotra.pages.dev/api/push/subscribe', {
         user_id: 1
     })
 });
-const resPushSub = await worker.fetch(reqPushSub, { DB: mockD1 });
+const resPushSub = await worker.fetch(reqPushSub, mockNeonEnv);
 const resPushSubJson = await resPushSub.json();
-assert(resPushSub.status === 200 && resPushSubJson.success === true, 'Worker POST /api/push/subscribe successfully registered push subscriber');
+assert(resPushSub.status === 200 && resPushSubJson.success === true, 'Worker POST /api/push/subscribe successfully registered push subscriber in Neon Postgres');
 
 // Test Worker POST /api/push/send
 const reqPushSend = new Request('https://dotra.pages.dev/api/push/send', {
@@ -527,9 +545,9 @@ const reqPushSend = new Request('https://dotra.pages.dev/api/push/send', {
         body: 'شاحنة ط ر ق ٩ ٨ ٢ ١ دخلت المصنع'
     })
 });
-const resPushSend = await worker.fetch(reqPushSend, { DB: mockD1 });
+const resPushSend = await worker.fetch(reqPushSend, mockNeonEnv);
 const resPushSendJson = await resPushSend.json();
-assert(resPushSend.status === 200 && resPushSendJson.success === true && resPushSendJson.broadcasted === true, 'Worker POST /api/push/send successfully dispatched push alert');
+assert(resPushSend.status === 200 && resPushSendJson.success === true && resPushSendJson.broadcasted === true, 'Worker POST /api/push/send successfully dispatched push alert in Neon Postgres');
 
 // Test Worker POST /api/push/unsubscribe
 const reqPushUnsub = new Request('https://dotra.pages.dev/api/push/unsubscribe', {
@@ -539,13 +557,14 @@ const reqPushUnsub = new Request('https://dotra.pages.dev/api/push/unsubscribe',
         endpoint: 'https://fcm.googleapis.com/fcm/send/test-manager-token-999'
     })
 });
-const resPushUnsub = await worker.fetch(reqPushUnsub, { DB: mockD1 });
+const resPushUnsub = await worker.fetch(reqPushUnsub, mockNeonEnv);
 const resPushUnsubJson = await resPushUnsub.json();
-assert(resPushUnsub.status === 200 && resPushUnsubJson.success === true, 'Worker POST /api/push/unsubscribe successfully removed subscriber');
+assert(resPushUnsub.status === 200 && resPushUnsubJson.success === true, 'Worker POST /api/push/unsubscribe successfully removed subscriber in Neon Postgres');
 
 // Manager UI contains Push Toggle and Handlers
 assert(typeof window.Manager.handleTogglePush === 'function', 'Manager.handleTogglePush is defined');
 assert(typeof window.Manager.handleTestPush === 'function', 'Manager.handleTestPush is defined');
+
 
 // Summary
 

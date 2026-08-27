@@ -351,6 +351,33 @@ class OfficerController {
                     </button>
                 </div>
             `;
+        } else if (permit && permit.status === 'hold') {
+            decisionBadge = `
+                <div class="p-4 bg-[#fff1e5] text-amber-900 rounded-2xl border-2 border-amber-400 mb-3 text-center shadow-sm">
+                    <div class="text-sm font-black flex items-center justify-center gap-1.5 text-amber-800">
+                        <span>⏸️</span>
+                        <span>⛔ تصريح معلق ومجمد بقرار الإدارة (ON HOLD)</span>
+                    </div>
+                    <div class="text-xs text-amber-900 font-bold mt-1">
+                        كود التصريح: <b class="font-mono text-[#002b66]">${permit.permit_code}</b>
+                    </div>
+                    <p class="text-xs text-amber-800 mt-1 font-semibold">
+                        ${permit.hold_reason ? `سبب الإيقاف المؤقت: ${permit.hold_reason}` : 'تم سحب وتجميد الصلاحية مؤقتاً من قبل مدير العمليات. غير مصرح بالدخول.'}
+                    </p>
+                </div>
+            `;
+            actionButtons = `
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="Officer.promptDenial('تصريح معلق من الإدارة')" class="py-3.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-md active:scale-95">
+                        ${icon('ban', 'w-4 h-4')}
+                        <span>منع الدخول وتوثيق مخالفة</span>
+                    </button>
+                    <button type="button" onclick="Officer.handlePlateSearch('${OfficerController.escHtml(this.activeSearchQuery)}')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95">
+                        ${icon('refresh', 'w-4 h-4')}
+                        <span>إعادة الفحص والتحقق</span>
+                    </button>
+                </div>
+            `;
         } else if (permit && permit.status === 'active') {
             const isExit = permit.permit_type === 'exit';
             const isBoth = permit.permit_type === 'both';
