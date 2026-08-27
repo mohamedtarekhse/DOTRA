@@ -1,4 +1,4 @@
-﻿// Web Push Notification Client Service (DOTRA Gate System)
+// Web Push Notification Client Service (DOTRA Gate System)
 // إدارة إشعارات الويب السحابية - دعم كامل لتنبيهات الدخول والخروج والتصاريح
 
 class PushManagerService {
@@ -128,31 +128,40 @@ class PushManagerService {
         return false;
     }
 
-    startPolling(intervalMs = 5000) {
+    startPolling(intervalMs = 3000) {
         if (this._pollTimer) clearInterval(this._pollTimer);
         this._pollTimer = setInterval(async () => {
-            if (!window.DB || !window.Auth) return;
-            const user = window.Auth.getCurrentUser();
-            if (!user) return;
+            if (!window.DB) return;
             const notifs = await window.DB.getNotifications();
             const badge = document.getElementById('notif-badge');
-            if (notifs.length > 0) {
+            const mobileDot = document.getElementById('mobile-notif-dot');
+            if (notifs && notifs.length > 0) {
                 if (badge) { badge.textContent = notifs.length; badge.classList.remove('hidden'); }
+                if (mobileDot) { mobileDot.classList.remove('hidden'); }
                 for (const n of notifs) {
+                    // 1. Native Service Worker / OS Notification
                     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                        const reg = await navigator.serviceWorker.ready;
-                        if (reg && reg.showNotification) {
-                            await reg.showNotification(n.title, {
-                                body: n.body,
-                                icon: 'assets/logo.jpg',
-                                badge: 'assets/logo.jpg',
-                                dir: 'rtl',
-                                lang: 'ar',
-                                tag: `notif-${n.id}`,
-                                vibrate: [200, 100, 200]
-                            });
-                        }
+                        try {
+                            const reg = await navigator.serviceWorker.ready;
+                            if (reg && reg.showNotification) {
+                                await reg.showNotification(n.title, {
+                                    body: n.body,
+                                    icon: 'assets/logo.jpg',
+                                    badge: 'assets/logo.jpg',
+                                    dir: 'rtl',
+                                    lang: 'ar',
+                                    tag: `notif-${n.id}`,
+                                    vibrate: [200, 100, 200]
+                                });
+                            }
+                        } catch (e) {}
                     }
+                    // 2. In-App Toast & Audio Chime
+                    if (window.App && typeof window.App.showToast === 'function') {
+                        const type = n.type === 'entry' ? 'success' : (n.type === 'exit' ? 'warning' : (n.type === 'denied' ? 'error' : 'info'));
+                        window.App.showToast(n.title, n.body, type, n.type === 'entry' ? 'check' : (n.type === 'exit' ? 'logout' : 'bell'));
+                    }
+                    // 3. Mark as read in Neon database
                     await window.DB.markNotificationRead(n.id);
                 }
             } else {

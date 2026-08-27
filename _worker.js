@@ -532,11 +532,19 @@ export default {
                             : (data.type === 'exit' ? `خروج عبر ${data.gate_name || 'البوابة'}` : data.message || ''));
 
                         try {
+                            // 1. Insert a broadcast notification for all connected clients
+                            await sql`
+                                INSERT INTO gate_notifications (user_id, type, title, body, vehicle_id, vehicle_plate, gate_name)
+                                VALUES (${data.user_id || null}, ${data.type || 'alert'}, ${title}, ${body}, ${data.vehicle_id || null}, ${data.vehicle_plate || ''}, ${data.gate_name || ''})
+                            `;
+
+                            // 2. Insert for each specific subscribed user
                             const roles = data.roles || [data.role || 'manager'];
                             for (const role of roles) {
                                 const subs = await sql`SELECT user_id FROM push_subscriptions WHERE role = ${role}`;
                                 const userIds = [...new Set((subs || []).map(s => s.user_id).filter(Boolean))];
                                 for (const uid of userIds) {
+                                    if (data.user_id && uid === data.user_id) continue;
                                     await sql`
                                         INSERT INTO gate_notifications (user_id, type, title, body, vehicle_id, vehicle_plate, gate_name)
                                         VALUES (${uid}, ${data.type || 'alert'}, ${title}, ${body}, ${data.vehicle_id || null}, ${data.vehicle_plate || ''}, ${data.gate_name || ''})
@@ -550,15 +558,24 @@ export default {
 
                 if (url.pathname === '/api/notifications' && request.method === 'GET') {
                     const userId = url.searchParams.get('user_id');
-                    if (sql && userId) {
+                    if (sql) {
                         try {
-                            const notifs = await sql`
-                                SELECT * FROM gate_notifications
-                                WHERE user_id = ${parseInt(userId)} AND is_read = 0
-                                ORDER BY created_at DESC LIMIT 50
-                            `;
+                            let notifs = [];
+                            if (userId && !isNaN(parseInt(userId))) {
+                                notifs = await sql`
+                                    SELECT * FROM gate_notifications
+                                    WHERE (user_id = ${parseInt(userId)} OR user_id IS NULL) AND is_read = 0
+                                    ORDER BY created_at DESC LIMIT 50
+                                `;
+                            } else {
+                                notifs = await sql`
+                                    SELECT * FROM gate_notifications
+                                    WHERE is_read = 0
+                                    ORDER BY created_at DESC LIMIT 50
+                                `;
+                            }
                             return new Response(JSON.stringify({ notifications: notifs || [] }), { headers });
-                        } catch (e) {}
+                        } catch (e) { console.error('[NOTIFICATIONS GET] error:', e.message); }
                     }
                     return new Response(JSON.stringify({ notifications: [] }), { headers });
                 }
@@ -570,7 +587,9 @@ export default {
                             if (data.id) {
                                 await sql`UPDATE gate_notifications SET is_read = 1 WHERE id = ${data.id}`;
                             } else if (data.user_id) {
-                                await sql`UPDATE gate_notifications SET is_read = 1 WHERE user_id = ${data.user_id}`;
+                                await sql`UPDATE gate_notifications SET is_read = 1 WHERE user_id = ${data.user_id} OR user_id IS NULL`;
+                            } else {
+                                await sql`UPDATE gate_notifications SET is_read = 1`;
                             }
                         } catch (e) {}
                     }

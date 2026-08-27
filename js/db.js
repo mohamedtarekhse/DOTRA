@@ -323,10 +323,12 @@ class DatabaseService {
             const localLogs = this.getLogs();
             if (cloudLogs.length > 0 || localLogs.length > 0) {
                 const merged = [...localLogs];
+                const newIncomingLogs = [];
                 cloudLogs.forEach(cl => {
                     const idx = merged.findIndex(ll => ll.id === cl.id);
                     if (idx === -1) {
                         merged.push(cl);
+                        newIncomingLogs.push(cl);
                         changed = true;
                     } else {
                         const cur = merged[idx];
@@ -338,7 +340,29 @@ class DatabaseService {
                 });
                 if (localLogs.length !== merged.length) changed = true;
                 if (changed) localStorage.setItem('gate_logs', JSON.stringify(merged));
+
+                // Cross-device live announcement for remote entries/exits
+                if (newIncomingLogs.length > 0 && localLogs.length > 0) {
+                    newIncomingLogs.forEach(newLog => {
+                        const vehicle = this.getVehicles().find(v => v.id === newLog.vehicle_id);
+                        const plate = vehicle ? vehicle.plate_ar : `مركبة #${newLog.vehicle_id}`;
+                        if (newLog.action_type === 'entry') {
+                            this.announce('VEHICLE_ENTRY', {
+                                plate,
+                                gate: newLog.gate_name || 'البوابة',
+                                officer: 'حارس البوابة'
+                            });
+                        } else if (newLog.action_type === 'exit') {
+                            this.announce('VEHICLE_EXIT', {
+                                plate,
+                                gate: newLog.gate_name || 'البوابة',
+                                duration: newLog.duration_minutes || 0
+                            });
+                        }
+                    });
+                }
             }
+
 
             // --- Gates ---
             if (Array.isArray(data.gates)) {
@@ -863,9 +887,9 @@ class DatabaseService {
 
     async getNotifications() {
         const user = window.Auth ? window.Auth.getCurrentUser() : null;
-        if (!user) return [];
         try {
-            const res = await fetch(`/api/notifications?user_id=${user.id}`);
+            const url = user ? `/api/notifications?user_id=${user.id}` : '/api/notifications';
+            const res = await fetch(url);
             if (!res || !res.ok) return [];
             const data = await res.json();
             return data.notifications || [];

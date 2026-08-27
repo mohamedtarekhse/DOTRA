@@ -24,9 +24,10 @@ class AppController {
             this.currentView = 'login';
         }
 
-        if (this.currentView !== 'login' && this.currentView !== 'setup' && window.PushService) {
-            window.PushService.startPolling(5000);
+        if (window.PushService) {
+            window.PushService.startPolling(3000);
         }
+
 
         window.addEventListener('online', () => this.updateNetworkBadge());
         window.addEventListener('offline', () => this.updateNetworkBadge());
