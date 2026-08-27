@@ -2,3 +2,8 @@
 name = "dotra"
 compatibility_date = "2024-09-23"
 pages_build_output_dir = "."
+
+[vars]
+VAPID_PUBLIC_KEY = "BKwgzVplNP0DtEzEBV2MnQTtWIGLO8Cr7jdyAENM-b4zo2jodoLDY4d78M5LExz8UBYZU4DJKRcdTrSLGiAAsZ4"
+VAPID_PRIVATE_KEY = "J_Nn5_t6r9T2xQ9sLkF1mV8jP0aBcDeFgHiJkLmNoPq"
+VAPID_SUBJECT = "mailto:mohamedtarekhse@gmail.com"
