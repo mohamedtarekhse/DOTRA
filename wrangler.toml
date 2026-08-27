@@ -10,5 +10,5 @@ binding = "ASSETS"
 
 # Neon Serverless Postgres Configuration:
 # Set secret via: npx wrangler secret put DATABASE_URL
-# Or for local development in .dev.vars: DATABASE_URL="postgresql://user:pass@ep-xyz.us-east-2.aws.neon.tech/neondb?sslmode=require"
+# Or for local development in .dev.vars: DATABASE_URL="postgresql://neondb_owner:npg_6wMLOJZr1jKG@ep-hidden-voice-b10afhgj-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
