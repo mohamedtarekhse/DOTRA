@@ -676,11 +676,30 @@ class DatabaseService {
         return updated;
     }
 
+    parseTimestamp(ts) {
+        if (!ts) return new Date();
+        if (ts instanceof Date) return ts;
+        if (typeof ts === 'number') return new Date(ts);
+        let str = String(ts).trim();
+        // If string has date & time without timezone or with space instead of T, normalize to UTC ISO format
+        if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(str)) {
+            str = str.replace(' ', 'T') + (str.endsWith('Z') ? '' : 'Z');
+        }
+        const d = new Date(str);
+        return isNaN(d.getTime()) ? new Date(ts) : d;
+    }
+
     isVehicleInside(vehicleId) {
         const logs = this.getLogs();
         const vehicleLogs = logs.filter(l => l.vehicle_id === vehicleId);
         if (vehicleLogs.length === 0) return null;
-        const lastLog = vehicleLogs[vehicleLogs.length - 1];
+        // Sort newest first by timestamp and ID
+        vehicleLogs.sort((a, b) => {
+            const timeA = this.parseTimestamp(a.timestamp).getTime();
+            const timeB = this.parseTimestamp(b.timestamp).getTime();
+            return timeB - timeA || (b.id || 0) - (a.id || 0);
+        });
+        const lastLog = vehicleLogs[0];
         if (lastLog.action_type === 'entry' && !lastLog.exit_timestamp) {
             return lastLog;
         }
@@ -787,8 +806,8 @@ class DatabaseService {
             const actualIndex = logs.length - 1 - activeEntryIndex;
             const entryLog = logs[actualIndex];
             const exitTime = new Date();
-            const entryTime = new Date(entryLog.timestamp);
-            const durationMin = Math.round((exitTime - entryTime) / 60000);
+            const entryTime = this.parseTimestamp(entryLog.timestamp);
+            const durationMin = Math.max(0, Math.round((exitTime.getTime() - entryTime.getTime()) / 60000));
 
             entryLog.exit_timestamp = exitTime.toISOString();
             entryLog.duration_minutes = durationMin;

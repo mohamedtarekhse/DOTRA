@@ -318,8 +318,9 @@ class OfficerController {
                 </button>
             `;
         } else if (insideLog) {
-            const entryTime = new Date(insideLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const durationMinutes = Math.max(1, Math.round((new Date() - new Date(insideLog.timestamp)) / 60000));
+            const entryDate = window.DB ? window.DB.parseTimestamp(insideLog.timestamp) : new Date(insideLog.timestamp);
+            const entryTime = entryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const durationMinutes = Math.max(0, Math.round((Date.now() - entryDate.getTime()) / 60000));
             const entryGate = insideLog.gate_name || 'البوابة الرئيسية';
 
             decisionBadge = `
@@ -329,7 +330,7 @@ class OfficerController {
                         <span>🟢 المركبة داخل المنشأة حالياً (إجراء تلقائي: خروج)</span>
                     </div>
                     <div class="text-xs text-[#556b82] font-semibold mt-1">
-                        دخلت عبر: <b class="text-[#002b66]">${entryGate}</b> الساعة <b class="font-mono text-[#0070f2]">${entryTime}</b> (المدة: ${durationMinutes} دقيقة)
+                        دخلت عبر: <b class="text-[#002b66]">${entryGate}</b> الساعة <b class="font-mono text-[#0070f2]">${entryTime}</b> (${durationMinutes === 0 ? 'الآن' : `المدة: ${durationMinutes} دقيقة`})
                     </div>
                     ${permit && permit.pin_code ? `
                         <div class="mt-1.5 inline-block bg-white px-3 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-xs text-[#002b66]">

@@ -89,10 +89,33 @@ export default {
                             const settings = {};
                             (settingsRows || []).forEach(r => { settings[r.key] = r.value; });
 
+                            const normalizeDate = (val) => {
+                                if (!val) return null;
+                                if (val instanceof Date) return val.toISOString();
+                                const str = String(val).trim();
+                                if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(str)) {
+                                    return str.replace(' ', 'T') + (str.endsWith('Z') ? '' : 'Z');
+                                }
+                                const d = new Date(str);
+                                return isNaN(d.getTime()) ? str : d.toISOString();
+                            };
+
+                            const normalizedLogs = (logs || []).map(l => ({
+                                ...l,
+                                timestamp: normalizeDate(l.timestamp) || new Date().toISOString(),
+                                exit_timestamp: normalizeDate(l.exit_timestamp)
+                            }));
+
+                            const normalizedPermits = (permits || []).map(p => ({
+                                ...p,
+                                valid_from: normalizeDate(p.valid_from) || new Date().toISOString(),
+                                valid_until: normalizeDate(p.valid_until) || new Date(Date.now() + 8 * 3600000).toISOString()
+                            }));
+
                             return new Response(JSON.stringify({
                                 vehicles: vehicles || [],
-                                permits: permits || [],
-                                logs: logs || [],
+                                permits: normalizedPermits,
+                                logs: normalizedLogs,
                                 gates: (gates || []).map(g => g.name),
                                 destinations: (destinations || []).map(d => d.name),
                                 settings,

@@ -96,7 +96,8 @@ class ManagerController {
         const exitedToday = exitedLogs.filter(l => new Date(l.exit_timestamp || l.timestamp) >= todayStart).length;
 
         const overstayLogs = insideLogs.filter(l => {
-            const durationHrs = (Date.now() - new Date(l.timestamp).getTime()) / 3600000;
+            const entryTime = window.DB.parseTimestamp(l.timestamp);
+            const durationHrs = (Date.now() - entryTime.getTime()) / 3600000;
             return durationHrs >= (settings.overstay_hours_threshold || 3);
         });
 
@@ -510,15 +511,17 @@ class ManagerController {
             if (vehicle.status === 'blacklist') {
                 statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs badge-blacklisted flex items-center gap-1 font-bold">${icon('ban', 'w-3 h-3 text-red-300')} <span>${window.i18n.t('statusBanned')}</span></span>`;
             } else if (insideLog) {
-                const entryTime = new Date(insideLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const diffMinutes = Math.round((Date.now() - new Date(insideLog.timestamp).getTime()) / 60000);
+                const entryTime = window.DB.parseTimestamp(insideLog.timestamp);
+                const entryTimeStr = entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const diffMinutes = Math.max(0, Math.round((Date.now() - entryTime.getTime()) / 60000));
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-inside flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-[#107e3e] animate-pulse"></span> <span>${window.i18n.t('statusInside')}</span></span>`;
-                timeInfoHtml = `<div class="text-xs text-[#107e3e] font-bold">📥 دخلت: ${entryTime} (${diffMinutes} دقيقة)</div>`;
+                timeInfoHtml = `<div class="text-xs text-[#107e3e] font-bold">📥 دخلت: ${entryTimeStr} (${diffMinutes} دقيقة)</div>`;
             } else {
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-exited flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : 'Exited'}</span></span>`;
                 const exitLog = vehicleLogs.slice().reverse().find(l => l.action_type === 'exit' || l.exit_timestamp);
                 if (exitLog) {
-                    const exitTimeStr = new Date(exitLog.exit_timestamp || exitLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const exitTime = window.DB.parseTimestamp(exitLog.exit_timestamp || exitLog.timestamp);
+                    const exitTimeStr = exitTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     timeInfoHtml = `<div class="text-xs text-[#0070f2] font-bold">📤 خرجت: ${exitTimeStr} (المدة: ${exitLog.duration_minutes || 0} د)</div>`;
                 }
             }
@@ -707,7 +710,8 @@ class ManagerController {
             if (this.activeFilter === 'exited' && !hasExitedLog) return false;
             if (this.activeFilter === 'overstay') {
                 if (!insideLog) return false;
-                const hrs = (Date.now() - new Date(insideLog.timestamp).getTime()) / 3600000;
+                const entryTime = window.DB.parseTimestamp(insideLog.timestamp);
+                const hrs = (Date.now() - entryTime.getTime()) / 3600000;
                 if (hrs < (settings.overstay_hours_threshold || 3)) return false;
             }
 
@@ -781,9 +785,9 @@ class ManagerController {
             if (vehicle.status === 'blacklist') {
                 statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-blacklisted flex items-center gap-1 w-fit">${icon('ban', 'w-3 h-3 text-red-300')} <span>${window.i18n.t('statusBanned')}</span></span>`;
             } else if (insideLog) {
-                const entryTime = new Date(insideLog.timestamp);
+                const entryTime = window.DB.parseTimestamp(insideLog.timestamp);
                 entryTimeText = entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const diffMinutes = Math.round((Date.now() - entryTime.getTime()) / 60000);
+                const diffMinutes = Math.max(0, Math.round((Date.now() - entryTime.getTime()) / 60000));
                 const diffHours = (diffMinutes / 60).toFixed(1);
                 
                 if (diffMinutes >= ((settings.overstay_hours_threshold || 3) * 60)) {
@@ -808,7 +812,8 @@ class ManagerController {
             let timeCellHtml = '';
 
             if (insideLog) {
-                const entryDateStr = new Date(insideLog.timestamp).toLocaleDateString();
+                const entryDate = window.DB.parseTimestamp(insideLog.timestamp);
+                const entryDateStr = entryDate.toLocaleDateString();
                 timeCellHtml = `
                     <div class="font-bold text-[#107e3e] flex items-center gap-1">
                         <span>📥 دخول:</span>
@@ -820,7 +825,7 @@ class ManagerController {
                     </div>
                 `;
             } else if (exitLog) {
-                const exitTimeDate = new Date(exitLog.exit_timestamp || exitLog.timestamp);
+                const exitTimeDate = window.DB.parseTimestamp(exitLog.exit_timestamp || exitLog.timestamp);
                 const exitDateStr = exitTimeDate.toLocaleDateString();
                 const exitTimeStr = exitTimeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const durMin = exitLog.duration_minutes !== null && exitLog.duration_minutes !== undefined ? exitLog.duration_minutes : 0;
@@ -916,140 +921,162 @@ class ManagerController {
                     </button>
 
                     <!-- Header -->
-                    <div class="flex items-center gap-3 mb-4 border-b border-[#d7e2ee] pb-3">
-                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
-                            ${icon('settings', 'w-6 h-6')}
+                    <div class="flex items-center gap-3 pb-4 border-b border-[#d7e2ee]">
+                        <div class="w-11 h-11 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
+                            ${icon('settings', 'w-5 h-5')}
                         </div>
                         <div>
-                            <h3 class="text-lg font-black text-[#002b66]">${lang === 'ar' ? 'إعدادات النظام وإدارة البوابات والوجهات' : 'System, Gates & Destinations Settings'}</h3>
-                            <p class="text-xs text-[#556b82] font-semibold">${lang === 'ar' ? 'تخصيص البوابات، الوجهات الداخلية، وتعيين حراس وأمناء الأمن' : 'Manage factory gates, internal docks, and assign security personnel'}</p>
+                            <h3 class="text-base font-black text-[#002b66]">${lang === 'ar' ? 'إعدادات النظام وإدارة البوابات' : 'System & Gate Settings'}</h3>
+                            <p class="text-xs text-[#556b82] font-semibold">${lang === 'ar' ? 'تخصيص البوابات، الوجهات الداخلية، وإدارة البيانات' : 'Configure gates, internal destinations, and system parameters'}</p>
                         </div>
                     </div>
 
-                    <!-- Navigation Tabs -->
-                    <div class="grid grid-cols-4 gap-1.5 bg-[#f5f8fc] p-1.5 rounded-2xl border border-[#d7e2ee] mb-4 text-xs font-bold">
-                        <button type="button" onclick="Manager.openSettingsModal('general')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${activeTab === 'general' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                    <!-- Unified Navigation Tabs -->
+                    <div class="grid grid-cols-4 gap-1.5 bg-[#f0f4f8] p-1.5 rounded-2xl border border-[#d7e2ee] mb-4 text-xs font-bold">
+                        <button type="button" onclick="Manager.openSettingsModal('general')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'general' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('settings', 'w-3.5 h-3.5')}
-                            <span>عام والواتساب</span>
+                            <span>${lang === 'ar' ? 'عام والنظام' : 'General'}</span>
                         </button>
-                        <button type="button" onclick="Manager.openSettingsModal('gates')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${activeTab === 'gates' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                        <button type="button" onclick="Manager.openSettingsModal('gates')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'gates' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('shield', 'w-3.5 h-3.5')}
-                            <span>البوابات (${gates.length})</span>
+                            <span>${lang === 'ar' ? `البوابات (${gates.length})` : `Gates (${gates.length})`}</span>
                         </button>
-                        <button type="button" onclick="Manager.openSettingsModal('destinations')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${activeTab === 'destinations' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                        <button type="button" onclick="Manager.openSettingsModal('destinations')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'destinations' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('building', 'w-3.5 h-3.5')}
-                            <span>الوجهات (${destinations.length})</span>
+                            <span>${lang === 'ar' ? `الوجهات (${destinations.length})` : `Docks (${destinations.length})`}</span>
                         </button>
-                        <button type="button" onclick="Manager.openSettingsModal('officers')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1 ${activeTab === 'officers' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                        <button type="button" onclick="Manager.openSettingsModal('officers')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'officers' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('user', 'w-3.5 h-3.5')}
-                            <span>فريق الأمن (${officers.length})</span>
+                            <span>${lang === 'ar' ? `فريق الأمن (${officers.length})` : `Officers (${officers.length})`}</span>
                         </button>
                     </div>
 
                     <!-- TAB 1: General & WhatsApp Settings -->
                     ${activeTab === 'general' ? `
                         <form onsubmit="Manager.saveSettings(event)" class="space-y-4">
-                            <div class="bg-[#f8fafc] p-4 rounded-2xl border-2 border-[#b0cfee]">
-                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5 flex items-center gap-1.5">
-                                    ${icon('whatsapp', 'w-4 h-4 text-[#107e3e]')}
-                                    <span>${lang === 'ar' ? 'رقم واتساب الإدارة / البوابة الافتراضي (لإرسال كافة التصاريح تلقائياً):' : 'Default Dispatcher WhatsApp Number:'}</span>
-                                </label>
-                                <input type="tel" id="setting-default-whatsapp" required value="${settings.default_whatsapp || '01012345678'}" placeholder="01012345678 أو +201012345678" class="w-full bg-white border-2 border-[#d7e2ee] rounded-xl px-4 py-2.5 text-[#1d2d3e] font-mono font-bold text-base focus:border-[#0070f2] focus:outline-none" />
-                                <p class="text-[11px] text-[#0070f2] mt-1.5 font-semibold">
-                                    ${lang === 'ar' ? '💡 سيتم إرسال نسخة من كل تصريح إلكتروني لهذا الرقم فور إصداره' : 'All created passes will be automatically routed to this number'}
-                                </p>
+                            <!-- Card 1: Dispatcher WhatsApp & General Parameters -->
+                            <div class="sap-settings-card space-y-3">
+                                <div class="flex items-center gap-2 pb-2 border-b border-[#e2e8f0]">
+                                    <span class="text-[#107e3e]">${icon('whatsapp', 'w-4 h-4')}</span>
+                                    <span class="text-xs font-black text-[#002b66]">${lang === 'ar' ? 'إعدادات الإرسال عبر واتساب والمنشأة' : 'WhatsApp Dispatch & Company Parameters'}</span>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-[#1d2d3e] mb-1">
+                                        ${lang === 'ar' ? 'رقم واتساب الإدارة / البوابة الافتراضي (لإرسال التصاريح تلقائياً):' : 'Default Dispatcher WhatsApp Number:'}
+                                    </label>
+                                    <input type="tel" id="setting-default-whatsapp" required value="${settings.default_whatsapp || '01012345678'}" placeholder="01012345678" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3.5 py-2 text-[#1d2d3e] font-mono font-bold text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none transition-colors" />
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-bold text-[#556b82] mb-1">${lang === 'ar' ? 'اسم المنشأة / الشركة' : 'Company Name'}</label>
+                                        <input type="text" id="setting-company" value="${settings.company_name_ar || 'مجموعة دوترا'}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-[#556b82] mb-1">${lang === 'ar' ? 'تنبيه تجاوز المدة (بالساعات)' : 'Overstay Alert (Hours)'}</label>
+                                        <input type="number" id="setting-overstay" min="1" max="24" value="${settings.overstay_hours_threshold || 3}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-xs font-bold text-[#556b82] mb-1">اسم المنشأة / الشركة</label>
-                                    <input type="text" id="setting-company" value="${settings.company_name_ar || 'مجموعة دوترا'}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]" />
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-[#556b82] mb-1">تنبيه تجاوز المدة (بالساعات)</label>
-                                    <input type="number" id="setting-overstay" min="1" max="24" value="${settings.overstay_hours_threshold || 3}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]" />
-                                </div>
-                            </div>
-
-                            <!-- Web Push Notifications Section -->
-                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-200">
-                                <div class="flex items-center justify-between mb-2">
+                            <!-- Card 2: Web Push & Live Tracking Notifications -->
+                            <div class="sap-settings-card space-y-3">
+                                <div class="flex items-center justify-between pb-2 border-b border-[#e2e8f0]">
                                     <div class="flex items-center gap-2">
-                                        <span class="text-lg">🔔</span>
+                                        <span class="text-[#0070f2]">${icon('bell', 'w-4 h-4')}</span>
                                         <div>
-                                            <div class="text-xs font-bold text-[#002b66]">${lang === 'ar' ? 'إشعارات الويب وتنبيهات الدخول والخروج' : 'Web Push Notifications'}</div>
-                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'استقبال تنبيهات فورية للمدير عند دخول وخروج الشاحنات وتجاوز المدة' : 'Receive instant push alerts for entry, exit and overstay'}</div>
+                                            <div class="text-xs font-black text-[#002b66]">${lang === 'ar' ? 'إشعارات الويب السحابية وتنبيهات البوابات' : 'Web Push & Gate Event Alerts'}</div>
+                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'استقبال تنبيهات فورية عند دخول وخروج الشاحنات' : 'Instant alerts for vehicle entries and exits'}</div>
                                         </div>
                                     </div>
-                                    <button type="button" onclick="Manager.handleTogglePush()" id="btn-push-toggle" class="px-3 py-1.5 font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-[#0070f2] hover:bg-blue-700 text-white'}">
-                                        <span>${localStorage.getItem('gate_push_enabled') === 'true' ? '✅ ' + (lang === 'ar' ? 'الإشعارات مفعلة' : 'Enabled') : '🔔 ' + (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
+                                    <button type="button" onclick="Manager.handleTogglePush()" id="btn-push-toggle" class="px-3.5 py-1.5 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm' : 'bg-[#0070f2] hover:bg-[#005cbd] text-white shadow-sm'}">
+                                        ${icon(localStorage.getItem('gate_push_enabled') === 'true' ? 'check' : 'bell', 'w-3.5 h-3.5')}
+                                        <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Enabled') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
                                     </button>
                                 </div>
-                                <div class="flex items-center justify-between pt-2 border-t border-blue-100 text-[11px]">
-                                    <span class="text-[#556b82] text-[10px] font-medium">${lang === 'ar' ? 'تصلك الإشعارات حتى عند تصغير المتصفح' : 'Alerts arrive even when browser is minimized'}</span>
+
+                                <div class="flex items-center justify-between pt-1 text-[11px]">
+                                    <span class="text-[#556b82] text-[10px]">${lang === 'ar' ? 'تصلك الإشعارات حتى عند تصغير المتصفح' : 'Notifications delivered even when tab is backgrounded'}</span>
                                     <button type="button" onclick="Manager.handleTestPush()" class="text-[#0070f2] hover:underline font-bold text-[10px] flex items-center gap-1">
-                                        <span>📨</span>
+                                        ${icon('bell', 'w-3 h-3')}
                                         <span>${lang === 'ar' ? 'إرسال إشعار تجريبي' : 'Send Test Alert'}</span>
                                     </button>
                                 </div>
-                                <div class="mt-3 pt-3 border-t border-blue-100">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-[11px] font-bold text-[#002b66]">${lang === 'ar' ? 'تتبع دخول/خروج كل المركبات' : 'Track All Vehicles'}</span>
-                                        <button type="button" onclick="Manager.toggleWatchAll()" class="w-10 h-5 rounded-full transition-all relative ${localStorage.getItem('gate_vehicle_watchlist') === '[]' || !localStorage.getItem('gate_vehicle_watchlist') ? 'bg-[#0070f2]' : 'bg-gray-300'}">
+
+                                <div class="pt-2 border-t border-[#e2e8f0]">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="text-[11px] font-bold text-[#002b66]">${lang === 'ar' ? 'تتبع إشعارات جميع الشاحنات' : 'Track All Vehicles'}</span>
+                                            <p class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'إشعار فوري عند دخول أو خروج أي مركبة' : 'Alert for all inbound & outbound trucks'}</p>
+                                        </div>
+                                        <button type="button" onclick="Manager.toggleWatchAll()" class="w-10 h-5 rounded-full transition-all relative ${localStorage.getItem('gate_vehicle_watchlist') === '[]' || !localStorage.getItem('gate_vehicle_watchlist') ? 'bg-[#0070f2]' : 'bg-slate-300'}">
                                             <span class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${(localStorage.getItem('gate_vehicle_watchlist') === '[]' || !localStorage.getItem('gate_vehicle_watchlist')) ? 'right-5' : 'left-0.5'}"></span>
                                         </button>
                                     </div>
-                                    <p class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'عند التفعيل: إشعار لكل مركبة. عند الإيقاف: اضغط 🔔 بجانب المركبات المطلوبة فقط.' : 'ON: notify for all vehicles. OFF: tap 🔔 next to specific vehicles only.'}</p>
                                 </div>
                             </div>
 
-                            <!-- Database Management Tools: Demo Data & Reset -->
-                            <div class="space-y-2">
-                                <div class="bg-[#ebf3fb] p-3 rounded-2xl border border-[#b3d5fa] flex items-center justify-between">
+                            <!-- Card 3: Unified Data Management & System Maintenance -->
+                            <div class="sap-settings-card space-y-3">
+                                <div class="flex items-center gap-2 pb-2 border-b border-[#e2e8f0]">
+                                    <span class="text-[#556b82]">${icon('activity', 'w-4 h-4')}</span>
                                     <div>
-                                        <div class="text-xs font-bold text-[#0070f2]">استعادة البيانات النموذجية والتصاريح</div>
-                                        <div class="text-[10px] text-[#556b82] font-medium">إعادة تحميل تصاريح وشاحنات وسجلات تجريبية نموذجية</div>
+                                        <div class="text-xs font-black text-[#002b66]">${lang === 'ar' ? 'صيانة وإدارة البيانات وقاعدة D1 السحابية' : 'Data Maintenance & Database Tools'}</div>
+                                        <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'أدوات التحكم بالبيانات المخزنة محلياً وعلى السحابة' : 'Manage local storage and cloud synchronized records'}</div>
                                     </div>
-                                    <button type="button" onclick="Manager.restoreDemoData()" class="px-3 py-1.5 sap-btn-primary font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
-                                        ${icon('bolt', 'w-3.5 h-3.5')}
-                                        <span>استعادة النموذج</span>
-                                    </button>
                                 </div>
 
-                                <div class="bg-orange-50 p-3 rounded-2xl border border-orange-200 flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs font-bold text-orange-700">🧹 مسح التصاريح فقط</div>
-                                        <div class="text-[10px] text-orange-500 font-medium">حذف التصاريح من الذاكرة المحلية وقاعدة البيانات السحابية D1</div>
+                                <div class="divide-y divide-[#f0f4f8] text-xs">
+                                    <!-- Demo Data -->
+                                    <div class="py-2.5 flex items-center justify-between gap-3">
+                                        <div>
+                                            <div class="font-bold text-[#1d2d3e]">${lang === 'ar' ? 'استعادة البيانات النموذجية' : 'Restore Demo Data'}</div>
+                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'تحميل تصاريح وشاحنات وسجلات تجريبية' : 'Populate sample trucks, passes and logs'}</div>
+                                        </div>
+                                        <button type="button" onclick="Manager.restoreDemoData()" class="px-3 py-1.5 sap-btn-secondary text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0">
+                                            ${icon('bolt', 'w-3.5 h-3.5 text-amber-500')}
+                                            <span>${lang === 'ar' ? 'استعادة' : 'Restore'}</span>
+                                        </button>
                                     </div>
-                                    <button type="button" onclick="Manager.resetPermitsOnly()" class="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
-                                        ${icon('trash', 'w-3.5 h-3.5')}
-                                        <span>مسح التصاريح</span>
-                                    </button>
-                                </div>
 
-                                <div class="bg-yellow-50 p-3 rounded-2xl border border-yellow-200 flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs font-bold text-yellow-700">🗒️ مسح سجلات الدخول والخروج فقط</div>
-                                        <div class="text-[10px] text-yellow-600 font-medium">حذف سجلات الحركة من الذاكرة المحلية وقاعدة البيانات D1</div>
+                                    <!-- Reset Permits -->
+                                    <div class="py-2.5 flex items-center justify-between gap-3">
+                                        <div>
+                                            <div class="font-bold text-[#1d2d3e]">${lang === 'ar' ? 'مسح التصاريح فقط' : 'Clear Permits Only'}</div>
+                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'حذف كافة التصاريح مع الإبقاء على المركبات' : 'Delete all permits while keeping vehicles'}</div>
+                                        </div>
+                                        <button type="button" onclick="Manager.resetPermitsOnly()" class="px-3 py-1.5 bg-[#f8fafc] hover:bg-slate-100 text-[#556b82] hover:text-slate-900 border border-[#d7e2ee] text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-colors">
+                                            ${icon('trash', 'w-3.5 h-3.5')}
+                                            <span>${lang === 'ar' ? 'مسح التصاريح' : 'Clear Passes'}</span>
+                                        </button>
                                     </div>
-                                    <button type="button" onclick="Manager.resetLogsOnly()" class="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
-                                        ${icon('trash', 'w-3.5 h-3.5')}
-                                        <span>مسح السجلات</span>
-                                    </button>
-                                </div>
 
-                                <div class="bg-red-50 p-3 rounded-2xl border border-red-200 flex items-center justify-between">
-                                    <div>
-                                        <div class="text-xs font-bold text-red-700">⛔ مسح وتصفير كافة البيانات (محلي + D1)</div>
-                                        <div class="text-[10px] text-red-500 font-medium">حذف كافة التصاريح والمركبات والسجلات من كل الأجهزة</div>
+                                    <!-- Reset Logs -->
+                                    <div class="py-2.5 flex items-center justify-between gap-3">
+                                        <div>
+                                            <div class="font-bold text-[#1d2d3e]">${lang === 'ar' ? 'مسح سجلات الحركة فقط' : 'Clear Logs Only'}</div>
+                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'تصفير سجلات الدخول والخروج اليومية' : 'Delete entry & exit movement logs'}</div>
+                                        </div>
+                                        <button type="button" onclick="Manager.resetLogsOnly()" class="px-3 py-1.5 bg-[#f8fafc] hover:bg-slate-100 text-[#556b82] hover:text-slate-900 border border-[#d7e2ee] text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-colors">
+                                            ${icon('trash', 'w-3.5 h-3.5')}
+                                            <span>${lang === 'ar' ? 'مسح السجلات' : 'Clear Logs'}</span>
+                                        </button>
                                     </div>
-                                    <button type="button" onclick="Manager.resetAllData()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1">
-                                        ${icon('trash', 'w-3.5 h-3.5')}
-                                        <span>تصفير الكل</span>
-                                    </button>
+
+                                    <!-- Factory Reset -->
+                                    <div class="py-2.5 flex items-center justify-between gap-3">
+                                        <div>
+                                            <div class="font-bold text-rose-700">${lang === 'ar' ? 'تصفير وتهيئة كافة البيانات' : 'Factory Reset All Data'}</div>
+                                            <div class="text-[10px] text-rose-500">${lang === 'ar' ? 'حذف شامل لكافة التصاريح والمركبات والسجلات' : 'Completely purge all database records'}</div>
+                                        </div>
+                                        <button type="button" onclick="Manager.resetAllData()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-all">
+                                            ${icon('trash', 'w-3.5 h-3.5')}
+                                            <span>${lang === 'ar' ? 'تصفير شامل' : 'Purge All'}</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-
 
                             <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
                                 <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
@@ -1065,13 +1092,13 @@ class ManagerController {
 
                     <!-- TAB 2: Gates & Assign Personnel -->
                     ${activeTab === 'gates' ? `
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <!-- Add Gate Form -->
                             <form onsubmit="Manager.handleAddGate(event)" class="flex gap-2 bg-[#f8fafc] p-3 rounded-2xl border border-[#d7e2ee]">
-                                <input type="text" id="new-gate-name" required placeholder="اسم البوابة الجديدة (مثال: بوابة 5 الشاحنات والجمارك)..." class="flex-1 bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
-                                <button type="submit" class="px-4 py-2 sap-btn-primary text-xs font-bold flex items-center gap-1 shadow-sm">
+                                <input type="text" id="new-gate-name" required placeholder="${lang === 'ar' ? 'اسم البوابة الجديدة (مثال: بوابة 5 الشاحنات والجمارك)...' : 'New Gate Name...'}" class="flex-1 bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                                <button type="submit" class="px-4 py-2 sap-btn-primary text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0">
                                     <span>➕</span>
-                                    <span>إضافة بوابة</span>
+                                    <span>${lang === 'ar' ? 'إضافة بوابة' : 'Add Gate'}</span>
                                 </button>
                             </form>
 
@@ -1080,18 +1107,18 @@ class ManagerController {
                                 ${gates.map((gate, idx) => {
                                     const assignedOfficers = officers.filter(o => o.gate_assigned === gate);
                                     return `
-                                        <div class="p-3.5 rounded-2xl bg-white border-2 border-[#d7e2ee] hover:border-[#b0cfee] transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div class="p-3.5 rounded-2xl bg-white border border-[#d7e2ee] hover:border-[#b0cfee] transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
                                             <div>
                                                 <div class="flex items-center gap-2">
-                                                    <span class="w-7 h-7 rounded-xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center font-bold text-xs">
+                                                    <span class="w-6 h-6 rounded-lg bg-[#f0f4f8] text-[#002b66] flex items-center justify-center font-bold text-xs">
                                                         ${idx + 1}
                                                     </span>
                                                     <span class="font-black text-sm text-[#002b66]">${gate}</span>
                                                 </div>
                                                 <div class="text-[11px] text-[#556b82] mt-1 flex items-center gap-1.5">
-                                                    <span>👮 الحارس المعين:</span>
+                                                    <span>${lang === 'ar' ? '👮 الحارس المعين:' : 'Assigned Officer:'}</span>
                                                     <span class="font-bold text-[#107e3e]">
-                                                        ${assignedOfficers.length > 0 ? assignedOfficers.map(o => o.name_ar).join(', ') : 'لا يوجد حارس معين حالياً'}
+                                                        ${assignedOfficers.length > 0 ? assignedOfficers.map(o => o.name_ar).join(', ') : (lang === 'ar' ? 'لا يوجد حارس معين حالياً' : 'None')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -1099,12 +1126,12 @@ class ManagerController {
                                             <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                                                 <!-- Assign Officer Dropdown -->
                                                 <select onchange="Manager.handleAssignOfficerToGate(this.value, '${gate}')" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-1.5 text-xs font-bold text-[#1d2d3e]">
-                                                    <option value="">➕ تعيين حارس...</option>
+                                                    <option value="">${lang === 'ar' ? '➕ تعيين حارس...' : '➕ Assign Officer...'}</option>
                                                     ${officers.map(o => `<option value="${o.id}">${o.name_ar} (${o.badge_id})</option>`).join('')}
                                                 </select>
                                                 ${gates.length > 1 ? `
-                                                    <button type="button" onclick="Manager.handleDeleteGate(${idx})" title="حذف البوابة" class="p-2 text-red-500 hover:bg-red-50 rounded-xl">
-                                                        ${icon('trash', 'w-4 h-4')}
+                                                    <button type="button" onclick="Manager.handleDeleteGate(${idx})" title="حذف البوابة" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors">
+                                                        ${icon('trash', 'w-3.5 h-3.5')}
                                                     </button>
                                                 ` : ''}
                                             </div>
@@ -1117,20 +1144,20 @@ class ManagerController {
 
                     <!-- TAB 3: Internal Destinations Management -->
                     ${activeTab === 'destinations' ? `
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <!-- Add Destination Form -->
                             <form onsubmit="Manager.handleAddDestination(event)" class="flex gap-2 bg-[#f8fafc] p-3 rounded-2xl border border-[#d7e2ee]">
-                                <input type="text" id="new-destination-name" required placeholder="اسم الوجهة الجديدة (مثال: مصنع التغليف والتعبئة)..." class="flex-1 bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
-                                <button type="submit" class="px-4 py-2 sap-btn-primary text-xs font-bold flex items-center gap-1 shadow-sm">
+                                <input type="text" id="new-destination-name" required placeholder="${lang === 'ar' ? 'اسم الوجهة الجديدة (مثال: مصنع التغليف والتعبئة)...' : 'New Destination Name...'}" class="flex-1 bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                                <button type="submit" class="px-4 py-2 sap-btn-primary text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0">
                                     <span>➕</span>
-                                    <span>إضافة وجهة</span>
+                                    <span>${lang === 'ar' ? 'إضافة وجهة' : 'Add Dock'}</span>
                                 </button>
                             </form>
 
                             <!-- Destinations Grid -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
                                 ${destinations.map((dest, idx) => `
-                                    <div class="p-3 rounded-xl bg-white border border-[#d7e2ee] flex items-center justify-between gap-2 shadow-sm hover:border-[#b0cfee]">
+                                    <div class="p-3 rounded-xl bg-white border border-[#d7e2ee] flex items-center justify-between gap-2 shadow-sm hover:border-[#b0cfee] transition-colors">
                                         <div class="flex items-center gap-2">
                                             <span class="w-6 h-6 rounded-lg bg-[#f0f4f8] text-[#002b66] flex items-center justify-center font-bold text-xs">
                                                 ${idx + 1}
@@ -1138,7 +1165,7 @@ class ManagerController {
                                             <span class="font-bold text-xs text-[#1d2d3e]">${dest}</span>
                                         </div>
                                         ${destinations.length > 1 ? `
-                                            <button type="button" onclick="Manager.handleDeleteDestination(${idx})" title="حذف" class="text-red-400 hover:text-red-600 p-1">
+                                            <button type="button" onclick="Manager.handleDeleteDestination(${idx})" title="حذف" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
                                                 ${icon('trash', 'w-3.5 h-3.5')}
                                             </button>
                                         ` : ''}
@@ -1150,21 +1177,21 @@ class ManagerController {
 
                     <!-- TAB 4: Security Officers / Personnel Management -->
                     ${activeTab === 'officers' ? `
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <!-- Add Officer Form -->
-                            <form onsubmit="Manager.handleAddOfficer(event)" class="bg-[#f8fafc] p-3.5 rounded-2xl border border-[#d7e2ee] space-y-2.5">
-                                <div class="font-bold text-xs text-[#002b66]">➕ إضافة فرد أمن / أمين شرطة جديد</div>
+                            <form onsubmit="Manager.handleAddOfficer(event)" class="sap-settings-card space-y-2.5">
+                                <div class="font-bold text-xs text-[#002b66]">${lang === 'ar' ? '➕ إضافة فرد أمن / أمين شرطة جديد' : 'Add New Security Officer'}</div>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                    <input type="text" id="officer-name-input" required placeholder="اسم فرد الأمن" class="bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
-                                    <input type="text" id="officer-badge-input" required placeholder="كود الشارة (GT-03)" class="bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
-                                    <input type="password" id="officer-pin-input" required maxlength="4" placeholder="الـ PIN (4 أرقام)" class="bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-center text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                                    <input type="text" id="officer-name-input" required placeholder="${lang === 'ar' ? 'اسم فرد الأمن' : 'Officer Name'}" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                                    <input type="text" id="officer-badge-input" required placeholder="${lang === 'ar' ? 'كود الشارة (GT-03)' : 'Badge ID (GT-03)'}" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                                    <input type="password" id="officer-pin-input" required maxlength="4" placeholder="${lang === 'ar' ? 'الـ PIN (4 أرقام)' : 'PIN (4 digits)'}" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-center text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
                                 </div>
                                 <div class="flex justify-between items-center gap-2">
-                                    <select id="officer-gate-select" class="flex-1 bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]">
-                                        ${gates.map(g => `<option value="${g}">تعيين على: ${g}</option>`).join('')}
+                                    <select id="officer-gate-select" class="flex-1 bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]">
+                                        ${gates.map(g => `<option value="${g}">${lang === 'ar' ? `تعيين على: ${g}` : `Assign to: ${g}`}</option>`).join('')}
                                     </select>
-                                    <button type="submit" class="px-5 py-2 sap-btn-primary text-xs font-bold shadow-sm">
-                                        إضافة للفريق
+                                    <button type="submit" class="px-5 py-2 sap-btn-primary text-xs font-bold shadow-sm flex-shrink-0">
+                                        ${lang === 'ar' ? 'إضافة للفريق' : 'Add Officer'}
                                     </button>
                                 </div>
                             </form>
@@ -1172,21 +1199,21 @@ class ManagerController {
                             <!-- Officers List -->
                             <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
                                 ${officers.map(off => `
-                                    <div class="p-3 rounded-2xl bg-white border border-[#d7e2ee] flex items-center justify-between shadow-sm">
+                                    <div class="p-3 rounded-2xl bg-white border border-[#d7e2ee] flex items-center justify-between shadow-sm hover:border-[#b0cfee] transition-colors">
                                         <div class="flex items-center gap-2.5">
-                                            <div class="w-10 h-10 rounded-xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center font-black text-sm border border-[#b3d5fa]">
-                                                👮
+                                            <div class="w-9 h-9 rounded-xl bg-[#f0f4f8] text-[#002b66] flex items-center justify-center font-bold text-sm">
+                                                ${icon('shield', 'w-4 h-4 text-[#0070f2]')}
                                             </div>
                                             <div>
                                                 <div class="font-bold text-xs text-[#1d2d3e]">${off.name_ar}</div>
                                                 <div class="text-[11px] text-[#556b82] font-mono">
-                                                    <span class="text-[#0070f2] font-bold">${off.badge_id}</span> • <span>${off.gate_assigned}</span> • <span class="text-[10px] text-[#556b82]">🔐 ${lang === 'ar' ? 'PIN مخفي' : 'PIN hidden'}</span>
+                                                    <span class="text-[#0070f2] font-bold">${off.badge_id}</span> • <span>${off.gate_assigned}</span>
                                                 </div>
                                             </div>
                                         </div>
                                         ${officers.length > 1 ? `
-                                            <button type="button" onclick="Manager.handleDeleteOfficer(${off.id})" title="حذف" class="text-red-500 hover:bg-red-50 p-2 rounded-xl">
-                                                ${icon('trash', 'w-4 h-4')}
+                                            <button type="button" onclick="Manager.handleDeleteOfficer(${off.id})" title="حذف" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                                                ${icon('trash', 'w-3.5 h-3.5')}
                                             </button>
                                         ` : ''}
                                     </div>
