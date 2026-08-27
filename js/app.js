@@ -300,33 +300,17 @@ class AppController {
                                 </button>
                             </div>
 
-                            ${user && (user.role === 'manager' || user.role === 'admin' || user.role === 'ceo') ? `
-                                <!-- Portal Navigation Switcher (CEO / Manager / Gate) -->
-                                <div class="flex items-center bg-black/30 border border-white/20 p-0.5 rounded-xl text-xs font-bold shadow-inner">
-                                    <button type="button" onclick="App.switchView('ceo')" class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${this.currentView === 'ceo' ? 'bg-amber-400 text-slate-950 font-black shadow-sm' : 'text-blue-200 hover:text-white'}">
-                                        <span>🏛️</span>
-                                        <span>${lang === 'ar' ? 'الرقابة (CEO)' : 'CEO Audit'}</span>
-                                    </button>
-                                    <button type="button" onclick="App.switchView('manager')" class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${this.currentView === 'manager' ? 'bg-[#0070f2] text-white font-black shadow-sm' : 'text-blue-200 hover:text-white'}">
-                                        <span>📊</span>
-                                        <span>${lang === 'ar' ? 'العمليات' : 'Operations'}</span>
-                                    </button>
-                                    <button type="button" onclick="App.switchView('officer')" class="px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${this.currentView === 'officer' ? 'bg-[#107e3e] text-white font-black shadow-sm' : 'text-blue-200 hover:text-white'}">
-                                        <span>🛡️</span>
-                                        <span>${lang === 'ar' ? 'البوابة' : 'Gate'}</span>
-                                    </button>
-                                </div>
-                            ` : ''}
-
                             ${user ? `
-                                <!-- User Profile Badge -->
-                                <div class="flex items-center gap-2 bg-white/10 border border-white/20 py-1 px-2.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
-                                    <span class="w-6 h-6 rounded-lg bg-white/15 flex items-center justify-center text-white text-xs">
-                                        ${icon(user.role === 'ceo' ? 'building' : (user.role === 'manager' ? 'building' : 'shield'), 'w-3.5 h-3.5')}
+                                <!-- User Profile Badge (Locked to assigned role) -->
+                                <div class="flex items-center gap-2 bg-white/10 border border-white/20 py-1.5 px-3 rounded-xl text-xs backdrop-blur-md shadow-sm">
+                                    <span class="w-7 h-7 rounded-lg ${user.role === 'ceo' ? 'bg-amber-400 text-slate-950' : (user.role === 'manager' ? 'bg-[#0070f2] text-white' : 'bg-[#107e3e] text-white')} flex items-center justify-center text-xs font-black shadow-inner">
+                                        ${icon(user.role === 'ceo' ? 'building' : (user.role === 'manager' ? 'building' : 'shield'), 'w-4 h-4')}
                                     </span>
                                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                                         <div class="font-bold text-white text-xs leading-none">${lang === 'ar' ? user.name_ar : user.name_en}</div>
-                                        <div class="text-[9px] text-blue-200 font-mono font-semibold mt-0.5">${user.role === 'ceo' ? 'CHIEF EXECUTIVE (CEO)' : (user.role === 'manager' ? 'OPERATIONS MGR' : user.badge_id)}</div>
+                                        <div class="text-[9px] ${user.role === 'ceo' ? 'text-amber-300' : 'text-blue-200'} font-mono font-bold mt-0.5">
+                                            ${user.role === 'ceo' ? '🏛️ CHIEF EXECUTIVE (CEO)' : (user.role === 'manager' ? '🏢 OPERATIONS MANAGER' : `👮 GATE OFFICER (${user.badge_id})`)}
+                                        </div>
                                     </div>
                                     <button type="button" onclick="window.Auth.logout()" title="${window.i18n.t('logout')}" class="p-1 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition-colors mr-1">
                                         ${icon('logout', 'w-3.5 h-3.5')}
@@ -357,32 +341,17 @@ class AppController {
                         ${user ? `
                             <div class="flex items-center justify-between p-2.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md">
                                 <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-white">
+                                    <div class="w-8 h-8 rounded-lg ${user.role === 'ceo' ? 'bg-amber-400 text-slate-950' : 'bg-white/15 text-white'} flex items-center justify-center">
                                         ${icon(user.role === 'ceo' ? 'building' : (user.role === 'manager' ? 'building' : 'shield'), 'w-4 h-4')}
                                     </div>
                                     <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                                         <div class="font-bold text-white text-xs">${lang === 'ar' ? user.name_ar : user.name_en}</div>
-                                        <div class="text-[10px] text-blue-200 font-mono">${user.role === 'ceo' ? 'CEO EXECUTIVE' : (user.role === 'manager' ? 'MANAGER' : (user.badge_id + (user.gate_assigned ? ' • ' + user.gate_assigned : '')))}</div>
+                                        <div class="text-[10px] ${user.role === 'ceo' ? 'text-amber-300' : 'text-blue-200'} font-mono font-bold">${user.role === 'ceo' ? '🏛️ CEO EXECUTIVE' : (user.role === 'manager' ? '🏢 MANAGER' : (`👮 ${user.badge_id}` + (user.gate_assigned ? ' • ' + user.gate_assigned : '')))}</div>
                                     </div>
                                 </div>
                                 <button type="button" onclick="window.Auth.logout()" class="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-lg text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all">
                                     ${icon('logout', 'w-3.5 h-3.5')}
                                     <span>${window.i18n.t('logout')}</span>
-                                </button>
-                            </div>
-                        ` : ''}
-
-                        ${user && (user.role === 'manager' || user.role === 'admin' || user.role === 'ceo') ? `
-                            <!-- Mobile Role View Switcher -->
-                            <div class="grid grid-cols-3 gap-1.5 bg-black/25 p-1 rounded-xl border border-white/15">
-                                <button type="button" onclick="App.switchView('ceo')" class="py-2 rounded-lg text-xs font-bold text-center ${this.currentView === 'ceo' ? 'bg-amber-400 text-slate-950 font-black' : 'text-white/80'}">
-                                    🏛️ CEO
-                                </button>
-                                <button type="button" onclick="App.switchView('manager')" class="py-2 rounded-lg text-xs font-bold text-center ${this.currentView === 'manager' ? 'bg-[#0070f2] text-white font-black' : 'text-white/80'}">
-                                    📊 مدير
-                                </button>
-                                <button type="button" onclick="App.switchView('officer')" class="py-2 rounded-lg text-xs font-bold text-center ${this.currentView === 'officer' ? 'bg-[#107e3e] text-white font-black' : 'text-white/80'}">
-                                    🛡️ بوابة
                                 </button>
                             </div>
                         ` : ''}
@@ -425,23 +394,21 @@ class AppController {
             `;
         }
 
-
+        // Strict Role-Based View Access Enforcement
         if (this.currentView === 'setup') {
             this.renderSetupScreen();
-        } else if (this.currentView === 'login') {
+        } else if (this.currentView === 'login' || !user) {
             this.renderLoginScreen();
-        } else if (this.currentView === 'ceo') {
+        } else if (user.role === 'ceo') {
+            this.currentView = 'ceo';
             if (window.CEO) window.CEO.renderDashboard();
-        } else if (this.currentView === 'manager') {
+        } else if (user.role === 'manager' || user.role === 'admin') {
+            this.currentView = 'manager';
             if (window.Manager) window.Manager.renderDashboard();
-        } else if (this.currentView === 'officer') {
+        } else if (user.role === 'officer') {
+            this.currentView = 'officer';
             if (window.Officer) window.Officer.renderTerminal();
         }
-    }
-
-    switchView(viewName) {
-        this.currentView = viewName;
-        this.renderApp();
     }
 
     renderLoginScreen() {
@@ -462,21 +429,49 @@ class AppController {
                         <p class="text-xs text-[#556b82] mt-0.5 font-bold">${window.i18n.t('appSubtitle')}</p>
                     </div>
 
-                    <!-- Role Switcher Tabs -->
-                    <div class="grid grid-cols-2 gap-2 bg-[#f5f8fc] p-1.5 rounded-2xl border border-[#d7e2ee] mb-6">
-                        <button type="button" onclick="App.switchLoginTab('manager')" class="py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${this.loginRoleTab === 'manager' ? 'bg-[#0070f2] text-white shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            <span>🏢</span>
-                            <span>${lang === 'ar' ? 'مدير المكتب (PC)' : 'Office Manager'}</span>
+                    <!-- Role Switcher Tabs (3 Distinct Roles) -->
+                    <div class="grid grid-cols-3 gap-1.5 bg-[#f5f8fc] p-1.5 rounded-2xl border border-[#d7e2ee] mb-6">
+                        <button type="button" onclick="App.switchLoginTab('ceo')" class="py-2.5 rounded-xl font-bold text-xs flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${this.loginRoleTab === 'ceo' ? 'bg-amber-400 text-slate-950 font-black shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            <span>🏛️</span>
+                            <span>${lang === 'ar' ? 'الرئيس التنفيذي' : 'CEO'}</span>
                         </button>
-                        <button type="button" onclick="App.switchLoginTab('officer')" class="py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${this.loginRoleTab === 'officer' ? 'bg-[#0070f2] text-white shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                        <button type="button" onclick="App.switchLoginTab('manager')" class="py-2.5 rounded-xl font-bold text-xs flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${this.loginRoleTab === 'manager' ? 'bg-[#0070f2] text-white shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            <span>🏢</span>
+                            <span>${lang === 'ar' ? 'العمليات' : 'Manager'}</span>
+                        </button>
+                        <button type="button" onclick="App.switchLoginTab('officer')" class="py-2.5 rounded-xl font-bold text-xs flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${this.loginRoleTab === 'officer' ? 'bg-[#107e3e] text-white shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
                             <span>👮</span>
-                            <span>${lang === 'ar' ? 'حارس البوابة (Mobile)' : 'Gate Officer'}</span>
+                            <span>${lang === 'ar' ? 'البوابة' : 'Officer'}</span>
                         </button>
                     </div>
 
-                    <!-- Manager Login Form -->
-                    ${this.loginRoleTab === 'manager' ? `
+                    <!-- CEO Login Form -->
+                    ${this.loginRoleTab === 'ceo' ? `
                         <form onsubmit="App.handleManagerLogin(event)" class="space-y-4">
+                            <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-[11px] text-amber-900 font-bold flex items-center gap-2">
+                                <span>🏛️</span>
+                                <span>تسجيل دخول خاص بالإدارة العليا والمدير التنفيذي</span>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('emailLabel')}</label>
+                                <input type="email" id="login-email" required placeholder="ceo@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-amber-500 focus:bg-white focus:outline-none font-mono font-bold" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('passwordLabel')}</label>
+                                <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-amber-500 focus:bg-white focus:outline-none font-mono" />
+                            </div>
+                            <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black rounded-xl text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-transform hover:-translate-y-0.5">
+                                <span>🏛️</span>
+                                <span>دخول لوحة الرقابة التنفيذية (CEO)</span>
+                            </button>
+                        </form>
+                    ` : (this.loginRoleTab === 'manager' ? `
+                        <!-- Manager Login Form -->
+                        <form onsubmit="App.handleManagerLogin(event)" class="space-y-4">
+                            <div class="bg-blue-50 p-2.5 rounded-xl border border-blue-200 text-[11px] text-[#002b66] font-bold flex items-center gap-2">
+                                <span>🏢</span>
+                                <span>تسجيل دخول خاص بمدير العمليات والتصاريح المصنعية</span>
+                            </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('emailLabel')}</label>
                                 <input type="email" id="login-email" required placeholder="manager@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
@@ -493,20 +488,24 @@ class AppController {
                     ` : `
                         <!-- Officer Quick Login Form -->
                         <form onsubmit="App.handleOfficerLogin(event)" class="space-y-4">
+                            <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 text-[11px] text-[#107e3e] font-bold flex items-center gap-2">
+                                <span>👮</span>
+                                <span>تسجيل دخول خاص بضابط أمن بوابة المصنع</span>
+                            </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('badgeLabel')}</label>
-                                <input type="text" id="login-badge" required placeholder="GT-01" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm font-mono uppercase font-bold focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                                <input type="text" id="login-badge" required placeholder="GT-01" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm font-mono uppercase font-bold focus:border-[#107e3e] focus:bg-white focus:outline-none" />
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('pinLabel')}</label>
-                                <input type="password" id="login-pin" required maxlength="4" placeholder="••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-center text-xl tracking-widest font-mono font-bold focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                                <input type="password" id="login-pin" required maxlength="4" placeholder="••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-center text-xl tracking-widest font-mono font-bold focus:border-[#107e3e] focus:bg-white focus:outline-none" />
                             </div>
                             <button type="submit" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-bold rounded-xl text-sm shadow-md flex items-center justify-center gap-2 mt-2">
                                 <span>👮</span>
                                 <span>${window.i18n.t('openGateBtn')}</span>
                             </button>
                         </form>
-                    `}
+                    `)}
                 </div>
             </div>
         `;
@@ -592,7 +591,13 @@ class AppController {
         const res = await window.Auth.loginManager(email, password);
 
         if (res.success) {
-            this.currentView = 'manager';
+            if (res.user && res.user.role === 'ceo') {
+                this.currentView = 'ceo';
+            } else if (res.user && (res.user.role === 'manager' || res.user.role === 'admin')) {
+                this.currentView = 'manager';
+            } else {
+                this.currentView = 'officer';
+            }
             this.renderApp();
             if (window.PushService) window.PushService.startPolling(5000);
         } else {

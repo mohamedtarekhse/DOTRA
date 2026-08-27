@@ -99,10 +99,20 @@
     <script src="js/app.js"></script>
 
     <script>
-        // Directly launch CEO view upon loading ceo.html
+        // Strictly guard and launch CEO view upon loading ceo.html
         window.addEventListener('DOMContentLoaded', async () => {
             if (window.DB && typeof window.DB.syncFromCloud === 'function') {
                 await window.DB.syncFromCloud();
+            }
+            const user = window.Auth ? window.Auth.getCurrentUser() : null;
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            if (user.role !== 'ceo') {
+                alert('عفواً، هذه الصفحة مخصصة حصرياً للرئيس التنفيذي والإدارة العليا.');
+                window.location.href = 'index.html';
+                return;
             }
             if (window.App) {
                 window.App.currentView = 'ceo';
