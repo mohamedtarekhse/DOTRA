@@ -493,12 +493,18 @@ export default {
                 // ============================================================
                 if (url.pathname === '/api/push/subscribe' && request.method === 'POST') {
                     const data = await request.json();
-                    if (sql && data.subscription?.endpoint) {
-                        const { endpoint, keys } = data.subscription;
+                    const endpoint = data.endpoint || data.subscription?.endpoint;
+                    const p256dh = data.p256dh || data.subscription?.keys?.p256dh || '';
+                    const auth = data.auth || data.subscription?.keys?.auth || '';
+                    const role = data.role || 'manager';
+                    const userId = data.user_id || null;
+                    const watchAll = data.watch_all !== undefined ? (data.watch_all ? 1 : 0) : 1;
+
+                    if (sql && endpoint) {
                         try {
                             await sql`
                                 INSERT INTO push_subscriptions (user_id, role, endpoint, p256dh, auth, watch_all)
-                                VALUES (${data.user_id || null}, ${data.role || 'officer'}, ${endpoint}, ${keys?.p256dh || ''}, ${keys?.auth || ''}, ${data.watch_all !== undefined ? (data.watch_all ? 1 : 0) : 1})
+                                VALUES (${userId}, ${role}, ${endpoint}, ${p256dh}, ${auth}, ${watchAll})
                                 ON CONFLICT (endpoint) DO UPDATE SET
                                     user_id = EXCLUDED.user_id,
                                     role = EXCLUDED.role,
@@ -506,16 +512,20 @@ export default {
                                     auth = EXCLUDED.auth,
                                     watch_all = EXCLUDED.watch_all
                             `;
-                        } catch (e) { console.error('[PUSH SUB] error:', e.message); }
+                        } catch (e) { 
+                            console.error('[PUSH SUB] error:', e.message);
+                            return new Response(JSON.stringify({ error: e.message }), { status: 500, headers });
+                        }
                     }
                     return new Response(JSON.stringify({ success: true, message: 'Push subscription registered in Neon Postgres' }), { headers });
                 }
 
                 if (url.pathname === '/api/push/unsubscribe' && request.method === 'POST') {
                     const data = await request.json();
-                    if (sql && data.endpoint) {
+                    const endpoint = data.endpoint || data.subscription?.endpoint;
+                    if (sql && endpoint) {
                         try {
-                            await sql`DELETE FROM push_subscriptions WHERE endpoint = ${data.endpoint}`;
+                            await sql`DELETE FROM push_subscriptions WHERE endpoint = ${endpoint}`;
                         } catch (e) {}
                     }
                     return new Response(JSON.stringify({ success: true, message: 'Push subscription removed' }), { headers });

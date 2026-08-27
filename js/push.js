@@ -65,8 +65,10 @@ class PushManagerService {
                 endpoint: sub.endpoint,
                 p256dh: subJSON.keys ? subJSON.keys.p256dh : '',
                 auth: subJSON.keys ? subJSON.keys.auth : '',
+                subscription: subJSON,
                 role: role,
-                user_id: userId
+                user_id: userId,
+                watch_all: 1
             };
 
             // Register with backend
