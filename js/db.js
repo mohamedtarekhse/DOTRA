@@ -612,13 +612,36 @@ class DatabaseService {
 
     findVehicleByPlate(searchTerm) {
         if (!searchTerm) return null;
-        const term = searchTerm.trim().toLowerCase().replace(/\s+/g, '');
+        const norm = (str) => {
+            if (!str) return '';
+            return String(str)
+                .toLowerCase()
+                .replace(/[\u0660-\u0669]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48))
+                .replace(/[\u06F0-\u06F9]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x06F0 + 48))
+                .replace(/[أإآٱ]/g, 'ا')
+                .replace(/[ىيئ]/g, 'ي')
+                .replace(/[ةهـ]/g, 'ه')
+                .replace(/[\s\-_/.,]+/g, '')
+                .trim();
+        };
+
+        const term = norm(searchTerm);
+        if (!term) return null;
         const vehicles = this.getVehicles();
 
+        // 1. Exact normalized match first
+        let match = vehicles.find(v => {
+            const arClean = norm(v.plate_ar);
+            const enClean = norm(v.plate_en);
+            return arClean === term || enClean === term;
+        });
+        if (match) return match;
+
+        // 2. Substring match
         return vehicles.find(v => {
-            const arClean = (v.plate_ar || '').toLowerCase().replace(/\s+/g, '');
-            const enClean = (v.plate_en || '').toLowerCase().replace(/\s+/g, '');
-            return arClean.includes(term) || enClean.includes(term) || term.includes(arClean);
+            const arClean = norm(v.plate_ar);
+            const enClean = norm(v.plate_en);
+            return (arClean && (arClean.includes(term) || term.includes(arClean))) || (enClean && (enClean.includes(term) || term.includes(enClean)));
         });
     }
 

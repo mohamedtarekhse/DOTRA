@@ -21,30 +21,22 @@ class ManagerController {
     handleUniversalSearch(query) {
         this.searchQuery = query || '';
         if (typeof document !== 'undefined') {
-            if (document.querySelector) {
-                const tableBody = document.querySelector('tbody');
-                if (tableBody) tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
-            }
-            if (document.getElementById) {
-                const mobileList = document.getElementById('manager-mobile-cards-list');
-                if (mobileList) mobileList.innerHTML = this.renderMobileCards(window.i18n.getLang());
-            }
+            const tableBody = document.getElementById('manager-table-body') || (document.querySelector ? document.querySelector('tbody') : null);
+            if (tableBody) tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
+            const mobileList = document.getElementById('manager-mobile-cards-list');
+            if (mobileList) mobileList.innerHTML = this.renderMobileCards(window.i18n.getLang());
         }
     }
 
     clearUniversalSearch() {
         this.searchQuery = '';
         if (typeof document !== 'undefined') {
-            if (document.getElementById) {
-                const input = document.getElementById('manager-universal-search');
-                if (input) input.value = '';
-                const mobileList = document.getElementById('manager-mobile-cards-list');
-                if (mobileList) mobileList.innerHTML = this.renderMobileCards(window.i18n.getLang());
-            }
-            if (document.querySelector) {
-                const tableBody = document.querySelector('tbody');
-                if (tableBody) tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
-            }
+            const input = document.getElementById('manager-universal-search');
+            if (input) input.value = '';
+            const tableBody = document.getElementById('manager-table-body') || (document.querySelector ? document.querySelector('tbody') : null);
+            if (tableBody) tableBody.innerHTML = this.renderTableRows(window.i18n.getLang());
+            const mobileList = document.getElementById('manager-mobile-cards-list');
+            if (mobileList) mobileList.innerHTML = this.renderMobileCards(window.i18n.getLang());
         }
     }
 
@@ -324,22 +316,32 @@ class ManagerController {
         const settings = window.DB.getSettings();
         const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
 
-        const q = (this.searchQuery || '').trim().toLowerCase();
+        const norm = (str) => window.ArabicPlate && window.ArabicPlate.normalizeSearchText ? window.ArabicPlate.normalizeSearchText(str) : String(str || '').toLowerCase().trim();
+        const normPlate = (str) => window.ArabicPlate && window.ArabicPlate.normalizePlateCompact ? window.ArabicPlate.normalizePlateCompact(str) : norm(str).replace(/[\s\-_/.,]+/g, '');
+        const qNorm = norm(this.searchQuery);
+        const qPlate = normPlate(this.searchQuery);
 
         // 1. Relational Permits Mobile Cards
         if (this.activeFilter === 'permits') {
             const enrichedPermits = window.DB.getEnrichedPermits();
             let filteredPermits = enrichedPermits.filter(p => {
-                if (!q) return true;
-                const matchCode = (p.permit_code || '').toLowerCase().includes(q);
-                const matchPin = (p.pin_code || '').toLowerCase().includes(q);
-                const matchPlateAr = (p.vehicle?.plate_ar || '').toLowerCase().includes(q);
-                const matchPlateEn = (p.vehicle?.plate_en || '').toLowerCase().includes(q);
-                const matchDriver = (p.vehicle?.driver_name_ar || '').toLowerCase().includes(q);
-                const matchPhone = (p.vehicle?.driver_phone || '').toLowerCase().includes(q);
-                const matchDest = (`${p.destination_ar || ''} ${p.destination_en || ''}`).toLowerCase().includes(q);
-                const matchInvoice = (p.invoice_no || '').toLowerCase().includes(q);
-                return matchCode || matchPin || matchPlateAr || matchPlateEn || matchDriver || matchPhone || matchDest || matchInvoice;
+                if (!qNorm) return true;
+                const pAr = norm(p.vehicle?.plate_ar);
+                const pEn = norm(p.vehicle?.plate_en);
+                const pArCompact = normPlate(p.vehicle?.plate_ar);
+                const pEnCompact = normPlate(p.vehicle?.plate_en);
+
+                const matchPlate = pAr.includes(qNorm) || pEn.includes(qNorm) || (qPlate && (pArCompact.includes(qPlate) || pEnCompact.includes(qPlate)));
+                const matchCode = norm(p.permit_code).includes(qNorm);
+                const matchPin = norm(p.pin_code).includes(qNorm);
+                const matchDriver = norm(p.vehicle?.driver_name_ar).includes(qNorm) || norm(p.vehicle?.driver_name_en).includes(qNorm);
+                const matchPhone = norm(p.vehicle?.driver_phone).includes(qNorm);
+                const matchDest = norm(`${p.destination_ar || ''} ${p.destination_en || ''}`).includes(qNorm);
+                const matchInvoice = norm(p.invoice_no).includes(qNorm);
+                const matchCargo = norm(p.cargo_details).includes(qNorm);
+                const matchCompany = norm(`${p.vehicle?.company_ar || ''} ${p.vehicle?.company_en || ''}`).includes(qNorm);
+
+                return matchPlate || matchCode || matchPin || matchDriver || matchPhone || matchDest || matchInvoice || matchCargo || matchCompany;
             });
 
             if (filteredPermits.length === 0) {
@@ -444,34 +446,27 @@ class ManagerController {
                 if (hrs < (settings.overstay_hours_threshold || 3)) return false;
             }
 
-            if (!q) return true;
+            if (!qNorm) return true;
 
             const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
             const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
             const lastOfficer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
-            const officerName = lastOfficer ? `${lastOfficer.name_ar} ${lastOfficer.name_en}`.toLowerCase() : '';
-            const gateName = lastLog ? (lastLog.gate_name || '').toLowerCase() : '';
-            const timestampText = lastLog ? new Date(lastLog.timestamp).toLocaleString().toLowerCase() : '';
-            const destination = permit ? `${permit.destination_ar} ${permit.destination_en}`.toLowerCase() : '';
-            const pinCode = permit && permit.pin_code ? permit.pin_code.toLowerCase() : '';
-            const permitCode = permit && permit.permit_code ? permit.permit_code.toLowerCase() : '';
-            const driverName = `${vehicle.driver_name_ar || ''} ${vehicle.driver_name_en || ''}`.toLowerCase();
-            const plateAr = (vehicle.plate_ar || '').toLowerCase();
-            const plateEn = (vehicle.plate_en || '').toLowerCase();
-            const phone = (vehicle.driver_phone || '').toLowerCase();
-            const company = `${vehicle.company_ar || ''} ${vehicle.company_en || ''}`.toLowerCase();
+            
+            const pAr = norm(vehicle.plate_ar);
+            const pEn = norm(vehicle.plate_en);
+            const pArCompact = normPlate(vehicle.plate_ar);
+            const pEnCompact = normPlate(vehicle.plate_en);
 
-            return plateAr.includes(q) ||
-                   plateEn.includes(q) ||
-                   driverName.includes(q) ||
-                   phone.includes(q) ||
-                   company.includes(q) ||
-                   destination.includes(q) ||
-                   gateName.includes(q) ||
-                   officerName.includes(q) ||
-                   timestampText.includes(q) ||
-                   pinCode.includes(q) ||
-                   permitCode.includes(q);
+            const matchPlate = pAr.includes(qNorm) || pEn.includes(qNorm) || (qPlate && (pArCompact.includes(qPlate) || pEnCompact.includes(qPlate)));
+            const matchDriver = norm(`${vehicle.driver_name_ar || ''} ${vehicle.driver_name_en || ''}`).includes(qNorm);
+            const matchPhone = norm(vehicle.driver_phone).includes(qNorm);
+            const matchCompany = norm(`${vehicle.company_ar || ''} ${vehicle.company_en || ''}`).includes(qNorm);
+            const matchDestination = permit ? norm(`${permit.destination_ar} ${permit.destination_en} ${permit.cargo_details || ''} ${permit.invoice_no || ''}`).includes(qNorm) : false;
+            const matchPermitCode = permit ? (norm(permit.permit_code).includes(qNorm) || norm(permit.pin_code).includes(qNorm)) : false;
+            const matchGate = vehicleLogs.some(l => norm(l.gate_name).includes(qNorm) || norm(l.exit_gate_name).includes(qNorm));
+            const matchOfficer = lastOfficer ? norm(`${lastOfficer.name_ar} ${lastOfficer.name_en}`).includes(qNorm) : false;
+
+            return matchPlate || matchDriver || matchPhone || matchCompany || matchDestination || matchPermitCode || matchGate || matchOfficer;
         });
 
         if (filteredVehicles.length === 0) {
@@ -597,22 +592,32 @@ class ManagerController {
         const settings = window.DB.getSettings();
         const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
 
-        const q = (this.searchQuery || '').trim().toLowerCase();
+        const norm = (str) => window.ArabicPlate && window.ArabicPlate.normalizeSearchText ? window.ArabicPlate.normalizeSearchText(str) : String(str || '').toLowerCase().trim();
+        const normPlate = (str) => window.ArabicPlate && window.ArabicPlate.normalizePlateCompact ? window.ArabicPlate.normalizePlateCompact(str) : norm(str).replace(/[\s\-_/.,]+/g, '');
+        const qNorm = norm(this.searchQuery);
+        const qPlate = normPlate(this.searchQuery);
 
         // 1. Relational Permits View
         if (this.activeFilter === 'permits') {
             const enrichedPermits = window.DB.getEnrichedPermits();
             let filteredPermits = enrichedPermits.filter(p => {
-                if (!q) return true;
-                const matchCode = (p.permit_code || '').toLowerCase().includes(q);
-                const matchPin = (p.pin_code || '').toLowerCase().includes(q);
-                const matchPlateAr = (p.vehicle?.plate_ar || '').toLowerCase().includes(q);
-                const matchPlateEn = (p.vehicle?.plate_en || '').toLowerCase().includes(q);
-                const matchDriver = (p.vehicle?.driver_name_ar || '').toLowerCase().includes(q);
-                const matchPhone = (p.vehicle?.driver_phone || '').toLowerCase().includes(q);
-                const matchDest = (`${p.destination_ar || ''} ${p.destination_en || ''}`).toLowerCase().includes(q);
-                const matchInvoice = (p.invoice_no || '').toLowerCase().includes(q);
-                return matchCode || matchPin || matchPlateAr || matchPlateEn || matchDriver || matchPhone || matchDest || matchInvoice;
+                if (!qNorm) return true;
+                const pAr = norm(p.vehicle?.plate_ar);
+                const pEn = norm(p.vehicle?.plate_en);
+                const pArCompact = normPlate(p.vehicle?.plate_ar);
+                const pEnCompact = normPlate(p.vehicle?.plate_en);
+
+                const matchPlate = pAr.includes(qNorm) || pEn.includes(qNorm) || (qPlate && (pArCompact.includes(qPlate) || pEnCompact.includes(qPlate)));
+                const matchCode = norm(p.permit_code).includes(qNorm);
+                const matchPin = norm(p.pin_code).includes(qNorm);
+                const matchDriver = norm(p.vehicle?.driver_name_ar).includes(qNorm) || norm(p.vehicle?.driver_name_en).includes(qNorm);
+                const matchPhone = norm(p.vehicle?.driver_phone).includes(qNorm);
+                const matchDest = norm(`${p.destination_ar || ''} ${p.destination_en || ''}`).includes(qNorm);
+                const matchInvoice = norm(p.invoice_no).includes(qNorm);
+                const matchCargo = norm(p.cargo_details).includes(qNorm);
+                const matchCompany = norm(`${p.vehicle?.company_ar || ''} ${p.vehicle?.company_en || ''}`).includes(qNorm);
+
+                return matchPlate || matchCode || matchPin || matchDriver || matchPhone || matchDest || matchInvoice || matchCargo || matchCompany;
             });
 
             if (filteredPermits.length === 0) {
@@ -735,20 +740,26 @@ class ManagerController {
                 if (hrs < (settings.overstay_hours_threshold || 3)) return false;
             }
 
-            if (!q) return true;
+            if (!qNorm) return true;
 
             const permit = window.DB.findPermitByCodeOrVehicle(null, vehicle.id);
             const lastLog = vehicleLogs.length > 0 ? vehicleLogs[vehicleLogs.length - 1] : null;
             const officer = lastLog ? users.find(u => u.id === lastLog.officer_id) : null;
 
-            const matchPlate = (vehicle.plate_ar || '').includes(q) || (vehicle.plate_en || '').toLowerCase().includes(q);
-            const matchDriver = (vehicle.driver_name_ar || '').includes(q) || (vehicle.driver_name_en || '').toLowerCase().includes(q);
-            const matchCompany = (vehicle.company_ar || '').includes(q) || (vehicle.company_en || '').toLowerCase().includes(q);
-            const matchPermit = permit && ((permit.permit_code || '').toLowerCase().includes(q) || (permit.pin_code || '').includes(q));
-            const matchGate = lastLog && (lastLog.gate_name || '').includes(q);
-            const matchOfficer = officer && ((officer.name_ar || '').includes(q) || (officer.name_en || '').toLowerCase().includes(q));
+            const pAr = norm(vehicle.plate_ar);
+            const pEn = norm(vehicle.plate_en);
+            const pArCompact = normPlate(vehicle.plate_ar);
+            const pEnCompact = normPlate(vehicle.plate_en);
 
-            return matchPlate || matchDriver || matchCompany || matchPermit || matchGate || matchOfficer;
+            const matchPlate = pAr.includes(qNorm) || pEn.includes(qNorm) || (qPlate && (pArCompact.includes(qPlate) || pEnCompact.includes(qPlate)));
+            const matchDriver = norm(vehicle.driver_name_ar).includes(qNorm) || norm(vehicle.driver_name_en).includes(qNorm);
+            const matchCompany = norm(vehicle.company_ar).includes(qNorm) || norm(vehicle.company_en).includes(qNorm);
+            const matchPhone = norm(vehicle.driver_phone).includes(qNorm);
+            const matchPermit = permit && (norm(permit.permit_code).includes(qNorm) || norm(permit.pin_code).includes(qNorm) || norm(permit.destination_ar).includes(qNorm) || norm(permit.cargo_details).includes(qNorm) || norm(permit.invoice_no).includes(qNorm));
+            const matchGate = vehicleLogs.some(l => norm(l.gate_name).includes(qNorm) || norm(l.exit_gate_name).includes(qNorm));
+            const matchOfficer = officer && (norm(officer.name_ar).includes(qNorm) || norm(officer.name_en).includes(qNorm));
+
+            return matchPlate || matchDriver || matchCompany || matchPhone || matchPermit || matchGate || matchOfficer;
         });
 
         if (filteredVehicles.length === 0) {
@@ -784,6 +795,10 @@ class ManagerController {
             const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : (insideLog ? users.find(u => u.id === insideLog.officer_id) : null);
             const entryOfficerName = entryOfficer ? (lang === 'ar' ? entryOfficer.name_ar : entryOfficer.name_en) : (lastEntryLog ? `ضابط #${lastEntryLog.officer_id}` : '--');
             
+            const exitGateName = lastExitLog ? (lastExitLog.exit_gate_name || (lastExitLog.action_type === 'exit' ? lastExitLog.gate_name : null)) : null;
+            const exitOfficer = lastExitLog ? users.find(u => u.id === (lastExitLog.exit_officer_id || lastExitLog.officer_id)) : null;
+            const exitOfficerName = exitOfficer ? (lang === 'ar' ? exitOfficer.name_ar : exitOfficer.name_en) : (lastExitLog?.exit_officer_id ? `ضابط #${lastExitLog.exit_officer_id}` : '--');
+
             let statusBadge = '';
             let durationText = '--';
             let entryTimeText = '--';
@@ -861,18 +876,25 @@ class ManagerController {
                             </span>
                             ${permit?.cargo_details ? `<span class="text-[11px] text-[#556b82] font-semibold">📦 ${permit.cargo_details}</span>` : ''}
                             ${permit?.invoice_no ? `<span class="text-[11px] text-[#107e3e] font-mono font-bold">📄 إذن: ${permit.invoice_no}</span>` : ''}
+                            ${permit?.pin_code ? `<span class="text-[10px] text-[#0070f2] font-mono font-black">🎫 PIN: ${permit.pin_code}</span>` : ''}
                         </div>
                     </td>
                     <td class="py-3.5 px-4">
                         ${entryGateName !== '--' ? `
                             <div class="inline-flex items-center gap-1 font-bold text-xs text-[#002b66] bg-[#ebf3fb] px-2.5 py-1 rounded-xl border border-[#b3d5fa]">
-                                <span>🚪</span>
+                                <span>🚪 دخول:</span>
                                 <span>${entryGateName}</span>
                             </div>
                             <div class="text-[10px] text-[#556b82] font-semibold mt-1">👮 ${entryOfficerName}</div>
                         ` : `
                             <span class="text-[#556b82] text-xs font-mono">--</span>
                         `}
+                        ${exitGateName && exitGateName !== '--' && exitGateName !== entryGateName ? `
+                            <div class="inline-flex items-center gap-1 font-bold text-xs text-purple-900 bg-purple-50 px-2.5 py-1 rounded-xl border border-purple-200 mt-1.5">
+                                <span>🚪 خروج:</span>
+                                <span>${exitGateName}</span>
+                            </div>
+                        ` : ''}
                     </td>
                     <td class="py-3.5 px-4 text-xs font-mono">
                         ${timeCellHtml}

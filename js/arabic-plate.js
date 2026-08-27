@@ -211,6 +211,25 @@ function backspaceKey(inputId) {
     input.focus();
 }
 
+function normalizeSearchText(str) {
+    if (!str && str !== 0) return '';
+    return String(str)
+        .toLowerCase()
+        // Convert Arabic/Persian digits to standard ASCII digits
+        .replace(/[\u0660-\u0669]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48))
+        .replace(/[\u06F0-\u06F9]/g, d => String.fromCharCode(d.charCodeAt(0) - 0x06F0 + 48))
+        // Normalize Arabic letters
+        .replace(/[أإآٱ]/g, 'ا')
+        .replace(/[ىيئ]/g, 'ي')
+        .replace(/[ةهـ]/g, 'ه')
+        .replace(/[\u064B-\u065F\u0670]/g, '') // Remove tashkeel / diacritics
+        .trim();
+}
+
+function normalizePlateCompact(str) {
+    return normalizeSearchText(str).replace(/[\s\-_/.,]+/g, '');
+}
+
 window.ArabicPlate = {
     LETTERS: EGYPTIAN_PLATE_LETTERS,
     renderArabicPlate: renderEgyptianPlate,
@@ -219,5 +238,7 @@ window.ArabicPlate = {
     insertKey,
     backspaceKey,
     toEasternArabicDigits,
-    parsePlateParts
+    parsePlateParts,
+    normalizeSearchText,
+    normalizePlateCompact
 };

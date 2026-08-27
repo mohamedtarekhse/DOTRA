@@ -218,7 +218,7 @@ class CeoController {
                                     <th class="py-3.5 px-4 text-center">${lang === 'ar' ? 'التتبع والرحلة' : 'Timeline'}</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-[#e7eff7] bg-white">
+                            <tbody id="ceo-audit-table-body" class="divide-y divide-[#e7eff7] bg-white">
                                 ${this.renderAuditRows(lang)}
                             </tbody>
                         </table>
@@ -231,7 +231,11 @@ class CeoController {
     renderAuditRows(lang) {
         const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
         let movements = window.DB.getExecutiveMovementLogs();
-        const q = (this.searchQuery || '').trim().toLowerCase();
+        
+        const norm = (str) => window.ArabicPlate && window.ArabicPlate.normalizeSearchText ? window.ArabicPlate.normalizeSearchText(str) : String(str || '').toLowerCase().trim();
+        const normPlate = (str) => window.ArabicPlate && window.ArabicPlate.normalizePlateCompact ? window.ArabicPlate.normalizePlateCompact(str) : norm(str).replace(/[\s\-_/.,]+/g, '');
+        const qNorm = norm(this.searchQuery);
+        const qPlate = normPlate(this.searchQuery);
 
         // 1. Apply Date Filter
         const now = new Date();
@@ -257,17 +261,22 @@ class CeoController {
         }
 
         // 4. Apply Free Search Query
-        if (q) {
+        if (qNorm) {
             movements = movements.filter(m => {
-                const matchPlate = (m.vehicle.plate_ar || '').includes(q) || (m.vehicle.plate_en || '').toLowerCase().includes(q);
-                const matchDriver = (m.vehicle.driver_name_ar || '').includes(q) || (m.vehicle.company_ar || '').includes(q);
-                const matchPermit = m.permit && ((m.permit.permit_code || '').toLowerCase().includes(q) || (m.permit.pin_code || '').includes(q));
-                const matchCreator = (m.created_by_name || '').toLowerCase().includes(q);
-                const matchApprover = (m.approved_by_name || '').toLowerCase().includes(q);
-                const matchEntryOfficer = (m.entry_officer_name || '').toLowerCase().includes(q);
-                const matchExitOfficer = (m.exit_officer_name || '').toLowerCase().includes(q);
-                const matchGate = (m.entry_gate || '').includes(q) || (m.exit_gate || '').includes(q);
-                const matchDest = (m.destination_ar || '').includes(q);
+                const pAr = norm(m.vehicle?.plate_ar);
+                const pEn = norm(m.vehicle?.plate_en);
+                const pArCompact = normPlate(m.vehicle?.plate_ar);
+                const pEnCompact = normPlate(m.vehicle?.plate_en);
+
+                const matchPlate = pAr.includes(qNorm) || pEn.includes(qNorm) || (qPlate && (pArCompact.includes(qPlate) || pEnCompact.includes(qPlate)));
+                const matchDriver = norm(m.vehicle?.driver_name_ar).includes(qNorm) || norm(m.vehicle?.driver_name_en).includes(qNorm) || norm(m.vehicle?.company_ar).includes(qNorm) || norm(m.vehicle?.driver_phone).includes(qNorm);
+                const matchPermit = m.permit && (norm(m.permit.permit_code).includes(qNorm) || norm(m.permit.pin_code).includes(qNorm) || norm(m.permit.invoice_no).includes(qNorm) || norm(m.permit.cargo_details).includes(qNorm));
+                const matchCreator = norm(m.created_by_name).includes(qNorm);
+                const matchApprover = norm(m.approved_by_name).includes(qNorm);
+                const matchEntryOfficer = norm(m.entry_officer_name).includes(qNorm);
+                const matchExitOfficer = norm(m.exit_officer_name).includes(qNorm);
+                const matchGate = norm(m.entry_gate).includes(qNorm) || norm(m.exit_gate).includes(qNorm);
+                const matchDest = norm(m.destination_ar).includes(qNorm) || norm(m.destination_en).includes(qNorm);
 
                 return matchPlate || matchDriver || matchPermit || matchCreator || matchApprover || matchEntryOfficer || matchExitOfficer || matchGate || matchDest;
             });
@@ -420,8 +429,8 @@ class CeoController {
     }
 
     handleSearch(query) {
-        this.searchQuery = query;
-        const tbody = document.querySelector('tbody');
+        this.searchQuery = query || '';
+        const tbody = document.getElementById('ceo-audit-table-body') || (document.querySelector ? document.querySelector('tbody') : null);
         if (tbody) tbody.innerHTML = this.renderAuditRows(window.i18n.getLang());
     }
 
