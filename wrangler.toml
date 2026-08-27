@@ -1,14 +1,4 @@
-# Cloudflare Configuration for Factory Gate Vehicle Access System (Neon Postgres Backend)
-name = "factory-gate-access"
-main = "_worker.js"
+# Cloudflare Pages Configuration for DOTRA Factory Gate Access System (Neon Postgres)
+name = "dotra"
 compatibility_date = "2024-09-23"
-
-# Static Assets Configuration (Enables direct npx wrangler deploy)
-[assets]
-directory = "."
-binding = "ASSETS"
-
-# Neon Serverless Postgres Configuration:
-# Set secret via: npx wrangler secret put DATABASE_URL
-# Or for local development in .dev.vars: DATABASE_URL="postgresql://neondb_owner:npg_6wMLOJZr1jKG@ep-hidden-voice-b10afhgj-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-
+pages_build_output_dir = "."

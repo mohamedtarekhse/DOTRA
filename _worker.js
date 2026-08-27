@@ -1,12 +1,55 @@
-import { neon } from '@neondatabase/serverless';
+// Cloudflare Pages / Workers Backend with Neon Serverless Postgres (Lakebase Postgres)
+// معالج سحابة كلاود فلير المتصل بقاعدة بيانات نيون بوستجريس مباشرة (بدون تبعيات خارجية - Zero Dependencies)
+
+function createNeonClient(dbUrl) {
+    if (!dbUrl) return null;
+    let url;
+    try {
+        url = new URL(dbUrl);
+    } catch (e) {
+        return null;
+    }
+    const host = url.host.replace('-pooler', '');
+    const endpoint = `https://${host}/sql`;
+
+    const sql = async (strings, ...values) => {
+        let query = '';
+        const params = [];
+        for (let i = 0; i < strings.length; i++) {
+            query += strings[i];
+            if (i < values.length) {
+                params.push(values[i]);
+                query += `$${params.length}`;
+            }
+        }
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Neon-Connection-String': dbUrl
+            },
+            body: JSON.stringify({ query, params })
+        });
+
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Neon SQL Error (${res.status}): ${errText}`);
+        }
+
+        const data = await res.json();
+        return data.rows || [];
+    };
+
+    return sql;
+}
 
 function getSql(env) {
     if (env?.sql) return env.sql;
     const dbUrl = env?.DATABASE_URL || (typeof process !== 'undefined' ? process.env?.DATABASE_URL : null);
     if (!dbUrl) return null;
-    return neon(dbUrl);
+    return createNeonClient(dbUrl);
 }
-
 
 export default {
     async fetch(request, env, ctx) {
