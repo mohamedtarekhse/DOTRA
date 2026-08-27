@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار الإشعارات الفورية | DOTRA Push Notification Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 flex items-center justify-center">
+    <div class="max-w-2xl w-full bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
+        
+        <!-- Header -->
+        <div class="text-center space-y-2 border-b border-slate-700 pb-5">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600/20 text-blue-400 text-3xl mb-1">
+                🔔
+            </div>
+            <h1 class="text-2xl font-black text-white">اختبار الإشعارات الفورية (Web Push)</h1>
+            <p class="text-sm text-slate-400">لوحة فحص وتجربة وصول الإشعارات على المتصفح والموبايل مع قاعدة بيانات نيون</p>
+        </div>
+
+        <!-- Diagnostics Box -->
+        <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-700/60 space-y-3">
+            <h2 class="text-sm font-bold text-slate-300 flex items-center gap-2">
+                <span>🔍</span> حالة النظام والمتصفح:
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                <div class="flex justify-between p-2 rounded bg-slate-800/80 border border-slate-700">
+                    <span class="text-slate-400">دعم Service Worker:</span>
+                    <span id="diag-sw" class="font-bold text-yellow-400">جاري الفحص...</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-slate-800/80 border border-slate-700">
+                    <span class="text-slate-400">دعم Push Manager:</span>
+                    <span id="diag-push" class="font-bold text-yellow-400">جاري الفحص...</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-slate-800/80 border border-slate-700">
+                    <span class="text-slate-400">إذن الإشعارات (Permission):</span>
+                    <span id="diag-perm" class="font-bold text-yellow-400">جاري الفحص...</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-slate-800/80 border border-slate-700">
+                    <span class="text-slate-400">حالة الاشتراك في نيون:</span>
+                    <span id="diag-sub" class="font-bold text-yellow-400">جاري الفحص...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-3">
+            <h2 class="text-sm font-bold text-slate-300 flex items-center gap-2">
+                <span>⚡</span> إجراءات الفحص المباشر:
+            </h2>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button id="btn-subscribe" onclick="handleSubscribe()" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
+                    <span>📡</span>
+                    <span>طلب الإذن وتفعيل الإشعارات</span>
+                </button>
+
+                <button id="btn-local-test" onclick="handleLocalTest()" class="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2">
+                    <span>🔔</span>
+                    <span>إرسال إشعار فحص فوري للجهاز</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <button onclick="handleSimulate('entry')" class="py-2.5 px-3 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg border border-slate-600 flex items-center justify-center gap-1.5 transition-all">
+                    <span>📥</span>
+                    <span>محاكاة دخول شاحنة</span>
+                </button>
+
+                <button onclick="handleSimulate('exit')" class="py-2.5 px-3 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg border border-slate-600 flex items-center justify-center gap-1.5 transition-all">
+                    <span>📤</span>
+                    <span>محاكاة خروج شاحنة</span>
+                </button>
+
+                <button onclick="handleSimulate('overstay')" class="py-2.5 px-3 bg-red-900/60 hover:bg-red-800 text-red-200 text-xs font-bold rounded-lg border border-red-700 flex items-center justify-center gap-1.5 transition-all">
+                    <span>⚠️</span>
+                    <span>محاكاة تجاوز مدة بقاء</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Logs Console Output -->
+        <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs text-slate-400">
+                <span class="font-bold">📋 سجل العمليات المباشر (Live Log Console):</span>
+                <button onclick="clearLogs()" class="hover:text-slate-200 underline">مسح السجل</button>
+            </div>
+            <div id="log-output" class="bg-black/60 font-mono text-xs text-emerald-400 p-4 rounded-xl h-44 overflow-y-auto border border-slate-800 space-y-1">
+                <div>[SYSTEM] جاهز لإجراء الفحوصات...</div>
+            </div>
+        </div>
+
+        <!-- Back to App Link -->
+        <div class="text-center pt-2">
+            <a href="index.html" class="text-xs text-blue-400 hover:text-blue-300 font-bold underline">
+                ← العودة إلى الصفحة الرئيسية للنظام
+            </a>
+        </div>
+    </div>
+
+    <!-- Push Client Library -->
+    <script src="js/push.js"></script>
+    <script>
+        function log(msg, type = 'info') {
+            const out = document.getElementById('log-output');
+            const el = document.createElement('div');
+            const time = new Date().toLocaleTimeString('ar-EG');
+            if (type === 'error') el.className = 'text-red-400';
+            else if (type === 'success') el.className = 'text-emerald-300 font-bold';
+            else if (type === 'warn') el.className = 'text-yellow-400';
+            else el.className = 'text-slate-300';
+            el.textContent = `[${time}] ${msg}`;
+            out.appendChild(el);
+            out.scrollTop = out.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('log-output').innerHTML = '';
+        }
+
+        async function refreshDiagnostics() {
+            const hasSW = 'serviceWorker' in navigator;
+            const hasPush = 'PushManager' in window;
+            const perm = typeof Notification !== 'undefined' ? Notification.permission : 'not-supported';
+
+            document.getElementById('diag-sw').textContent = hasSW ? '✅ مدعوم' : '❌ غير مدعوم';
+            document.getElementById('diag-sw').className = hasSW ? 'font-bold text-emerald-400' : 'font-bold text-red-400';
+
+            document.getElementById('diag-push').textContent = hasPush ? '✅ مدعوم' : '❌ غير مدعوم';
+            document.getElementById('diag-push').className = hasPush ? 'font-bold text-emerald-400' : 'font-bold text-red-400';
+
+            const permEl = document.getElementById('diag-perm');
+            if (perm === 'granted') {
+                permEl.textContent = '✅ مسموح (Granted)';
+                permEl.className = 'font-bold text-emerald-400';
+            } else if (perm === 'denied') {
+                permEl.textContent = '❌ محظور (Denied)';
+                permEl.className = 'font-bold text-red-400';
+            } else {
+                permEl.textContent = '⏳ افتراضي (Default)';
+                permEl.className = 'font-bold text-yellow-400';
+            }
+
+            if (window.PushService) {
+                const isSub = await window.PushService.isSubscribed();
+                const subEl = document.getElementById('diag-sub');
+                subEl.textContent = isSub ? '✅ مفعل ومسجل' : '⚪ غير مفعل';
+                subEl.className = isSub ? 'font-bold text-emerald-400' : 'font-bold text-slate-400';
+            }
+        }
+
+        async function handleSubscribe() {
+            log('جاري طلب إذن الإشعارات من المتصفح...');
+            try {
+                if ('serviceWorker' in navigator) {
+                    await navigator.serviceWorker.register('./sw.js');
+                }
+                const res = await window.PushService.requestPermissionAndSubscribe('manager', 1);
+                if (res.success) {
+                    log('تم تفعيل وتسجيل الاشتراك بنجاح في السحابة!', 'success');
+                } else {
+                    log('لم يتم التفعيل: ' + res.message, 'warn');
+                }
+            } catch (e) {
+                log('خطأ أثناء الاشتراك: ' + e.message, 'error');
+            }
+            refreshDiagnostics();
+        }
+
+        async function handleLocalTest() {
+            log('جاري إرسال إشعار فحص فوري على جهازك...');
+            const sent = await window.PushService.sendTestNotification();
+            if (sent) {
+                log('تم إرسال إشعار الفحص بنجاح!', 'success');
+            } else {
+                log('يرجى أولاً الضغط على زر (طلب الإذن وتفعيل الإشعارات) للسماح بالإشعارات.', 'warn');
+            }
+        }
+
+        async function handleSimulate(type) {
+            let payload = {};
+            if (type === 'entry') {
+                payload = {
+                    type: 'entry',
+                    vehicle_plate: 'ط ر ق ٩ ٨ ٢ ١',
+                    gate_name: 'بوابة 1 الرئيسية - دوترا',
+                    roles: ['manager', 'officer']
+                };
+                log('محاكاة دخول شاحنة [ط ر ق ٩ ٨ ٢ ١] عبر البوابة 1...');
+            } else if (type === 'exit') {
+                payload = {
+                    type: 'exit',
+                    vehicle_plate: 'س ي ر ٥ ٥ ٤ ٤',
+                    gate_name: 'بوابة 2 الشحن والجمارك',
+                    roles: ['manager', 'officer']
+                };
+                log('محاكاة خروج شاحنة [س ي ر ٥ ٥ ٤ ٤] عبر البوابة 2...');
+            } else {
+                payload = {
+                    type: 'overstay',
+                    title: '⚠️ تنبيه تجاوز مدة البقاء',
+                    body: 'الشاحنة ب ل ع ١ ٢ ٣ ٤ تجاوزت مدة البقاء المسموحة (3 ساعات)',
+                    vehicle_plate: 'ب ل ع ١ ٢ ٣ ٤',
+                    roles: ['manager']
+                };
+                log('محاكاة تنبيه تجاوز مدة البقاء للشاحنة [ب ل ع ١ ٢ ٣ ٤]...');
+            }
+
+            try {
+                const res = await fetch('/api/push/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    log('تم إرسال التنبيه السحابي بنجاح إلى كافة المشتركين المسجلين في نيون!', 'success');
+                } else {
+                    log('فشل إرسال التنبيه: ' + JSON.stringify(data), 'error');
+                }
+            } catch (err) {
+                log('خطأ في إرسال التنبيه: ' + err.message, 'error');
+            }
+        }
+
+        // Init on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            if ('serviceWorker' in navigator) {
+                try {
+                    await navigator.serviceWorker.register('./sw.js');
+                    log('Service Worker مسجل وجاهز.');
+                } catch (e) {}
+            }
+            refreshDiagnostics();
+        });
+    </script>
+</body>
+</html>
