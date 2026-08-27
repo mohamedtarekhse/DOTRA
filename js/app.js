@@ -75,34 +75,30 @@ class AppController {
 
     handleLiveAnnouncement(data) {
         const lang = window.i18n.getLang();
+        let title = '🔔 تنبيه بوابة دوترا';
+        let body = '';
+        let notifType = 'info';
+
         if (data.type === 'PERMIT_CREATED') {
-            this.showToast(
-                lang === 'ar' ? '🎫 تم إصدار تصريح جديد' : 'New Pass Issued',
-                lang === 'ar' ? `تصريح للمركبة: ${data.plate} • كود التحقق: ${data.pin}` : `Pass created for ${data.plate} (PIN: ${data.pin})`,
-                'info',
-                'shield'
-            );
+            title = lang === 'ar' ? '🎫 تم إصدار تصريح جديد' : 'New Pass Issued';
+            body = lang === 'ar' ? `تصريح للمركبة: ${data.plate} • كود التحقق: ${data.pin}` : `Pass created for ${data.plate} (PIN: ${data.pin})`;
+            notifType = 'info';
+            this.showToast(title, body, 'info', 'shield');
         } else if (data.type === 'VEHICLE_ENTRY') {
-            this.showToast(
-                lang === 'ar' ? '📥 تسجيل دخول شاحنة' : 'Vehicle Entry Recorded',
-                lang === 'ar' ? `دخلت ${data.plate} عبر ${data.gate} (👮 ${data.officer})` : `Vehicle ${data.plate} entered via ${data.gate}`,
-                'success',
-                'truck'
-            );
+            title = lang === 'ar' ? '📥 تسجيل دخول شاحنة' : 'Vehicle Entry Recorded';
+            body = lang === 'ar' ? `دخلت ${data.plate} عبر ${data.gate} (👮 ${data.officer})` : `Vehicle ${data.plate} entered via ${data.gate}`;
+            notifType = 'success';
+            this.showToast(title, body, 'success', 'truck');
         } else if (data.type === 'VEHICLE_EXIT') {
-            this.showToast(
-                lang === 'ar' ? '📤 تسجيل خروج شاحنة' : 'Vehicle Exit Recorded',
-                lang === 'ar' ? `غادرت ${data.plate} عبر ${data.gate} (⏱️ المدة: ${data.duration} دقيقة)` : `Vehicle ${data.plate} exited via ${data.gate} (${data.duration} min)`,
-                'warning',
-                'logout'
-            );
+            title = lang === 'ar' ? '📤 تسجيل خروج شاحنة' : 'Vehicle Exit Recorded';
+            body = lang === 'ar' ? `غادرت ${data.plate} عبر ${data.gate} (⏱️ المدة: ${data.duration} دقيقة)` : `Vehicle ${data.plate} exited via ${data.gate} (${data.duration} min)`;
+            notifType = 'warning';
+            this.showToast(title, body, 'warning', 'logout');
         } else if (data.type === 'BLACKLIST_UPDATED') {
-            this.showToast(
-                lang === 'ar' ? '⛔ تحديث القائمة السوداء' : 'Security Alert',
-                lang === 'ar' ? `تم تحديث حالة أمان المركبة ${data.plate}` : `Security status updated for ${data.plate}`,
-                'error',
-                'ban'
-            );
+            title = lang === 'ar' ? '⛔ تحديث القائمة السوداء' : 'Security Alert';
+            body = lang === 'ar' ? `تم تحديث حالة أمان المركبة ${data.plate}` : `Security status updated for ${data.plate}`;
+            notifType = 'error';
+            this.showToast(title, body, 'error', 'ban');
         }
 
         // Re-render current view with updated state
@@ -112,33 +108,9 @@ class AppController {
             window.Officer.renderTerminal();
         }
 
-        // Native Notification fallback if tab is backgrounded
-        if (typeof document !== 'undefined' && document.hidden && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            try {
-                navigator.serviceWorker.ready.then(reg => {
-                    let title = '🔔 تنبيه بوابة دوترا';
-                    let body = '';
-                    if (data.type === 'VEHICLE_ENTRY') {
-                        title = '📥 تسجيل دخول شاحنة';
-                        body = `دخلت ${data.plate} عبر ${data.gate}`;
-                    } else if (data.type === 'VEHICLE_EXIT') {
-                        title = '📤 تسجيل خروج شاحنة';
-                        body = `غادرت ${data.plate} عبر ${data.gate} (${data.duration} دقيقة)`;
-                    } else if (data.type === 'PERMIT_CREATED') {
-                        title = '🎫 تم إصدار تصريح جديد';
-                        body = `تصريح للمركبة: ${data.plate} • PIN: ${data.pin}`;
-                    }
-                    if (body && reg && reg.showNotification) {
-                        reg.showNotification(title, {
-                            body: body,
-                            icon: 'assets/logo.jpg',
-                            badge: 'assets/logo.jpg',
-                            dir: 'rtl',
-                            lang: 'ar'
-                        });
-                    }
-                });
-            } catch(e) {}
+        // Trigger System / OS Notification & Audio Chime
+        if (window.PushService && typeof window.PushService.showSystemNotification === 'function') {
+            window.PushService.showSystemNotification(title, body, notifType, `live-${Date.now()}`);
         }
     }
 

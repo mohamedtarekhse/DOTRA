@@ -858,6 +858,7 @@ class DatabaseService {
 
     recordDenied(vehicleId, officerId, gateName, reason) {
         const logs = this.getLogs();
+        const vehicle = this.getVehicles().find(v => v.id === vehicleId);
         const newLog = {
             id: this.generateId(),
             vehicle_id: vehicleId,
@@ -873,8 +874,9 @@ class DatabaseService {
         logs.push(newLog);
         localStorage.setItem('gate_logs', JSON.stringify(logs));
 
-        // FIX: Sync denied records to cloud (was missing before)
+        // Sync denied records to cloud & push notification
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        this.notifyVehicleEvent('denied', vehicleId, vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`, gateName);
 
         return newLog;
     }
@@ -979,15 +981,17 @@ class DatabaseService {
         localStorage.setItem('gate_permits', JSON.stringify(permits));
 
         const vehicle = this.getVehicles().find(v => v.id === newPermit.vehicle_id);
+        const plateStr = permitData.plate || (vehicle ? vehicle.plate_ar : 'مركبة جديدة');
 
         this.announce('PERMIT_CREATED', {
-            plate: permitData.plate || (vehicle ? vehicle.plate_ar : 'مركبة جديدة'),
+            plate: plateStr,
             pin: newPermit.pin_code,
             destination: newPermit.destination_ar || 'المستودع'
         });
 
-        // Single sync call — no more dual-write to /api/permits
+        // Single sync call & push notification dispatch
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        this.notifyVehicleEvent('permit', newPermit.vehicle_id, plateStr, newPermit.destination_ar || 'المصنع');
         return newPermit;
     }
 

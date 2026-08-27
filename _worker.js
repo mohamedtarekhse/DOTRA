@@ -558,10 +558,22 @@ export default {
                     if (sql && (data.type || data.title) && (data.vehicle_plate || data.body)) {
                         const title = data.title || (data.type === 'entry'
                             ? `📥 دخول: ${data.vehicle_plate}`
-                            : (data.type === 'exit' ? `📤 خروج: ${data.vehicle_plate}` : `🔔 ${data.vehicle_plate}`));
+                            : (data.type === 'exit'
+                                ? `📤 خروج: ${data.vehicle_plate}`
+                                : (data.type === 'permit'
+                                    ? `🎫 تصريح جديد: ${data.vehicle_plate}`
+                                    : (data.type === 'denied'
+                                        ? `⛔ منع دخول: ${data.vehicle_plate}`
+                                        : `🔔 ${data.vehicle_plate}`))));
                         const body = data.body || (data.type === 'entry'
                             ? `دخول عبر ${data.gate_name || 'البوابة'}`
-                            : (data.type === 'exit' ? `خروج عبر ${data.gate_name || 'البوابة'}` : data.message || ''));
+                            : (data.type === 'exit'
+                                ? `خروج عبر ${data.gate_name || 'البوابة'}`
+                                : (data.type === 'permit'
+                                    ? `تصريح إلى ${data.destination || data.gate_name || 'المصنع'} • PIN: ${data.pin || ''}`
+                                    : (data.type === 'denied'
+                                        ? `تم منع المركبة عند ${data.gate_name || 'البوابة'}`
+                                        : data.message || ''))));
 
                         try {
                             // 1. Insert a broadcast notification for all connected clients

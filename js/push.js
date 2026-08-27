@@ -112,22 +112,50 @@ class PushManagerService {
         }
     }
 
-    async sendTestNotification() {
+    async showSystemNotification(title, body, type = 'info', tag = '') {
+        // 1. Play Audio chime
+        if (window.App && typeof window.App.playChime === 'function') {
+            window.App.playChime(type);
+        }
+
+        // 2. Browser / OS Native Notification
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            const reg = await navigator.serviceWorker.ready;
-            if (reg && reg.showNotification) {
-                await reg.showNotification('🔔 اختبار إشعارات دوترا', {
-                    body: 'نظام الإشعارات الفورية متصل ويعمل بنجاح!',
+            try {
+                if ('serviceWorker' in navigator) {
+                    const reg = await navigator.serviceWorker.ready;
+                    if (reg && reg.showNotification) {
+                        await reg.showNotification(title, {
+                            body: body,
+                            icon: 'assets/logo.jpg',
+                            badge: 'assets/logo.jpg',
+                            dir: 'rtl',
+                            lang: 'ar',
+                            tag: tag || `dotra-${Date.now()}`,
+                            vibrate: [200, 100, 200],
+                            renotify: true,
+                            data: { url: './' }
+                        });
+                        return true;
+                    }
+                }
+                new Notification(title, {
+                    body: body,
                     icon: 'assets/logo.jpg',
                     badge: 'assets/logo.jpg',
                     dir: 'rtl',
                     lang: 'ar',
-                    vibrate: [200, 100, 200]
+                    tag: tag || `dotra-${Date.now()}`
                 });
                 return true;
+            } catch (e) {
+                console.warn('[Push] showSystemNotification error:', e);
             }
         }
         return false;
+    }
+
+    async sendTestNotification() {
+        return await this.showSystemNotification('🔔 اختبار إشعارات دوترا', 'نظام الإشعارات الفورية متصل ويعمل بنجاح!', 'info', 'test-notif');
     }
 
     startPolling(intervalMs = 3000) {
@@ -141,27 +169,14 @@ class PushManagerService {
                 if (badge) { badge.textContent = notifs.length; badge.classList.remove('hidden'); }
                 if (mobileDot) { mobileDot.classList.remove('hidden'); }
                 for (const n of notifs) {
-                    // 1. Native Service Worker / OS Notification
-                    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                        try {
-                            const reg = await navigator.serviceWorker.ready;
-                            if (reg && reg.showNotification) {
-                                await reg.showNotification(n.title, {
-                                    body: n.body,
-                                    icon: 'assets/logo.jpg',
-                                    badge: 'assets/logo.jpg',
-                                    dir: 'rtl',
-                                    lang: 'ar',
-                                    tag: `notif-${n.id}`,
-                                    vibrate: [200, 100, 200]
-                                });
-                            }
-                        } catch (e) {}
-                    }
-                    // 2. In-App Toast & Audio Chime
+                    const type = n.type === 'entry' ? 'success' : (n.type === 'exit' ? 'warning' : (n.type === 'denied' ? 'error' : 'info'));
+                    
+                    // 1. Native Service Worker / OS Notification with Sound
+                    await this.showSystemNotification(n.title, n.body, type, `notif-${n.id}`);
+
+                    // 2. In-App Toast
                     if (window.App && typeof window.App.showToast === 'function') {
-                        const type = n.type === 'entry' ? 'success' : (n.type === 'exit' ? 'warning' : (n.type === 'denied' ? 'error' : 'info'));
-                        window.App.showToast(n.title, n.body, type, n.type === 'entry' ? 'check' : (n.type === 'exit' ? 'logout' : 'bell'));
+                        window.App.showToast(n.title, n.body, type, n.type === 'entry' ? 'check' : (n.type === 'exit' ? 'logout' : (n.type === 'denied' ? 'ban' : 'bell')));
                     }
                     // 3. Mark as read in Neon database
                     await window.DB.markNotificationRead(n.id);
