@@ -2412,18 +2412,40 @@ class ManagerController {
         this.renderDashboard();
     }
 
-    exportCSV() {
+    exportExcel() {
+        const lang = window.i18n ? window.i18n.getLang() : 'ar';
         const permits = window.DB.getPermits();
         const vehicles = window.DB.getVehicles();
         const logs = window.DB.getLogs();
         const users = window.DB.getUsers();
 
-        let csv = '';
+        let headers = [];
+        let rowsHtml = '';
+        let fileName = '';
 
         if (this.activeFilter === 'permits' || permits.length > 0) {
-            csv = 'كود التصريح (Permit_Code),رمز التحقق (PIN),رقم اللوحة (Plate),نوع التصريح (Type),الوجهة (Destination),رقم الإذن (Invoice_No),تفاصيل الحمولة (Cargo),اسم السائق (Driver_Name),هاتف السائق (Driver_Phone),الشركة (Company),الحالة (Status),تاريخ الإصدار (Valid_From),البوابة (Gate),فرد الأمن (Officer)\n';
-            
-            permits.forEach(p => {
+            fileName = `DOTRA_Permits_${new Date().toISOString().split('T')[0]}`;
+            headers = [
+                'م',
+                'كود التصريح',
+                'رمز التحقق PIN',
+                'رقم اللوحة',
+                'نوع التصريح',
+                'الوجهة داخل المصنع',
+                'تفاصيل الحمولة',
+                'رقم إذن الصرف / الفاتورة',
+                'اسم السائق',
+                'هاتف السائق',
+                'الشركة الموردة',
+                'الحالة',
+                'تاريخ الإصدار',
+                'منشئ التصريح',
+                'معتمد التصريح',
+                'بوابة الدخول',
+                'ضابط أمن البوابة'
+            ];
+
+            rowsHtml = permits.map((p, idx) => {
                 const vehicle = vehicles.find(v => v.id === p.vehicle_id) || {};
                 const log = logs.find(l => l.permit_id === p.id || l.vehicle_id === p.vehicle_id);
                 const officer = log ? users.find(u => u.id === log.officer_id) : null;
@@ -2440,31 +2462,139 @@ class ManagerController {
                 const driver = vehicle.driver_name_ar || p.driver_name || 'سائق مصرح';
                 const phone = vehicle.driver_phone || p.phone || '';
                 const company = vehicle.company_ar || 'عام';
-                const status = p.status === 'active' ? 'ساري' : (p.status === 'used' ? 'تم الاستخدام' : 'ملغي');
+                const status = p.status === 'active' ? 'ساري' : (p.status === 'hold' ? 'معلق' : (p.status === 'used' ? 'تم الاستخدام' : 'ملغي'));
                 const validFrom = p.valid_from ? new Date(p.valid_from).toLocaleString('ar-EG') : '';
+                const createdBy = p.created_by_name || 'إدارة العمليات';
+                const approvedBy = p.approved_by_name || 'مدير العمليات';
 
-                csv += `"${pCode}","${pin}","${plate}","${type}","${dest}","${invoice}","${cargo}","${driver}","${phone}","${company}","${status}","${validFrom}","${gateName}","${officerName}"\n`;
-            });
+                return `
+                    <tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td style="font-family:monospace;font-weight:bold;color:#0070f2;mso-number-format:'\\@';">${pCode}</td>
+                        <td style="font-family:monospace;font-weight:bold;color:#b85500;text-align:center;mso-number-format:'\\@';">${pin}</td>
+                        <td style="font-weight:bold;color:#002b66;text-align:center;mso-number-format:'\\@';">${plate}</td>
+                        <td style="text-align:center;">${type}</td>
+                        <td style="font-weight:bold;color:#002b66;">${dest}</td>
+                        <td>${cargo}</td>
+                        <td style="mso-number-format:'\\@';">${invoice}</td>
+                        <td style="font-weight:bold;">${driver}</td>
+                        <td style="mso-number-format:'\\@';text-align:center;">${phone}</td>
+                        <td>${company}</td>
+                        <td style="text-align:center;font-weight:bold;">${status}</td>
+                        <td style="mso-number-format:'\\@';text-align:center;">${validFrom}</td>
+                        <td>${createdBy}</td>
+                        <td>${approvedBy}</td>
+                        <td>${gateName}</td>
+                        <td>${officerName}</td>
+                    </tr>
+                `;
+            }).join('');
         } else {
-            csv = 'رقم الحركة (Log_ID),رقم اللوحة (Plate),هاتف السائق (Driver_Phone),اسم السائق (Driver_Name),الشركة (Company),البوابة (Gate),نوع الإجراء (Action),تاريخ ووقت الدخول (Entry_Time),تاريخ ووقت الخروج (Exit_Time),المدة بالدقائق (Duration_Min),ملاحظات (Remarks)\n';
-            
-            logs.forEach(log => {
+            fileName = `DOTRA_Gate_Logs_${new Date().toISOString().split('T')[0]}`;
+            headers = [
+                'م',
+                'رقم الحركة',
+                'رقم اللوحة',
+                'هاتف السائق',
+                'اسم السائق',
+                'الشركة الموردة',
+                'بوابة الدخول',
+                'نوع الإجراء',
+                'تاريخ ووقت الدخول',
+                'تاريخ ووقت الخروج',
+                'المدة بالدقائق',
+                'ملاحظات'
+            ];
+
+            rowsHtml = logs.map((log, idx) => {
                 const vehicle = vehicles.find(v => v.id === log.vehicle_id) || {};
-                csv += `"${log.id}","${vehicle.plate_ar || ''}","${vehicle.driver_phone || ''}","${vehicle.driver_name_ar || ''}","${vehicle.company_ar || ''}","${log.gate_name}","${log.action_type}","${log.timestamp}","${log.exit_timestamp || ''}","${log.duration_minutes || ''}","${log.remarks || ''}"\n`;
-            });
+                const entryDate = log.timestamp ? new Date(log.timestamp).toLocaleString('ar-EG') : '--';
+                const exitDate = log.exit_timestamp ? new Date(log.exit_timestamp).toLocaleString('ar-EG') : '--';
+
+                return `
+                    <tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td style="text-align:center;font-weight:bold;">${log.id}</td>
+                        <td style="font-weight:bold;color:#002b66;text-align:center;mso-number-format:'\\@';">${vehicle.plate_ar || ''}</td>
+                        <td style="mso-number-format:'\\@';text-align:center;">${vehicle.driver_phone || ''}</td>
+                        <td style="font-weight:bold;">${vehicle.driver_name_ar || ''}</td>
+                        <td>${vehicle.company_ar || ''}</td>
+                        <td>${log.gate_name || ''}</td>
+                        <td style="text-align:center;">${log.action_type || ''}</td>
+                        <td style="mso-number-format:'\\@';text-align:center;">${entryDate}</td>
+                        <td style="mso-number-format:'\\@';text-align:center;">${exitDate}</td>
+                        <td style="text-align:center;font-weight:bold;">${log.duration_minutes || 0}</td>
+                        <td>${log.remarks || ''}</td>
+                    </tr>
+                `;
+            }).join('');
         }
+
+        const excelHtml = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>بيانات التصاريح والحركات</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayRightToLeft/>
+                                    <x:Selected/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+                <style>
+                    table { border-collapse: collapse; width: 100%; direction: rtl; font-family: Segoe UI, Tahoma, Arial, sans-serif; font-size: 12px; }
+                    th { background-color: #002b66; color: #ffffff; font-weight: bold; border: 1px solid #001940; padding: 10px 8px; text-align: center; font-size: 12px; }
+                    td { border: 1px solid #d7e2ee; padding: 8px 10px; text-align: right; vertical-align: middle; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                </style>
+            </head>
+            <body dir="rtl">
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
 
         if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
             try {
-                const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+                const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `dotra_permits_export_${new Date().toISOString().split('T')[0]}.csv`;
-                if (typeof a.click === 'function') a.click();
-            } catch(e) {}
+                a.download = `${fileName}.xls`;
+                if (document.body && typeof document.body.appendChild === 'function') {
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    a.click();
+                }
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                console.error('Export Excel error:', e);
+            }
         }
-        return csv;
+        return excelHtml;
+    }
+
+    exportCSV() {
+        return this.exportExcel();
     }
 
     // --- Pre-Arrival Manifest (CSV Import) Modal ---

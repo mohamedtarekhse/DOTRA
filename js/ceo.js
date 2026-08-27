@@ -62,9 +62,9 @@ class CeoController {
 
                         <!-- Top Action Buttons -->
                         <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
-                            <button type="button" onclick="CEO.exportToCSV()" class="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5 active:scale-95">
+                            <button type="button" onclick="CEO.exportToExcel()" class="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-transform hover:-translate-y-0.5 active:scale-95">
                                 ${icon('download', 'w-4 h-4 text-white')}
-                                <span>${lang === 'ar' ? 'تصدير كشف الحركة (Excel / CSV)' : 'Export to Excel'}</span>
+                                <span>${lang === 'ar' ? 'تصدير شيت إكسل (Excel .xls)' : 'Export to Excel (.xls)'}</span>
                             </button>
                             <button type="button" onclick="CEO.printExecutiveReport()" class="flex-1 md:flex-none px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white border border-white/30 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95">
                                 ${icon('printer', 'w-4 h-4 text-white')}
@@ -604,9 +604,9 @@ class CeoController {
     }
 
     /**
-     * Export Full Audit Movement Logs to Excel CSV
+     * Export Full Audit Movement Logs to Native Excel Spreadsheet (.xls in separate cells)
      */
-    exportToCSV() {
+    exportToExcel() {
         const movements = window.DB.getExecutiveMovementLogs();
         if (movements.length === 0) {
             alert('لا توجد سجلات لتصديرها');
@@ -614,10 +614,11 @@ class CeoController {
         }
 
         const headers = [
+            'م',
             'رقم الحركة',
-            'رقم اللوحة عربي',
-            'رقم اللوحة إنجليزي',
-            'نوع المركبة',
+            'رقم اللوحة (عربي)',
+            'رقم اللوحة (EN)',
+            'نوع الشاحنة',
             'اسم السائق',
             'هاتف السائق',
             'الشركة الموردة',
@@ -627,62 +628,282 @@ class CeoController {
             'معتمد التصريح',
             'الوجهة داخل المصنع',
             'تفاصيل الحمولة',
-            'رقم إذن الصرف أو الفاتورة',
+            'رقم إذن الصرف / الفاتورة',
             'بوابة الدخول',
             'تاريخ ووقت الدخول',
             'ضابط أمن الدخول',
             'بوابة الخروج',
             'تاريخ ووقت الخروج',
             'ضابط أمن الخروج',
-            'مدة التواجد بالدقائق',
+            'مدة التواجد (دقيقة)',
+            'مدة التواجد (ساعة)',
             'حالة الحركة'
         ];
 
-        const rows = movements.map(m => [
-            m.id,
-            `"${m.vehicle.plate_ar || ''}"`,
-            `"${m.vehicle.plate_en || ''}"`,
-            `"${m.vehicle.vehicle_type || ''}"`,
-            `"${m.vehicle.driver_name_ar || ''}"`,
-            `"${m.vehicle.driver_phone || ''}"`,
-            `"${m.vehicle.company_ar || ''}"`,
-            `"${m.permit ? m.permit.permit_code : ''}"`,
-            `"${m.permit ? m.permit.pin_code : ''}"`,
-            `"${m.created_by_name || ''}"`,
-            `"${m.approved_by_name || ''}"`,
-            `"${m.destination_ar || ''}"`,
-            `"${m.cargo_details || ''}"`,
-            `"${m.invoice_no || ''}"`,
-            `"${m.entry_gate || ''}"`,
-            `"${m.entry_timestamp || ''}"`,
-            `"${m.entry_officer_name || ''}"`,
-            `"${m.exit_gate || ''}"`,
-            `"${m.exit_timestamp || ''}"`,
-            `"${m.exit_officer_name || ''}"`,
-            m.duration_minutes || 0,
-            `"${m.status || ''}"`
-        ]);
+        let tableRowsHtml = movements.map((m, idx) => {
+            const entryFormatted = m.entry_timestamp ? new Date(m.entry_timestamp).toLocaleString('ar-EG') : '--';
+            const exitFormatted = m.exit_timestamp ? new Date(m.exit_timestamp).toLocaleString('ar-EG') : '--';
+            
+            let statusText = 'غادرت المصنع';
+            let statusClass = 'status-exited';
+            if (m.status === 'inside') { statusText = 'داخل المصنع'; statusClass = 'status-inside'; }
+            else if (m.status === 'overstay') { statusText = 'متجاوز للمدة'; statusClass = 'status-overstay'; }
+            else if (m.status === 'denied') { statusText = 'ممنوعة / مرفوضة'; statusClass = 'status-denied'; }
+            else if (m.status === 'hold') { statusText = 'تصريح معلق'; statusClass = 'status-hold'; }
 
-        const csvContent = "\uFEFF" + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `DOTRA_Executive_Movement_Audit_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+            return `
+                <tr>
+                    <td style="text-align:center;">${idx + 1}</td>
+                    <td style="text-align:center;font-weight:bold;">${m.id}</td>
+                    <td style="text-align:center;font-weight:bold;color:#002b66;mso-number-format:'\\@';">${m.vehicle.plate_ar || ''}</td>
+                    <td style="text-align:center;font-family:monospace;mso-number-format:'\\@';">${m.vehicle.plate_en || ''}</td>
+                    <td style="text-align:center;">${m.vehicle.vehicle_type || 'نقل'}</td>
+                    <td style="font-weight:bold;">${m.vehicle.driver_name_ar || ''}</td>
+                    <td style="mso-number-format:'\\@';text-align:center;">${m.vehicle.driver_phone || ''}</td>
+                    <td>${m.vehicle.company_ar || ''}</td>
+                    <td style="font-family:monospace;font-weight:bold;color:#0070f2;mso-number-format:'\\@';">${m.permit ? m.permit.permit_code : 'تصريح فوري'}</td>
+                    <td style="font-family:monospace;font-weight:bold;color:#b85500;text-align:center;mso-number-format:'\\@';">${m.permit ? m.permit.pin_code : '--'}</td>
+                    <td>${m.created_by_name || 'إدارة العمليات'}</td>
+                    <td>${m.approved_by_name || 'مدير العمليات'}</td>
+                    <td style="font-weight:bold;color:#002b66;">${m.destination_ar || ''}</td>
+                    <td>${m.cargo_details || ''}</td>
+                    <td style="mso-number-format:'\\@';">${m.invoice_no || ''}</td>
+                    <td style="font-weight:bold;">${m.entry_gate || ''}</td>
+                    <td style="mso-number-format:'\\@';text-align:center;">${entryFormatted}</td>
+                    <td>${m.entry_officer_name || ''}</td>
+                    <td style="font-weight:bold;">${m.exit_gate || '--'}</td>
+                    <td style="mso-number-format:'\\@';text-align:center;">${exitFormatted}</td>
+                    <td>${m.exit_officer_name || '--'}</td>
+                    <td style="text-align:center;font-weight:bold;">${m.duration_minutes || 0}</td>
+                    <td style="text-align:center;font-weight:bold;">${m.duration_hours || '0.0'}</td>
+                    <td class="${statusClass}" style="text-align:center;font-weight:bold;">${statusText}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const excelHtml = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>سجل حركات الشاحنات</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayRightToLeft/>
+                                    <x:Selected/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+                <style>
+                    table { border-collapse: collapse; width: 100%; direction: rtl; font-family: Segoe UI, Tahoma, Arial, sans-serif; font-size: 12px; }
+                    th { background-color: #002b66; color: #ffffff; font-weight: bold; border: 1px solid #001940; padding: 10px 8px; text-align: center; font-size: 12px; }
+                    td { border: 1px solid #d7e2ee; padding: 8px 10px; text-align: right; vertical-align: middle; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                    .status-inside { background-color: #e5f6eb; color: #107e3e; }
+                    .status-exited { background-color: #ebf3fb; color: #0070f2; }
+                    .status-overstay { background-color: #ffebeb; color: #bb0000; }
+                    .status-denied { background-color: #ffebeb; color: #bb0000; }
+                    .status-hold { background-color: #fff1e5; color: #b85500; }
+                </style>
+            </head>
+            <body dir="rtl">
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+            try {
+                const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `DOTRA_Executive_Movement_Audit_${new Date().toISOString().split('T')[0]}.xls`;
+                if (document.body && typeof document.body.appendChild === 'function') {
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    a.click();
+                }
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('Excel download error:', err);
+            }
+        }
+        return excelHtml;
+    }
+
+    exportToCSV() {
+        return this.exportToExcel();
     }
 
     /**
-     * Print Executive Clean Report
+     * Print Executive Clean Report (PDF & Hardcopy Output)
      */
     printExecutiveReport() {
-        const oldTitle = document.title;
-        document.title = `DOTRA_Executive_Audit_Report_${new Date().toISOString().split('T')[0]}`;
-        window.print();
-        document.title = oldTitle;
+        const movements = window.DB.getExecutiveMovementLogs();
+        const lang = window.i18n ? window.i18n.getLang() : 'ar';
+        const now = new Date();
+        const printDateStr = now.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const printTimeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+
+        const insideCount = movements.filter(m => m.status === 'inside').length;
+        const exitedCount = movements.filter(m => m.status === 'exited').length;
+        const overstayCount = movements.filter(m => m.status === 'overstay').length;
+        const totalCount = movements.length;
+
+        let reportContainer = document.getElementById('printable-report-container');
+        if (!reportContainer && typeof document !== 'undefined') {
+            reportContainer = document.createElement('div');
+            reportContainer.id = 'printable-report-container';
+            if (document.body && typeof document.body.appendChild === 'function') {
+                document.body.appendChild(reportContainer);
+            }
+        }
+
+        if (reportContainer) {
+            reportContainer.innerHTML = `
+                <div class="p-6 bg-white text-[#1d2d3e] font-sans" dir="rtl">
+                    <!-- Letterhead Header -->
+                    <div class="flex items-center justify-between border-b-2 border-[#002b66] pb-4 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-xl bg-[#002b66] text-amber-300 flex items-center justify-center font-black text-2xl border border-[#001940]">
+                                🌿
+                            </div>
+                            <div>
+                                <h1 class="text-lg font-black text-[#002b66]">شركة دوترا للتجارة والصناعة (DOTRA)</h1>
+                                <h2 class="text-xs font-bold text-[#556b82]">تقرير الرقابة التنفيذية الشامل لحركة الشاحنات والتصاريح</h2>
+                            </div>
+                        </div>
+                        <div class="text-left text-[11px] font-mono">
+                            <div class="font-bold text-[#002b66]">نظام بوابات المصانع الذكي</div>
+                            <div class="text-[#556b82] mt-0.5">${printDateStr}</div>
+                            <div class="text-[#556b82]">${printTimeStr}</div>
+                        </div>
+                    </div>
+
+                    <!-- Executive KPI Mini Strip -->
+                    <div class="grid grid-cols-4 gap-3 mb-4 text-center">
+                        <div class="p-2 rounded-xl bg-slate-50 border border-slate-200">
+                            <div class="text-[10px] text-[#556b82] font-bold">إجمالي الحركات</div>
+                            <div class="text-base font-black text-[#002b66] font-mono">${totalCount}</div>
+                        </div>
+                        <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                            <div class="text-[10px] text-emerald-800 font-bold">متواجد داخل المصنع</div>
+                            <div class="text-base font-black text-emerald-700 font-mono">${insideCount}</div>
+                        </div>
+                        <div class="p-2 rounded-xl bg-blue-50 border border-blue-200">
+                            <div class="text-[10px] text-blue-800 font-bold">غادرت المنشأة</div>
+                            <div class="text-base font-black text-blue-700 font-mono">${exitedCount}</div>
+                        </div>
+                        <div class="p-2 rounded-xl bg-red-50 border border-red-200">
+                            <div class="text-[10px] text-red-800 font-bold">تجاوز مدة البقاء</div>
+                            <div class="text-base font-black text-red-700 font-mono">${overstayCount}</div>
+                        </div>
+                    </div>
+
+                    <!-- Table -->
+                    <table class="w-full text-[10px] border-collapse border border-[#d7e2ee] mb-6">
+                        <thead>
+                            <tr class="bg-[#002b66] text-white">
+                                <th class="border border-[#001940] py-2 px-1.5 text-center">م</th>
+                                <th class="border border-[#001940] py-2 px-1.5 text-center">اللوحة</th>
+                                <th class="border border-[#001940] py-2 px-2 text-right">السائق / الشركة</th>
+                                <th class="border border-[#001940] py-2 px-2 text-right">الوجهة / الحمولة</th>
+                                <th class="border border-[#001940] py-2 px-1.5 text-center">كود التصريح</th>
+                                <th class="border border-[#001940] py-2 px-2 text-right">الدخول (البوابة / الضابط)</th>
+                                <th class="border border-[#001940] py-2 px-2 text-right">الخروج (البوابة / الضابط)</th>
+                                <th class="border border-[#001940] py-2 px-1.5 text-center">المدة</th>
+                                <th class="border border-[#001940] py-2 px-1.5 text-center">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${movements.map((m, idx) => {
+                                const entryTime = m.entry_timestamp ? new Date(m.entry_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+                                const exitTime = m.exit_timestamp ? new Date(m.exit_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--';
+                                let st = m.status === 'inside' ? 'بالداخل' : (m.status === 'overstay' ? 'متجاوز' : (m.status === 'denied' ? 'مرفوض' : 'غادرت'));
+                                return `
+                                    <tr class="${idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}">
+                                        <td class="border border-[#d7e2ee] py-1 px-1.5 text-center font-bold">${idx + 1}</td>
+                                        <td class="border border-[#d7e2ee] py-1 px-1.5 text-center font-black text-[#002b66]">${m.vehicle?.plate_ar || ''}</td>
+                                        <td class="border border-[#d7e2ee] py-1 px-2">
+                                            <div class="font-bold">${m.vehicle?.driver_name_ar || ''}</div>
+                                            <div class="text-[9px] text-[#556b82]">${m.vehicle?.company_ar || ''}</div>
+                                        </td>
+                                        <td class="border border-[#d7e2ee] py-1 px-2">
+                                            <div class="font-bold text-[#002b66]">${m.destination_ar || ''}</div>
+                                            <div class="text-[9px] text-[#556b82]">${m.cargo_details || ''}</div>
+                                        </td>
+                                        <td class="border border-[#d7e2ee] py-1 px-1.5 text-center font-mono font-bold text-[#0070f2]">
+                                            ${m.permit ? m.permit.permit_code : 'فوري'}
+                                        </td>
+                                        <td class="border border-[#d7e2ee] py-1 px-2">
+                                            <div>🚪 ${m.entry_gate || ''}</div>
+                                            <div class="text-[9px] text-[#556b82]">🕒 ${entryTime} • 👮 ${m.entry_officer_name || ''}</div>
+                                        </td>
+                                        <td class="border border-[#d7e2ee] py-1 px-2">
+                                            <div>🚪 ${m.exit_gate || '--'}</div>
+                                            <div class="text-[9px] text-[#556b82]">🕒 ${exitTime} • 👮 ${m.exit_officer_name || '--'}</div>
+                                        </td>
+                                        <td class="border border-[#d7e2ee] py-1 px-1.5 text-center font-mono font-bold">
+                                            ${m.duration_minutes || 0} د
+                                        </td>
+                                        <td class="border border-[#d7e2ee] py-1 px-1.5 text-center font-bold text-[9px]">
+                                            ${st}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+
+                    <!-- Official Signatures Box -->
+                    <div class="grid grid-cols-3 gap-6 pt-4 border-t-2 border-slate-300 text-[11px] text-center">
+                        <div>
+                            <div class="font-bold text-[#556b82] mb-6">مسؤول أمن البوابات</div>
+                            <div class="border-t border-dashed border-slate-400 pt-1 font-mono text-[9px] text-slate-500">التوقيع والختم</div>
+                        </div>
+                        <div>
+                            <div class="font-bold text-[#556b82] mb-6">مدير العمليات واللوجستيات</div>
+                            <div class="border-t border-dashed border-slate-400 pt-1 font-mono text-[9px] text-slate-500">التوقيع والختم</div>
+                        </div>
+                        <div>
+                            <div class="font-bold text-[#002b66] mb-6">اعتماد الرئيس التنفيذي (CEO)</div>
+                            <div class="border-t border-dashed border-slate-400 pt-1 font-mono text-[9px] text-[#002b66]">معتمد رسميّاً</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.classList.add('is-printing-report');
+            const oldTitle = document.title;
+            document.title = `DOTRA_Executive_Audit_Report_${now.toISOString().split('T')[0]}`;
+            if (typeof window.print === 'function') {
+                window.print();
+            }
+            document.title = oldTitle;
+            document.body.classList.remove('is-printing-report');
+            if (reportContainer) reportContainer.innerHTML = '';
+        }
+        return reportContainer ? reportContainer.innerHTML : '';
     }
 }
 
