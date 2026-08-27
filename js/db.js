@@ -277,56 +277,71 @@ class DatabaseService {
             // --- Vehicles ---
             const cloudVehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
             const localVehicles = this.getVehicles();
-            if (cloudVehicles.length > 0) {
+            if (cloudVehicles.length > 0 || localVehicles.length > 0) {
                 const merged = [...localVehicles];
                 cloudVehicles.forEach(cv => {
                     const idx = merged.findIndex(lv => lv.id === cv.id);
-                    if (idx === -1) { merged.push(cv); changed = true; }
-                    else {
-                        const diff = merged[idx].status !== cv.status || merged[idx].blacklist_reason !== cv.blacklist_reason || merged[idx].plate_ar !== cv.plate_ar;
-                        merged[idx] = { ...merged[idx], ...cv };
-                        if (diff) changed = true;
+                    if (idx === -1) {
+                        merged.push(cv);
+                        changed = true;
+                    } else {
+                        const cur = merged[idx];
+                        if (cur.status !== cv.status || cur.blacklist_reason !== cv.blacklist_reason || cur.plate_ar !== cv.plate_ar || cur.driver_name_ar !== cv.driver_name_ar || cur.driver_phone !== cv.driver_phone || cur.photo_url !== cv.photo_url) {
+                            merged[idx] = { ...cur, ...cv };
+                            changed = true;
+                        }
                     }
                 });
-                localStorage.setItem('gate_vehicles', JSON.stringify(merged));
+                if (localVehicles.length !== merged.length) changed = true;
+                if (changed) localStorage.setItem('gate_vehicles', JSON.stringify(merged));
             }
 
             // --- Permits ---
             const cloudPermits = Array.isArray(data.permits) ? data.permits : [];
             const localPermits = this.getPermits();
-            if (cloudPermits.length > 0) {
+            if (cloudPermits.length > 0 || localPermits.length > 0) {
                 const merged = [...localPermits];
                 cloudPermits.forEach(cp => {
                     const idx = merged.findIndex(lp => lp.id === cp.id);
-                    if (idx === -1) { merged.push(cp); changed = true; }
-                    else {
-                        const diff = merged[idx].status !== cp.status;
-                        merged[idx] = { ...merged[idx], ...cp };
-                        if (diff) changed = true;
+                    if (idx === -1) {
+                        merged.push(cp);
+                        changed = true;
+                    } else {
+                        const cur = merged[idx];
+                        if (cur.status !== cp.status || cur.pin_code !== cp.pin_code || cur.valid_until !== cp.valid_until) {
+                            merged[idx] = { ...cur, ...cp };
+                            changed = true;
+                        }
                     }
                 });
-                localStorage.setItem('gate_permits', JSON.stringify(merged));
+                if (localPermits.length !== merged.length) changed = true;
+                if (changed) localStorage.setItem('gate_permits', JSON.stringify(merged));
             }
 
             // --- Logs ---
             const cloudLogs = Array.isArray(data.logs) ? data.logs : [];
             const localLogs = this.getLogs();
-            if (cloudLogs.length > 0) {
+            if (cloudLogs.length > 0 || localLogs.length > 0) {
                 const merged = [...localLogs];
                 cloudLogs.forEach(cl => {
                     const idx = merged.findIndex(ll => ll.id === cl.id);
-                    if (idx === -1) { merged.push(cl); changed = true; }
-                    else {
-                        const diff = !merged[idx].exit_timestamp && cl.exit_timestamp;
-                        merged[idx] = { ...merged[idx], ...cl };
-                        if (diff) changed = true;
+                    if (idx === -1) {
+                        merged.push(cl);
+                        changed = true;
+                    } else {
+                        const cur = merged[idx];
+                        if (cur.exit_timestamp !== cl.exit_timestamp || cur.action_type !== cl.action_type || cur.duration_minutes !== cl.duration_minutes || cur.remarks !== cl.remarks) {
+                            merged[idx] = { ...cur, ...cl };
+                            changed = true;
+                        }
                     }
                 });
-                localStorage.setItem('gate_logs', JSON.stringify(merged));
+                if (localLogs.length !== merged.length) changed = true;
+                if (changed) localStorage.setItem('gate_logs', JSON.stringify(merged));
             }
 
             // --- Gates ---
-            if (Array.isArray(data.gates) && data.gates.length > 0) {
+            if (Array.isArray(data.gates)) {
                 const localGates = this.getGates();
                 if (JSON.stringify(localGates) !== JSON.stringify(data.gates)) {
                     localStorage.setItem('gate_gates', JSON.stringify(data.gates));
@@ -335,7 +350,7 @@ class DatabaseService {
             }
 
             // --- Destinations ---
-            if (Array.isArray(data.destinations) && data.destinations.length > 0) {
+            if (Array.isArray(data.destinations)) {
                 const localDests = this.getDestinations();
                 if (JSON.stringify(localDests) !== JSON.stringify(data.destinations)) {
                     localStorage.setItem('gate_destinations', JSON.stringify(data.destinations));
@@ -344,36 +359,47 @@ class DatabaseService {
             }
 
             // --- Settings ---
-            if (data.settings && typeof data.settings === 'object' && Object.keys(data.settings).length > 0) {
+            if (data.settings && typeof data.settings === 'object') {
                 const localSettings = this.getSettings();
                 const merged = { ...localSettings };
+                let settingsChanged = false;
                 Object.entries(data.settings).forEach(([k, v]) => {
-                    if (v !== undefined && v !== null) merged[k] = v;
+                    if (v !== undefined && v !== null && localSettings[k] !== v) {
+                        merged[k] = v;
+                        settingsChanged = true;
+                    }
                 });
-                if (JSON.stringify(localSettings) !== JSON.stringify(merged)) {
+                if (settingsChanged) {
                     localStorage.setItem('gate_settings', JSON.stringify(merged));
                     changed = true;
                 }
             }
 
-            // --- Users (only password_hash and pin_code from cloud, never overwrite local password) ---
-            if (Array.isArray(data.users) && data.users.length > 0) {
+            // --- Users ---
+            if (Array.isArray(data.users)) {
                 const localUsers = this.getUsers();
                 const mergedUsers = [...localUsers];
+                let usersChanged = false;
                 data.users.forEach(cu => {
                     const idx = mergedUsers.findIndex(lu => lu.id === cu.id);
                     if (idx === -1) {
-                        mergedUsers.push({ ...cu, password: cu.password || '' });
-                        changed = true;
+                        mergedUsers.push({ ...cu });
+                        usersChanged = true;
                     } else {
-                        mergedUsers[idx] = { ...mergedUsers[idx], ...cu };
-                        changed = true;
+                        const cur = mergedUsers[idx];
+                        if (cur.role !== cu.role || cur.name_ar !== cu.name_ar || cur.gate_assigned !== cu.gate_assigned || (cu.password_hash && cur.password_hash !== cu.password_hash)) {
+                            mergedUsers[idx] = { ...cur, ...cu };
+                            usersChanged = true;
+                        }
                     }
                 });
-                localStorage.setItem('gate_users', JSON.stringify(mergedUsers));
+                if (usersChanged) {
+                    localStorage.setItem('gate_users', JSON.stringify(mergedUsers));
+                    changed = true;
+                }
             }
 
-            return true;
+            return changed;
         } catch (err) {
             // Offline or network error — silent fail, keep local data
         }

@@ -257,26 +257,26 @@ class AppController {
                         
                         <!-- DOTRA Official Brand Logo & Name -->
                         <div class="flex items-center gap-3">
-                            <div class="bg-white p-1 rounded-xl shadow-md border border-white/30 flex items-center justify-center h-12 w-12 overflow-hidden flex-shrink-0">
+                            <div class="bg-white p-1 rounded-xl shadow-md border border-white/30 flex items-center justify-center h-11 w-11 sm:h-12 sm:w-12 overflow-hidden flex-shrink-0">
                                 <img src="assets/logo.jpg" alt="DOTRA دوترا" class="h-full w-full object-contain transform scale-110" />
                             </div>
                             <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
-                                <div class="flex items-center gap-2">
-                                    <h1 class="text-base sm:text-lg font-black text-white leading-tight">
+                                <div class="flex items-center gap-1.5 sm:gap-2">
+                                    <h1 class="text-sm sm:text-lg font-black text-white leading-tight">
                                         ${lang === 'ar' ? 'مجموعة دوترا' : 'DOTRA Group'}
                                     </h1>
-                                    <span class="text-[10px] bg-emerald-500 text-white font-mono px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
+                                    <span class="text-[9px] sm:text-[10px] bg-emerald-500 text-white font-mono px-1.5 py-0.5 rounded font-bold uppercase shadow-sm">
                                         GATE CONTROL
                                     </span>
                                 </div>
-                                <p class="text-[11px] text-blue-100 hidden sm:block font-medium">
+                                <p class="text-[10px] sm:text-[11px] text-blue-100 hidden sm:block font-medium">
                                     ${window.i18n.t('appSubtitle')}
                                 </p>
                             </div>
                         </div>
 
-                        <!-- Right Actions: Cache Buster, Language, Offline Indicator & User Profile -->
-                        <div class="flex items-center gap-2.5">
+                        <!-- Desktop View Actions (hidden on mobile, visible on md+) -->
+                        <div class="hidden md:flex items-center gap-2.5">
                             
                             <!-- Network Status Badge -->
                             <div id="network-status-badge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${isOnline ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30' : 'bg-amber-500/20 text-amber-300 border border-amber-400/30'}">
@@ -284,25 +284,24 @@ class AppController {
                                 <span>${isOnline ? (lang === 'ar' ? 'متصل' : 'Online') : (lang === 'ar' ? 'أوفلاين (محلي)' : 'Offline (Local)')}</span>
                             </div>
 
-                            <!-- 🧹 Cache Buster Button — clears localStorage + SW cache + reloads fresh from cloud -->
+                            <!-- 🧹 Cache Buster Button -->
                             <button type="button"
                                 onclick="App.bustCache()"
                                 title="${lang === 'ar' ? 'مسح الذاكرة المؤقتة وإعادة المزامنة من السحابة' : 'Clear cache & re-sync from cloud'}"
                                 class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-orange-500/20 hover:bg-orange-500/40 text-orange-300 border border-orange-400/30 hover:border-orange-400/60 transition-all active:scale-95">
                                 <span class="text-sm leading-none">🧹</span>
-                                <span class="hidden sm:inline">${lang === 'ar' ? 'مسح الكاش' : 'Clear Cache'}</span>
+                                <span>${lang === 'ar' ? 'مسح الكاش' : 'Clear Cache'}</span>
                             </button>
 
-                            <!-- 🔔 Push Notification Toggle for Any User (Manager / Officer) -->
+                            <!-- 🔔 Push Notification Toggle -->
                             <button type="button"
                                 onclick="App.toggleUserPush()"
                                 title="${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات الفورية مفعلة (انقر للتعطيل)' : 'Push Notifications Active (Click to disable)') : (lang === 'ar' ? 'تفعيل الإشعارات الفورية لهذا الحساب' : 'Enable Push Notifications for this account')}"
                                 class="relative flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-400/30' : 'bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-400/30'} transition-all active:scale-95">
                                 <span class="text-sm leading-none">${localStorage.getItem('gate_push_enabled') === 'true' ? '🔔' : '🔕'}</span>
-                                <span class="hidden sm:inline">${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Push On') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
+                                <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Push On') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
                                 <span id="notif-badge" class="hidden absolute -top-1.5 ${lang === 'ar' ? '-left-1.5' : '-right-1.5'} w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center shadow"></span>
                             </button>
-
 
                             <!-- Language Toggle -->
                             <div class="flex items-center bg-[#001940] border border-blue-900 p-0.5 rounded-xl text-xs font-bold shadow-inner">
@@ -318,7 +317,7 @@ class AppController {
                                 <!-- User Profile Badge -->
                                 <div class="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 py-1 px-2.5 rounded-xl text-xs backdrop-blur-md shadow-sm">
                                     <span class="text-base">${user.role === 'manager' ? '🏢' : '👮'}</span>
-                                    <div class="hidden sm:block ${lang === 'ar' ? 'text-right' : 'text-left'}">
+                                    <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
                                         <div class="font-bold text-white text-xs">${lang === 'ar' ? user.name_ar : user.name_en}</div>
                                         <div class="text-[10px] text-emerald-300 font-mono font-bold">${user.role === 'manager' ? 'MANAGER' : user.badge_id}</div>
                                     </div>
@@ -327,6 +326,82 @@ class AppController {
                                     </button>
                                 </div>
                             ` : ''}
+                        </div>
+
+                        <!-- Mobile Hamburger Button (visible on mobile only) -->
+                        <div class="flex md:hidden items-center gap-2">
+                            <button type="button"
+                                id="mobile-hamburger-btn"
+                                onclick="App.toggleMobileMenu()"
+                                class="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/20 shadow-md flex items-center justify-center focus:outline-none"
+                                aria-label="Toggle Navigation Menu">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"></path>
+                                </svg>
+                                ${localStorage.getItem('gate_push_enabled') === 'true' ? `
+                                    <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#002b66]"></span>
+                                ` : ''}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Drawer Menu (Assembled Options) -->
+                    <div id="mobile-nav-menu" class="hidden md:hidden mt-3 pt-3 border-t border-blue-400/20 space-y-3 animate-scaleUp">
+                        ${user ? `
+                            <!-- Mobile User Card -->
+                            <div class="flex items-center justify-between p-3 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-md">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg shadow-inner">
+                                        ${user.role === 'manager' ? '🏢' : '👮'}
+                                    </div>
+                                    <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
+                                        <div class="font-bold text-white text-xs leading-tight">${lang === 'ar' ? user.name_ar : user.name_en}</div>
+                                        <div class="text-[10px] text-emerald-300 font-mono font-bold mt-0.5">${user.role === 'manager' ? 'MANAGER' : (user.badge_id + (user.gate_assigned ? ' • ' + user.gate_assigned : ''))}</div>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="window.Auth.logout()" class="px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-400/40 rounded-xl text-xs font-bold flex items-center gap-1 active:scale-95 transition-all">
+                                    <span>🚪</span>
+                                    <span>${window.i18n.t('logout')}</span>
+                                </button>
+                            </div>
+                        ` : ''}
+
+                        <!-- Mobile Controls Grid -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <!-- Mobile Network Status -->
+                            <div class="flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-bold ${isOnline ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30' : 'bg-amber-500/20 text-amber-200 border border-amber-400/30'}">
+                                <span class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}"></span>
+                                <span>${isOnline ? (lang === 'ar' ? 'الشبكة: متصل' : 'Online') : (lang === 'ar' ? 'أوفلاين (محلي)' : 'Offline')}</span>
+                            </div>
+
+                            <!-- Mobile Language Switcher -->
+                            <div class="flex items-center bg-[#001433] border border-blue-900/80 p-0.5 rounded-xl text-xs font-bold shadow-inner">
+                                <button type="button" onclick="window.i18n.setLanguage('ar')" class="flex-1 py-1.5 rounded-lg text-center transition-all ${lang === 'ar' ? 'bg-[#0070f2] text-white shadow' : 'text-blue-300 hover:text-white'}">
+                                    العربية
+                                </button>
+                                <button type="button" onclick="window.i18n.setLanguage('en')" class="flex-1 py-1.5 rounded-lg text-center transition-all ${lang === 'en' ? 'bg-[#0070f2] text-white shadow' : 'text-blue-300 hover:text-white'}">
+                                    EN
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Mobile Actions Buttons -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <!-- Mobile Push Notification Toggle -->
+                            <button type="button"
+                                onclick="App.toggleUserPush()"
+                                class="w-full py-2.5 px-3 rounded-xl font-bold text-xs ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40' : 'bg-blue-600/30 text-blue-200 border border-blue-400/40'} flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                <span class="text-base">${localStorage.getItem('gate_push_enabled') === 'true' ? '🔔' : '🔕'}</span>
+                                <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات الفورية: مفعلة' : 'Push Alerts: Active') : (lang === 'ar' ? 'تفعيل الإشعارات الفورية' : 'Enable Push Alerts')}</span>
+                            </button>
+
+                            <!-- Mobile Cache Buster Button -->
+                            <button type="button"
+                                onclick="App.bustCache()"
+                                class="w-full py-2.5 px-3 rounded-xl font-bold text-xs bg-orange-500/20 hover:bg-orange-500/30 text-orange-200 border border-orange-400/30 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                <span class="text-base">🧹</span>
+                                <span>${lang === 'ar' ? 'مسح الكاش وإعادة المزامنة' : 'Clear Cache & Re-sync'}</span>
+                            </button>
                         </div>
                     </div>
                 </header>
@@ -590,10 +665,22 @@ class AppController {
         this.renderApp();
     }
 
-    refreshUI() {
+    // 📱 Mobile Hamburger Navigation Menu Toggle
+    toggleMobileMenu(forceState) {
+        const menu = document.getElementById('mobile-nav-menu');
+        if (!menu) return;
+        if (forceState !== undefined) {
+            if (forceState) menu.classList.remove('hidden');
+            else menu.classList.add('hidden');
+        } else {
+            menu.classList.toggle('hidden');
+        }
+    }
 
+    refreshUI() {
         this.renderApp();
     }
+
 }
 
 window.App = new AppController();
