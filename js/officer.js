@@ -56,10 +56,17 @@ class OfficerController {
                             <h2 class="text-base font-black text-[#002b66] mt-0.5">${lang === 'ar' ? user.name_ar : user.name_en}</h2>
                         </div>
                     </div>
-                    <button type="button" onclick="Officer.openQuickWalkinModal()" class="px-3.5 py-2.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
-                        ${icon('bolt', 'w-4 h-4')}
-                        <span>${lang === 'ar' ? 'دخول فوري' : 'Walk-in'}</span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="px-2.5 sm:px-3 py-2.5 bg-[#ebf3fb] hover:bg-[#d8e9f8] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
+                            ${icon('file', 'w-4 h-4')}
+                            <span class="hidden sm:inline">${lang === 'ar' ? 'المتوقع وصولهم' : 'Manifest'}</span>
+                            <span class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold">${window.DB.getExpectedArrivals().length}</span>
+                        </button>
+                        <button type="button" onclick="Officer.openQuickWalkinModal()" class="px-2.5 sm:px-3 py-2.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                            ${icon('bolt', 'w-4 h-4')}
+                            <span>${lang === 'ar' ? 'دخول فوري' : 'Walk-in'}</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Search Plate & Camera Scanner Box -->
@@ -794,7 +801,7 @@ class OfficerController {
         });
     }
 
-    // FIX BUG 2: Multi-format QR payload parsing (PIN, permit code, plate JSON, or raw string)
+    // Multi-format QR payload parsing (PIN, permit code, plate JSON, or raw string)
     handleScannedCode(decodedText) {
         if (!decodedText) return;
         let queryToSearch = decodedText.trim();
@@ -803,7 +810,6 @@ class OfficerController {
             const data = JSON.parse(decodedText);
             queryToSearch = data.pin || data.plate || data.permit || decodedText;
         } catch (e) {
-            // Raw text or PIN string
             queryToSearch = decodedText.trim();
         }
 
@@ -812,6 +818,94 @@ class OfficerController {
             input.value = queryToSearch;
         }
         this.handlePlateSearch(queryToSearch);
+    }
+
+    // Pre-Arrival Manifest & Expected Arrivals Modal
+    openExpectedArrivalsModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+        const expected = window.DB.getExpectedArrivals();
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-2xl w-full p-5" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <h3 class="text-base font-black text-[#002b66] flex items-center gap-2">
+                            ${icon('file', 'w-5 h-5 text-[#0070f2]')}
+                            <span>${lang === 'ar' ? '📋 كشف الشاحنات المتوقع وصولها (معتمدة مسبقاً)' : 'Pre-Approved Expected Arrivals'}</span>
+                        </h3>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <div class="py-3">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs text-[#556b82] font-bold">
+                                ${lang === 'ar' ? `إجمالي الشاحنات المتوقعة: ${expected.length}` : `Total Expected Trucks: ${expected.length}`}
+                            </span>
+                            <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>${lang === 'ar' ? 'معتمدة من مدير العمليات' : 'Approved by Operations'}</span>
+                            </span>
+                        </div>
+
+                        ${expected.length === 0 ? `
+                            <div class="text-center py-8 bg-[#f8fafc] rounded-2xl border border-dashed border-[#d7e2ee]">
+                                <div class="text-3xl mb-2">🚚</div>
+                                <div class="text-xs font-bold text-[#556b82]">
+                                    ${lang === 'ar' ? 'لا توجد شاحنات متبقية في كشف الوصول المسبق اليوم' : 'No pending expected arrivals for today'}
+                                </div>
+                                <div class="text-[11px] text-[#8fa4b8] mt-1">
+                                    ${lang === 'ar' ? 'تم تسجيل دخول جميع الشاحنات المصرحة أو لم يتم رفع كشف اليوم' : 'All scheduled trucks have entered or no manifest was uploaded'}
+                                </div>
+                            </div>
+                        ` : `
+                            <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                                ${expected.map(item => `
+                                    <div class="p-3.5 rounded-2xl bg-white border-2 border-[#d7e2ee] hover:border-[#0070f2] transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <div class="space-y-1">
+                                            <div class="flex items-center gap-2">
+                                                <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-mono font-black">
+                                                    PIN: ${item.pin_code}
+                                                </span>
+                                                <span class="font-black text-sm text-[#002b66]">${item.plate_ar}</span>
+                                            </div>
+                                            <div class="text-xs text-[#1d2d3e] font-bold">
+                                                <span>👤 ${item.driver_name_ar}</span>
+                                                ${item.company_ar ? `<span class="text-[#556b82]"> • (${item.company_ar})</span>` : ''}
+                                            </div>
+                                            <div class="text-[11px] text-[#556b82] flex flex-wrap items-center gap-x-3 gap-y-1">
+                                                <span>📍 الوجهة: <strong class="text-[#002b66]">${item.destination_ar || 'المستودع'}</strong></span>
+                                                ${item.cargo_details ? `<span>📦 الحمولة: <strong>${item.cargo_details}</strong></span>` : ''}
+                                                ${item.invoice_no ? `<span>📑 إذن/فاتورة: <strong>${item.invoice_no}</strong></span>` : ''}
+                                            </div>
+                                        </div>
+                                        <button type="button" onclick="Officer.quickAdmitExpectedVehicle('${item.pin_code}')" class="px-4 py-2 sap-btn-primary font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-center">
+                                            ${icon('shield', 'w-4 h-4')}
+                                            <span>${lang === 'ar' ? 'اعتماد الدخول فوراً' : 'Admit Entry'}</span>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+
+                    <div class="flex justify-end pt-3 border-t border-[#d7e2ee]">
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                            ${lang === 'ar' ? 'إغلاق' : 'Close'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    quickAdmitExpectedVehicle(pinCode) {
+        if (document.getElementById('modal-container')) {
+            document.getElementById('modal-container').innerHTML = '';
+        }
+        this.handlePlateSearch(pinCode);
     }
 }
 

@@ -166,7 +166,10 @@ class ManagerController {
                         ${lang === 'ar' ? 'نظام تصاريح بوابات مصانع مجموعة دوترا - إرسال فوري لواتساب وطباعة معتمدة A4' : 'DOTRA Gate System - WhatsApp Dispatch & Official A4 Pass Printing'}
                     </p>
                 </div>
-                <div class="flex items-center gap-2.5">
+                    <button type="button" onclick="Manager.openImportCsvModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="${lang === 'ar' ? 'استيراد كشف الشاحنات المتوقع وصولها من اليوم السابق (CSV)' : 'Import Pre-Arrival Manifest (CSV)'}">
+                        ${icon('file', 'w-4 h-4 text-emerald-600')}
+                        <span>${lang === 'ar' ? 'كشف الوصول (CSV)' : 'Pre-Arrival CSV'}</span>
+                    </button>
                     <button type="button" onclick="Manager.openQuickPermitModal()" class="sap-btn-primary px-4 py-2.5 flex items-center gap-2 text-sm shadow-md">
                         ${icon('bolt', 'w-4 h-4 text-amber-300')}
                         <span>${lang === 'ar' ? 'إصدار تصريح سريع' : 'Quick Pass'}</span>
@@ -2331,6 +2334,264 @@ class ManagerController {
             } catch(e) {}
         }
         return csv;
+    }
+
+    // --- Pre-Arrival Manifest (CSV Import) Modal ---
+    downloadCsvTemplate() {
+        const template = window.DB.getCsvTemplate();
+        if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+            try {
+                const blob = new Blob(["\ufeff" + template], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `نموذج_كشف_الوصول_المسبق_دوترا.csv`;
+                if (typeof a.click === 'function') a.click();
+            } catch(e) {}
+        }
+    }
+
+    openImportCsvModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+        const expected = window.DB.getExpectedArrivals();
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-3xl w-full p-5 max-h-[90vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <h3 class="text-base font-black text-[#002b66] flex items-center gap-2">
+                            ${icon('file', 'w-5 h-5 text-emerald-600')}
+                            <span>${lang === 'ar' ? '📥 استيراد كشف الشاحنات المتوقع وصولها (CSV Table)' : 'Import Expected Trucks Manifest (CSV)'}</span>
+                        </h3>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="Manager.submitImportCsv(event)" class="py-3 space-y-4">
+                        <div class="bg-[#ebf3fb] p-3.5 rounded-2xl border border-[#b3d5fa] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div>
+                                <div class="text-xs font-black text-[#002b66]">
+                                    ${lang === 'ar' ? '📄 كشف الوصول المسبق للشاحنات (Pre-Arrivals Manifest)' : 'Pre-Arrivals Daily Manifest'}
+                                </div>
+                                <div class="text-[11px] text-[#556b82] mt-0.5">
+                                    ${lang === 'ar' ? 'قم برفع ملف Excel/CSV المعتمد أو الصق الجدول، لتظهر الشاحنات للحارس فوراً للاعتماد السريع.' : 'Upload expected trucks CSV or paste the table directly.'}
+                                </div>
+                            </div>
+                            <button type="button" onclick="Manager.downloadCsvTemplate()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm flex-shrink-0 transition-all">
+                                ${icon('download', 'w-3.5 h-3.5')}
+                                <span>${lang === 'ar' ? 'تحميل نموذج CSV الجاهز' : 'Download CSV Template'}</span>
+                            </button>
+                        </div>
+
+                        <!-- File Picker Box -->
+                        <div class="border-2 border-dashed border-[#b0cfee] hover:border-[#0070f2] rounded-2xl p-4 text-center bg-[#f8fafc] transition-all">
+                            <label class="cursor-pointer flex flex-col items-center justify-center gap-2">
+                                <span class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200 shadow-sm">
+                                    ${icon('file', 'w-5 h-5')}
+                                </span>
+                                <span class="text-xs font-bold text-[#002b66]">
+                                    ${lang === 'ar' ? 'اختر ملف CSV من جهازك أو اسحبه هنا' : 'Choose CSV file or drag & drop here'}
+                                </span>
+                                <span class="text-[10px] text-[#8fa4b8]">.csv, .txt (UTF-8)</span>
+                                <input type="file" accept=".csv, .txt" onchange="Manager.handleCsvFileUpload(event)" class="hidden" />
+                            </label>
+                        </div>
+
+                        <!-- CSV Textarea Input -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <label class="text-xs font-bold text-[#1d2d3e]">
+                                    ${lang === 'ar' ? 'أو الصق بيانات الكشف مباشرة أدناه:' : 'Or paste CSV data directly:'}
+                                </label>
+                                <button type="button" onclick="Manager.loadSampleDataIntoTextarea()" class="text-[11px] text-[#0070f2] hover:underline font-bold">
+                                    ${lang === 'ar' ? '⚡ تجربة بيانات نموذجية' : 'Load Sample'}
+                                </button>
+                            </div>
+                            <textarea id="csv-import-textarea" oninput="Manager.updateCsvPreview()" rows="4" placeholder="${window.DB.getCsvTemplate()}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-3 text-xs font-mono text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none"></textarea>
+                        </div>
+
+                        <!-- Dynamic Interactive Table Preview -->
+                        <div id="csv-preview-container" class="space-y-2">
+                            <!-- Populated dynamically by updateCsvPreview() -->
+                        </div>
+
+                        ${expected.length > 0 ? `
+                            <div class="bg-amber-50 rounded-xl p-3 border border-amber-200 flex items-center justify-between">
+                                <span class="text-xs font-bold text-amber-900">
+                                    ${lang === 'ar' ? `⚠️ يوجد حالياً ${expected.length} شاحنة معتمدة ومتبقية في كشف الوصول` : `${expected.length} active expected trucks already in manifest`}
+                                </span>
+                                <span class="text-[11px] text-amber-700 font-medium">
+                                    ${lang === 'ar' ? 'سيتم دمج الشاحنات الجديدة مع القائمة' : 'New trucks will be appended'}
+                                </span>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                                ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs flex items-center gap-1.5 shadow-md font-bold rounded-xl active:scale-95 transition-all">
+                                ${icon('save', 'w-4 h-4')}
+                                <span>${lang === 'ar' ? 'اعتماد واستيراد كشف الوصول' : 'Approve & Import Manifest'}</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        this.updateCsvPreview();
+    }
+
+    loadSampleDataIntoTextarea() {
+        const textarea = document.getElementById('csv-import-textarea');
+        if (textarea) {
+            textarea.value = window.DB.getCsvTemplate();
+            this.updateCsvPreview();
+        }
+    }
+
+    updateCsvPreview() {
+        const textarea = document.getElementById('csv-import-textarea');
+        const container = document.getElementById('csv-preview-container');
+        if (!textarea || !container) return;
+
+        const content = textarea.value.trim();
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
+
+        if (!content) {
+            container.innerHTML = `
+                <div class="p-3 bg-[#f8fafc] rounded-xl border border-[#e7eff7] text-center text-xs text-[#8fa4b8]">
+                    ${lang === 'ar' ? 'سيظهر جدول المعاينة التفاعلي هنا فور رفع أو لصق بيانات الكشف.' : 'Table preview will appear here once CSV data is provided.'}
+                </div>
+            `;
+            return;
+        }
+
+        const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+        if (lines.length < 2) {
+            container.innerHTML = `
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center text-xs text-amber-800 font-bold">
+                    ${lang === 'ar' ? '⚠️ يرجى التأكد من احتواء الملف على سطر الرأس وبيانات شاحنة واحدة على الأقل.' : 'Ensure CSV contains a header and at least one vehicle row.'}
+                </div>
+            `;
+            return;
+        }
+
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            let parts = [];
+            if (line.includes('\t')) parts = line.split('\t');
+            else if (line.includes(';')) parts = line.split(';');
+            else parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+
+            if (parts.length > 0 && parts[0]) {
+                rows.push({
+                    plate: parts[0] || '',
+                    driver: parts[1] || 'سائق مصرح',
+                    phone: parts[2] || '',
+                    company: parts[3] || 'مورد عام',
+                    dest: parts[4] || 'المستودع الرئيسي',
+                    cargo: parts[5] || 'بضائع ومستلزمات عامة',
+                    invoice: parts[6] || ''
+                });
+            }
+        }
+
+        container.innerHTML = `
+            <div class="border border-[#d7e2ee] rounded-xl overflow-hidden shadow-sm bg-white">
+                <div class="bg-[#f0f4f8] px-3.5 py-2 border-b border-[#d7e2ee] flex justify-between items-center">
+                    <span class="text-xs font-black text-[#002b66] flex items-center gap-1.5">
+                        ${icon('table', 'w-4 h-4 text-[#0070f2]')}
+                        <span>${lang === 'ar' ? `معاينة الجدول (${rows.length} شاحنة جاهزة للاعتماد):` : `Table Preview (${rows.length} Trucks):`}</span>
+                    </span>
+                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
+                        ${lang === 'ar' ? 'جاهز للاستيراد' : 'Ready'}
+                    </span>
+                </div>
+                <div class="max-h-52 overflow-y-auto overflow-x-auto">
+                    <table class="w-full text-xs text-right border-collapse" dir="rtl">
+                        <thead class="bg-[#f8fafc] text-[#556b82] font-bold border-b border-[#d7e2ee] sticky top-0">
+                            <tr>
+                                <th class="p-2 border-l border-[#e7eff7]">#</th>
+                                <th class="p-2 border-l border-[#e7eff7]">رقم اللوحة</th>
+                                <th class="p-2 border-l border-[#e7eff7]">اسم السائق</th>
+                                <th class="p-2 border-l border-[#e7eff7]">الهاتف</th>
+                                <th class="p-2 border-l border-[#e7eff7]">الشركة</th>
+                                <th class="p-2 border-l border-[#e7eff7]">الوجهة</th>
+                                <th class="p-2 border-l border-[#e7eff7]">الحمولة</th>
+                                <th class="p-2">رقم الإذن/الفاتورة</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#e7eff7]">
+                            ${rows.map((r, idx) => `
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="p-2 font-mono text-[#8fa4b8] border-l border-[#e7eff7]">${idx + 1}</td>
+                                    <td class="p-2 font-black text-[#002b66] border-l border-[#e7eff7]">${r.plate}</td>
+                                    <td class="p-2 font-bold text-[#1d2d3e] border-l border-[#e7eff7]">${r.driver}</td>
+                                    <td class="p-2 font-mono text-emerald-700 border-l border-[#e7eff7]">${r.phone || '-'}</td>
+                                    <td class="p-2 text-[#556b82] border-l border-[#e7eff7]">${r.company}</td>
+                                    <td class="p-2 font-bold text-[#0070f2] border-l border-[#e7eff7]">${r.dest}</td>
+                                    <td class="p-2 text-[#1d2d3e] border-l border-[#e7eff7]">${r.cargo}</td>
+                                    <td class="p-2 font-mono text-[#556b82]">${r.invoice || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    handleCsvFileUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            const textarea = document.getElementById('csv-import-textarea');
+            if (textarea) {
+                textarea.value = content;
+                this.updateCsvPreview();
+            }
+        };
+        reader.readAsText(file, 'utf-8');
+    }
+
+    submitImportCsv(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        const textarea = document.getElementById('csv-import-textarea');
+        const csvContent = textarea ? textarea.value.trim() : '';
+
+        if (!csvContent) {
+            alert(window.i18n.getLang() === 'ar' ? 'يرجى إدخال أو رفع بيانات كشف الـ CSV أولاً' : 'Please provide CSV content first.');
+            return;
+        }
+
+        const result = window.DB.importPreArrivalsFromCSV(csvContent);
+        if (result.success) {
+            if (document.getElementById('modal-container')) {
+                document.getElementById('modal-container').innerHTML = '';
+            }
+            this.renderDashboard();
+            const lang = window.i18n.getLang();
+            const msg = lang === 'ar'
+                ? `✅ تم استيراد واعتماد كشف الوصول بنجاح! (${result.count} شاحنة معتمدة جاهزة للحارس على البوابات)`
+                : `✅ Successfully imported pre-arrival manifest! (${result.count} trucks ready for gate officers)`;
+            
+            if (window.App && typeof window.App.showToast === 'function') {
+                window.App.showToast(lang === 'ar' ? '📥 استيراد الكشف' : 'Manifest Imported', msg, 'success', 'file');
+            } else {
+                alert(msg);
+            }
+        } else {
+            alert(result.message || 'حدث خطأ أثناء معالجة ملف الـ CSV');
+        }
     }
 }
 

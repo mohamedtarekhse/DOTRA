@@ -147,41 +147,47 @@ function renderEgyptianPlate(plateInput, size = 'normal', vehicleType = 'car') {
  */
 function renderArabicKeypad(targetInputId) {
     const lettersHtml = EGYPTIAN_PLATE_LETTERS.map(item => `
-        <button type="button" class="arabic-key hover:bg-sky-600 hover:border-sky-400" onclick="ArabicPlate.insertKey('${targetInputId}', '${item.ar}')">
-            <span class="font-bold text-lg text-white">${item.ar}</span>
+        <button type="button" class="arabic-key-btn bg-white hover:bg-[#0070f2] text-[#002b66] hover:text-white border-2 border-[#b0cfee] hover:border-[#0070f2] rounded-xl shadow-sm h-11 flex items-center justify-center transition-all active:scale-95 group font-bold text-xl select-none" onclick="ArabicPlate.insertKey('${targetInputId}', '${item.ar}')" title="${item.name}">
+            <span class="group-hover:scale-110 transition-transform">${item.ar}</span>
         </button>
     `).join('');
 
     const digitsHtml = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(d => `
-        <button type="button" class="arabic-key bg-slate-800 hover:bg-slate-700" onclick="ArabicPlate.insertKey('${targetInputId}', '${ARABIC_DIGITS_MAP[d]}')">
-            <span class="flex flex-col items-center">
-                <span class="text-base text-amber-300 font-bold">${ARABIC_DIGITS_MAP[d]}</span>
-                <span class="text-[9px] text-slate-400 font-mono">${d}</span>
+        <button type="button" class="arabic-key-btn bg-[#f0f4f8] hover:bg-[#0070f2] text-[#002b66] hover:text-white border-2 border-[#b0cfee] hover:border-[#0070f2] rounded-xl shadow-sm h-11 flex items-center justify-center transition-all active:scale-95 group select-none" onclick="ArabicPlate.insertKey('${targetInputId}', '${ARABIC_DIGITS_MAP[d]}')">
+            <span class="flex items-center gap-1.5 font-bold">
+                <span class="text-lg font-black">${ARABIC_DIGITS_MAP[d]}</span>
+                <span class="text-[11px] opacity-75 font-mono">(${d})</span>
             </span>
         </button>
     `).join('');
 
     return `
-    <div class="bg-slate-900/95 border border-slate-700 p-3 rounded-2xl shadow-2xl mt-2 text-right" dir="rtl">
-        <div class="text-xs font-bold text-slate-300 mb-2 flex justify-between items-center border-b border-slate-800 pb-1.5">
-            <span class="flex items-center gap-1">
-                <span>🇪🇬</span>
-                <span>الحروف الـ 17 المعتمدة في المرور المصري والأرقام:</span>
+    <div class="bg-[#f8fafc] border-2 border-[#b0cfee] p-3.5 rounded-2xl shadow-xl mt-2 text-right select-none animate-fadeIn" dir="rtl">
+        <div class="text-xs font-black text-[#002b66] mb-2.5 flex justify-between items-center border-b border-[#d7e2ee] pb-2">
+            <span class="flex items-center gap-1.5">
+                <span class="px-2 py-0.5 bg-[#ebf3fb] text-[#0070f2] rounded-md font-bold text-[10px] border border-[#b3d5fa]">لوحة الحروف المصرية</span>
+                <span class="text-[11px] text-[#556b82]">اختر الحروف والأرقام مباشرة:</span>
             </span>
-            <button type="button" class="text-xs text-rose-400 hover:text-rose-300 font-bold px-2 py-1 bg-rose-950/50 rounded-lg border border-rose-800/50" onclick="ArabicPlate.backspaceKey('${targetInputId}')">
-                ⌫ حذف
-            </button>
+            <div class="flex items-center gap-1.5">
+                <button type="button" class="text-xs text-rose-700 hover:text-white font-bold px-3 py-1 bg-rose-50 hover:bg-rose-600 rounded-lg border border-rose-200 transition-all flex items-center gap-1" onclick="ArabicPlate.backspaceKey('${targetInputId}')">
+                    <span>⌫</span>
+                    <span>حذف حرف</span>
+                </button>
+            </div>
         </div>
 
         <!-- Egyptian Letters Grid (6 columns) -->
-        <div class="grid grid-cols-6 gap-1.5 mb-2.5">
+        <div class="grid grid-cols-6 gap-1.5 mb-3">
             ${lettersHtml}
-            <button type="button" class="arabic-key col-span-1 bg-sky-900/80 border-sky-600 text-sky-200 text-xs font-bold" onclick="ArabicPlate.insertKey('${targetInputId}', ' ')">
-                مسافة
+            <button type="button" class="col-span-1 bg-[#e7eff7] hover:bg-[#0070f2] text-[#002b66] hover:text-white border-2 border-[#b0cfee] hover:border-[#0070f2] rounded-xl shadow-sm text-xs font-black flex items-center justify-center transition-all active:scale-95" onclick="ArabicPlate.insertKey('${targetInputId}', ' ')">
+                مسافة ␣
             </button>
         </div>
 
-        <!-- Eastern Arabic Numerals Grid -->
+        <!-- Numerals Sub-header & Grid -->
+        <div class="text-[11px] font-bold text-[#556b82] mb-1.5 flex items-center gap-1">
+            <span>🔢 الأرقام:</span>
+        </div>
         <div class="grid grid-cols-5 gap-1.5">
             ${digitsHtml}
         </div>

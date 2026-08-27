@@ -988,6 +988,108 @@ class DatabaseService {
         }
         return vehicle;
     }
+
+    // --- Pre-Arrival Manifest & CSV Ingestion ---
+    getExpectedArrivals() {
+        const permits = this.getPermits().filter(p => p.status === 'active');
+        const vehicles = this.getVehicles();
+        const expected = [];
+
+        for (const permit of permits) {
+            if (!this.isVehicleInside(permit.vehicle_id)) {
+                const vehicle = vehicles.find(v => v.id === permit.vehicle_id);
+                if (vehicle) {
+                    expected.push({
+                        permit,
+                        vehicle,
+                        pin_code: permit.pin_code,
+                        plate_ar: vehicle.plate_ar,
+                        driver_name_ar: vehicle.driver_name_ar,
+                        driver_phone: vehicle.driver_phone,
+                        company_ar: vehicle.company_ar,
+                        destination_ar: permit.destination_ar,
+                        cargo_details: permit.cargo_details,
+                        invoice_no: permit.invoice_no,
+                        valid_until: permit.valid_until
+                    });
+                }
+            }
+        }
+        return expected;
+    }
+
+    getCsvTemplate() {
+        return "رقم اللوحة,اسم السائق,رقم الهاتف,الشركة,الوجهة داخل المصنع,تفاصيل الحمولة,رقم إذن الصرف أو الفاتورة\nط ر ق ٩ ٨ ٢ ١,محمود عبدالفتاح,01012345678,شركة النيل للتوريدات,المستودع الرئيسي,شحنة أسمدة زراعية 25 طن,INV-2026-101\nس ف ر ٤ ٥ ٢ ٠,كريم الباز,01123456789,دي إتش إل مصر,مصنع المبيدات والكيماويات,طرود مستلزمات معامل,INV-2026-102";
+    }
+
+    importPreArrivalsFromCSV(csvText) {
+        if (!csvText || !csvText.trim()) return { success: false, count: 0, message: 'ملف الـ CSV فارغ' };
+        
+        const lines = csvText.trim().split(/\r?\n/);
+        if (lines.length < 2) return { success: false, count: 0, message: 'الملف لا يحتوي على بيانات شاحنات' };
+
+        const imported = [];
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            let parts = [];
+            if (line.includes('\t')) parts = line.split('\t');
+            else if (line.includes(';')) parts = line.split(';');
+            else {
+                parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+            }
+
+            if (parts.length < 1 || !parts[0]) continue;
+
+            const plate = parts[0]?.trim();
+            const driverName = parts[1]?.trim() || 'سائق مصرح';
+            const phone = parts[2]?.trim() || '';
+            const company = parts[3]?.trim() || 'مورد عام';
+            const destination = parts[4]?.trim() || 'المستودع الرئيسي';
+            const cargo = parts[5]?.trim() || 'بضائع ومستلزمات عامة';
+            const invoice = parts[6]?.trim() || '';
+
+            if (!plate) continue;
+
+            let vehicle = this.findVehicleByPlate(plate);
+            if (!vehicle) {
+                vehicle = this.addVehicle({
+                    plate_ar: plate,
+                    plate_en: plate,
+                    vehicle_type: 'truckHeavy',
+                    driver_name_ar: driverName,
+                    driver_name_en: driverName,
+                    driver_phone: phone,
+                    company_ar: company,
+                    company_en: company,
+                    status: 'visitor'
+                });
+            } else {
+                if (driverName && driverName !== 'سائق مصرح') vehicle.driver_name_ar = driverName;
+                if (phone) vehicle.driver_phone = phone;
+                if (company && company !== 'مورد عام') vehicle.company_ar = company;
+            }
+
+            this.expireExistingPermitsForVehicle(vehicle.id);
+            const permit = this.addPermit({
+                vehicle_id: vehicle.id,
+                destination_ar: destination,
+                destination_en: destination,
+                purpose_ar: 'كشف وصول مسبق معتمد من الإدارة',
+                cargo_details: cargo,
+                invoice_no: invoice,
+                valid_from: new Date().toISOString(),
+                valid_until: new Date(Date.now() + 24 * 3600000).toISOString(),
+                created_by: 1
+            });
+
+            imported.push({ vehicle, permit });
+        }
+
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        return { success: true, count: imported.length, items: imported };
+    }
 }
 
 window.DB = new DatabaseService();
