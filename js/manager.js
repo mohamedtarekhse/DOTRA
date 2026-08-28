@@ -172,12 +172,19 @@ class ManagerController {
                     </p>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap justify-end">
-                    <!-- Pending Officer Inspection Requests Button -->
-                    <button type="button" id="btn-pending-inspection-requests" onclick="Manager.openPendingRequestsModal()" class="px-3.5 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all ${window.DB.getPendingInspectionRequests().length > 0 ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 animate-pulse font-black' : 'sap-btn-secondary'}" title="طلبات الاستئذان والتفتيش المرسلة من ضباط البوابات مع الصور">
-                        <span>🚨</span>
-                        <span>${lang === 'ar' ? 'طلبات الاستئذان' : 'Requests'}</span>
-                        ${window.DB.getPendingInspectionRequests().length > 0 ? `<span class="px-2 py-0.5 bg-slate-950 text-amber-300 rounded-full text-xs font-mono font-black">${window.DB.getPendingInspectionRequests().length}</span>` : ''}
-                    </button>
+                    <!-- Pending Officer Inspection & Hold Requests Button -->
+                    ${(() => {
+                        const inspCount = window.DB ? window.DB.getPendingInspectionRequests().length : 0;
+                        const holdCount = window.DB ? window.DB.getPendingPermitHoldRequests().length : 0;
+                        const totalReqs = inspCount + holdCount;
+                        return `
+                            <button type="button" id="btn-pending-inspection-requests" onclick="Manager.openPendingRequestsModal()" class="px-3.5 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all ${totalReqs > 0 ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 animate-pulse font-black' : 'sap-btn-secondary'}" title="طلبات الاستئذان والتفتيش وتعليق التصاريح من ضباط البوابات">
+                                <span>🚨</span>
+                                <span>${lang === 'ar' ? 'طلبات البوابات' : 'Gate Requests'}</span>
+                                ${totalReqs > 0 ? `<span class="px-2 py-0.5 bg-slate-950 text-amber-300 rounded-full text-xs font-mono font-black">${totalReqs}</span>` : ''}
+                            </button>
+                        `;
+                    })()}
                     <button type="button" onclick="Manager.openImportCsvModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="${lang === 'ar' ? 'استيراد وإدارة كشف الشاحنات المتوقع وصولها (Excel / CSV)' : 'Import Pre-Arrival Manifest (Excel / CSV)'}">
                         ${icon('table', 'w-4 h-4 text-emerald-600')}
                         <span>${lang === 'ar' ? 'كشف الوصول (Excel)' : 'Pre-Arrival Excel'}</span>
@@ -390,8 +397,24 @@ class ManagerController {
                     : (isExit ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 خروج</span>` : `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
                 
                 let statusTag = '';
+                let permitActionBtns = '';
                 if (p.status === 'active') {
                     statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">🟢 ساري</span>`;
+                    permitActionBtns = `
+                        <button type="button" onclick="Manager.openHoldPermitModal(${p.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-300 text-[11px] font-bold">⏸️ تعليق</button>
+                        <button type="button" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-lg border border-rose-300 text-[11px] font-bold">⛔ سحب</button>
+                    `;
+                } else if (p.status === 'hold') {
+                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-bold border border-amber-300">⏸️ معلق بقرار الإدارة</span>`;
+                    permitActionBtns = `
+                        <button type="button" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold">▶️ تفعيل</button>
+                        <button type="button" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-lg border border-rose-300 text-[11px] font-bold">⛔ سحب</button>
+                    `;
+                } else if (p.status === 'revoked') {
+                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-900 font-bold border border-rose-300">⛔ مسحوب وملغي</span>`;
+                    permitActionBtns = `
+                        <button type="button" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold">▶️ إعادة تفعيل</button>
+                    `;
                 } else if (p.status === 'used') {
                     statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold border border-blue-300">🔵 تم الاستخدام</span>`;
                 } else {
@@ -399,7 +422,7 @@ class ManagerController {
                 }
 
                 return `
-                    <div class="sap-card p-4 bg-white border border-[#d7e2ee] rounded-2xl shadow-sm space-y-3">
+                    <div class="sap-card p-4 bg-white border ${p.status === 'hold' ? 'border-amber-300 bg-amber-50/20' : (p.status === 'revoked' ? 'border-rose-300 bg-rose-50/20' : 'border-[#d7e2ee]')} rounded-2xl shadow-sm space-y-3">
                         <div class="flex items-center justify-between border-b border-[#e7eff7] pb-2">
                             <div>
                                 <div class="font-mono font-black text-xs text-[#0070f2]">${p.permit_code}</div>
@@ -439,6 +462,11 @@ class ManagerController {
                                 <span class="text-[#556b82] font-bold">الوجهة:</span>
                                 <span class="font-bold text-[#002b66]">📍 ${p.destination_ar}</span>
                             </div>
+                            ${p.hold_reason ? `
+                                <div class="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-bold text-[11px]">
+                                    ⚠️ السبب: ${p.hold_reason}
+                                </div>
+                            ` : ''}
                             ${p.invoice_no ? `
                                 <div class="flex justify-between items-center">
                                     <span class="text-[#556b82] font-bold">إذن الصرف:</span>
@@ -446,6 +474,12 @@ class ManagerController {
                                 </div>
                             ` : ''}
                         </div>
+
+                        ${permitActionBtns ? `
+                            <div class="pt-2 border-t border-[#e7eff7] flex justify-end gap-1.5">
+                                ${permitActionBtns}
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
@@ -671,10 +705,21 @@ class ManagerController {
                 let holdActionBtn = '';
                 if (p.status === 'active') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>ساري وصالح</span></span>`;
-                    holdActionBtn = `<button type="button" title="تعليق وتجميد الصلاحية" onclick="Manager.togglePermitHold(${p.id}, 'hold')" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⏸️ تعليق</span></button>`;
+                    holdActionBtn = `
+                        <button type="button" title="تعليق وتجميد الصلاحية" onclick="Manager.openHoldPermitModal(${p.id})" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⏸️ تعليق</span></button>
+                        <button type="button" title="سحب وإلغاء التصريح نهائياً" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-xl border border-rose-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⛔ سحب</span></button>
+                    `;
                 } else if (p.status === 'hold') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-amber-100 text-amber-900 font-bold border border-amber-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> <span>⏸️ معلق بقرار الإدارة</span></span>`;
-                    holdActionBtn = `<button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.togglePermitHold(${p.id}, 'active')" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ تفعيل</span></button>`;
+                    holdActionBtn = `
+                        <button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ تفعيل</span></button>
+                        <button type="button" title="سحب وإلغاء التصريح نهائياً" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-xl border border-rose-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⛔ سحب</span></button>
+                    `;
+                } else if (p.status === 'revoked') {
+                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> <span>⛔ مسحوب وملغي</span></span>`;
+                    holdActionBtn = `
+                        <button type="button" title="إعادة تفعيل التصريح" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ إعادة تفعيل</span></button>
+                    `;
                 } else if (p.status === 'used') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-blue-100 text-blue-800 font-bold border border-blue-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> <span>تم الاستخدام</span></span>`;
                 } else {
@@ -1047,24 +1092,28 @@ class ManagerController {
                     <!-- TAB 2: Gates & Shift Roster Management (Day / Night Shift / Back-to-Back) -->
                     ${activeTab === 'gates' ? `
                         <div class="space-y-3">
-                            <!-- CSV Roster Toolbar -->
+                            <!-- Excel / CSV Roster Toolbar -->
                             <div class="p-3 bg-[#f0f4f8] rounded-2xl border border-[#d7e2ee] flex flex-wrap items-center justify-between gap-2">
                                 <div class="text-xs font-bold text-[#002b66] flex items-center gap-1.5">
                                     <span>📊</span>
-                                    <span>${lang === 'ar' ? 'إدارة وتعيين ورديات البوابات (كشف CSV):' : 'Gate Shift Roster CSV Operations:'}</span>
+                                    <span>${lang === 'ar' ? 'إدارة وتعيين ورديات ومناوبات البوابات (Excel / CSV):' : 'Gate Shift Roster Excel & CSV Operations:'}</span>
                                 </div>
-                                <div class="flex items-center gap-1.5">
-                                    <button type="button" onclick="Manager.downloadRosterCsvTemplate()" class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#0070f2] border border-[#b3d5fa] rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <button type="button" onclick="Manager.downloadRosterExcelTemplate()" class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#107e3e] border border-[#a3e635] rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1" title="تحميل نموذج إكسيل جاهز">
+                                        <span>📗</span>
+                                        <span>${lang === 'ar' ? 'نموذج Excel (.xls)' : 'Excel Template'}</span>
+                                    </button>
+                                    <button type="button" onclick="Manager.downloadRosterCsvTemplate()" class="px-2 py-1.5 bg-white hover:bg-slate-50 text-[#0070f2] border border-[#b3d5fa] rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1" title="تحميل نموذج CSV">
                                         <span>📄</span>
-                                        <span>${lang === 'ar' ? 'تحميل نموذج CSV' : 'Download Template'}</span>
+                                        <span>CSV</span>
                                     </button>
-                                    <button type="button" onclick="Manager.openImportRosterModal()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1">
+                                    <button type="button" onclick="Manager.openImportRosterModal()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1" title="استيراد كشف الوردات">
                                         <span>📥</span>
-                                        <span>${lang === 'ar' ? 'استيراد كشف المناوبات (CSV)' : 'Import CSV'}</span>
+                                        <span>${lang === 'ar' ? 'استيراد كشف المناوبات (Excel / CSV)' : 'Import Roster'}</span>
                                     </button>
-                                    <button type="button" onclick="Manager.exportRosterCSV()" class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#1d2d3e] border border-[#d7e2ee] rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1">
-                                        <span>📤</span>
-                                        <span>${lang === 'ar' ? 'تصدير الكشف (CSV)' : 'Export CSV'}</span>
+                                    <button type="button" onclick="Manager.exportRosterExcel()" class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#002b66] border border-[#d7e2ee] rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1" title="تصدير كشف الوردات الحالي إلى إكسيل">
+                                        <span>📊</span>
+                                        <span>${lang === 'ar' ? 'تصدير المناوبات (Excel)' : 'Export Excel'}</span>
                                     </button>
                                 </div>
                             </div>
@@ -1207,30 +1256,71 @@ class ManagerController {
         this.openSettingsModal('gates');
     }
 
+    downloadRosterExcelTemplate() {
+        const excelContent = window.DB.getRosterExcelTemplate();
+        if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+            try {
+                const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `نموذج_جدول_مناوبات_البوابات_دوترا.xls`;
+                if (document.body && typeof document.body.appendChild === 'function') {
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    a.click();
+                }
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('Download Roster Excel error:', e);
+            }
+        }
+    }
+
     downloadRosterCsvTemplate() {
         const csvContent = "\uFEFF" + window.DB.getRosterCsvTemplate();
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `DOTRA_Gate_Shift_Roster_Template.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        a.download = `نموذج_جدول_مناوبات_البوابات_دوترا.csv`;
+        if (document.body && typeof document.body.appendChild === 'function') {
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            a.click();
+        }
         URL.revokeObjectURL(url);
     }
 
+    exportRosterExcel() {
+        const excelContent = window.DB.exportRosterToExcel();
+        if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+            try {
+                const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `جدول_ورديات_ومناوبات_البوابات_دوترا_${new Date().toISOString().split('T')[0]}.xls`;
+                if (document.body && typeof document.body.appendChild === 'function') {
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    a.click();
+                }
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('Export Roster Excel error:', e);
+            }
+        }
+    }
+
     exportRosterCSV() {
-        const csvContent = "\uFEFF" + window.DB.exportRosterToCSV();
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `DOTRA_Gate_Shift_Roster_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        return this.exportRosterExcel();
     }
 
     openImportRosterModal() {
@@ -1241,18 +1331,18 @@ class ManagerController {
 
         modalContainer.innerHTML = `
             <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content bg-white rounded-2xl max-w-xl w-full p-6 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2">
                             <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
-                                ${icon('file', 'w-5 h-5')}
+                                ${icon('table', 'w-5 h-5')}
                             </span>
                             <div>
                                 <h3 class="text-base font-black text-[#002b66]">
-                                    ${lang === 'ar' ? 'استيراد جدول ورديات وتوزيع البوابات (CSV)' : 'Import Gate Shift Roster (CSV)'}
+                                    ${lang === 'ar' ? '📥 استيراد جدول ورديات ومناوبات البوابات (Excel Sheet / CSV)' : 'Import Gate Shift Roster (Excel / CSV)'}
                                 </h3>
                                 <p class="text-xs text-[#556b82]">
-                                    ${lang === 'ar' ? 'رفع ملف CSV يحتوي على تعيين ضباط ورديات النهار والليل لكل بوابة' : 'Upload CSV assigning day and night officers per gate'}
+                                    ${lang === 'ar' ? 'رفع شيت Excel (.xls/.xlsx) أو ملف CSV لتعيين ضباط ورديات النهار والليل لكل بوابة تلقائياً' : 'Upload Excel sheet or CSV assigning day & night officers per gate'}
                                 </p>
                             </div>
                         </div>
@@ -1260,23 +1350,52 @@ class ManagerController {
                     </div>
 
                     <form onsubmit="Manager.submitImportRoster(event)" class="py-4 space-y-4">
+                        <!-- Top Banner with Download Actions -->
+                        <div class="bg-[#ebf3fb] p-3 rounded-xl border border-[#b3d5fa] flex items-center justify-between gap-2 flex-wrap">
+                            <span class="text-xs font-bold text-[#002b66]">
+                                ${lang === 'ar' ? '📄 نماذج الجداول المعتمدة للتحميل المسبق:' : 'Standard Roster Templates:'}
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="Manager.downloadRosterExcelTemplate()" class="px-3 py-1.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition-all" title="تحميل نموذج إكسيل جاهز">
+                                    <span>📗</span>
+                                    <span>${lang === 'ar' ? 'نموذج Excel (.xls)' : 'Excel Template'}</span>
+                                </button>
+                                <button type="button" onclick="Manager.downloadRosterCsvTemplate()" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-[#002b66] border border-[#d7e2ee] rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition-all">
+                                    <span>📄</span>
+                                    <span>CSV</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- File Picker Box -->
                         <div class="border-2 border-dashed border-[#b0cfee] hover:border-[#0070f2] rounded-2xl p-4 text-center bg-[#f8fafc] transition-all">
                             <label class="cursor-pointer flex flex-col items-center justify-center gap-2">
                                 <span class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200 shadow-sm">
-                                    ${icon('file', 'w-5 h-5')}
+                                    ${icon('table', 'w-5 h-5')}
                                 </span>
                                 <span class="text-xs font-bold text-[#002b66]">
-                                    ${lang === 'ar' ? 'اختر ملف CSV من جهازك' : 'Choose CSV file'}
+                                    ${lang === 'ar' ? 'اختر ملف Excel (.xls / .xlsx) أو CSV من جهازك' : 'Choose Excel (.xls/.xlsx) or CSV file'}
                                 </span>
-                                <input type="file" accept=".csv, .txt" onchange="Manager.handleRosterCsvUpload(event)" class="hidden" />
+                                <span class="text-[10px] text-[#8fa4b8]">يدعم .xls, .xlsx, .csv, .txt</span>
+                                <input type="file" accept=".xlsx, .xls, .csv, .txt" onchange="Manager.handleRosterCsvUpload(event)" class="hidden" />
                             </label>
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1">
-                                ${lang === 'ar' ? 'أو الصق بيانات الكشف هنا مباشرة:' : 'Or paste CSV roster data directly:'}
-                            </label>
-                            <textarea id="roster-import-textarea" rows="5" placeholder="${window.DB.getRosterCsvTemplate()}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-3 text-xs font-mono text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none"></textarea>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="block text-xs font-bold text-[#1d2d3e]">
+                                    ${lang === 'ar' ? 'أو الصق بيانات خلايا الإكسيل مباشرة أدناه (Copy/Paste):' : 'Or paste Excel cells / CSV data directly:'}
+                                </label>
+                                <button type="button" onclick="Manager.loadSampleRosterDataIntoTextarea()" class="text-[11px] text-[#0070f2] hover:underline font-bold">
+                                    ${lang === 'ar' ? '⚡ تجربة بيانات نموذجية' : 'Load Sample'}
+                                </button>
+                            </div>
+                            <textarea id="roster-import-textarea" oninput="Manager.updateRosterPreview()" rows="4" placeholder="${window.DB.getRosterCsvTemplate()}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-3 text-xs font-mono text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none"></textarea>
+                        </div>
+
+                        <!-- Dynamic Interactive Table Preview -->
+                        <div id="roster-preview-container" class="space-y-2">
+                            <!-- Populated dynamically by updateRosterPreview() -->
                         </div>
 
                         <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
@@ -1292,6 +1411,120 @@ class ManagerController {
                 </div>
             </div>
         `;
+        this.updateRosterPreview();
+    }
+
+    loadSampleRosterDataIntoTextarea() {
+        const textarea = document.getElementById('roster-import-textarea');
+        if (textarea) {
+            textarea.value = window.DB.getRosterCsvTemplate();
+            this.updateRosterPreview();
+        }
+    }
+
+    updateRosterPreview() {
+        const textarea = document.getElementById('roster-import-textarea');
+        const container = document.getElementById('roster-preview-container');
+        if (!textarea || !container) return;
+
+        const content = textarea.value.trim();
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-3.5 h-3.5') => window.Icons ? window.Icons.get(name, cls) : '';
+
+        if (!content) {
+            container.innerHTML = `
+                <div class="p-3 bg-[#f8fafc] rounded-xl border border-[#e7eff7] text-center text-xs text-[#8fa4b8]">
+                    ${lang === 'ar' ? 'سيظهر جدول المعاينة التفاعلي هنا فور رفع شيت Excel أو لصق البيانات.' : 'Table preview will appear here once Excel/CSV data is provided.'}
+                </div>
+            `;
+            return;
+        }
+
+        let parsedRows = [];
+        if (content.includes('<tr') || content.includes('<table')) {
+            const trMatches = content.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            trMatches.forEach(tr => {
+                const cellMatches = tr.match(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi) || [];
+                const rowData = cellMatches.map(cell => cell.replace(/<[^>]+>/g, '').trim());
+                if (rowData.length > 0) parsedRows.push(rowData);
+            });
+        } else {
+            const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+            lines.forEach(line => {
+                let parts = [];
+                if (line.includes('\t')) parts = line.split('\t');
+                else if (line.includes(';')) parts = line.split(';');
+                else parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+                if (parts.length > 0) parsedRows.push(parts);
+            });
+        }
+
+        if (parsedRows.length < 2) {
+            container.innerHTML = `
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center text-xs text-amber-800 font-bold">
+                    ${lang === 'ar' ? '⚠️ يرجى التأكد من احتواء الشيت على سطر الرأس وبيانات بوابة واحدة على الأقل.' : 'Ensure file contains a header and at least one gate row.'}
+                </div>
+            `;
+            return;
+        }
+
+        const startIdx = (parsedRows[0][0] && (parsedRows[0][0].includes('بوابة') || parsedRows[0][0].toLowerCase().includes('gate'))) ? 1 : 0;
+        const rows = [];
+        for (let i = startIdx; i < parsedRows.length; i++) {
+            const parts = parsedRows[i];
+            if (parts.length > 0 && parts[0] && !parts[0].includes('اسم البوابة')) {
+                rows.push({
+                    gate: parts[0] || '',
+                    dayBadge: parts[1] || '-',
+                    dayOfficer: parts[2] || '-',
+                    nightBadge: parts[3] || '-',
+                    nightOfficer: parts[4] || '-',
+                    notes: parts[5] || ''
+                });
+            }
+        }
+
+        container.innerHTML = `
+            <div class="border border-[#d7e2ee] rounded-xl overflow-hidden shadow-sm bg-white">
+                <div class="bg-[#f0f4f8] px-3.5 py-2 border-b border-[#d7e2ee] flex justify-between items-center">
+                    <span class="text-xs font-black text-[#002b66] flex items-center gap-1.5">
+                        ${icon('table', 'w-4 h-4 text-[#0070f2]')}
+                        <span>${lang === 'ar' ? `معاينة جدول المناوبات (${rows.length} بوابة):` : `Roster Preview (${rows.length} Gates):`}</span>
+                    </span>
+                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
+                        ${lang === 'ar' ? 'جاهز للتطبيق' : 'Ready'}
+                    </span>
+                </div>
+                <div class="max-h-48 overflow-y-auto overflow-x-auto">
+                    <table class="w-full text-xs text-right border-collapse" dir="rtl">
+                        <thead class="bg-[#f8fafc] text-[#556b82] font-bold border-b border-[#d7e2ee] sticky top-0">
+                            <tr>
+                                <th class="p-2 border-l border-[#e7eff7]">#</th>
+                                <th class="p-2 border-l border-[#e7eff7]">البوابة</th>
+                                <th class="p-2 border-l border-[#e7eff7]">شارة النهار</th>
+                                <th class="p-2 border-l border-[#e7eff7]">ضابط النهار</th>
+                                <th class="p-2 border-l border-[#e7eff7]">شارة الليل</th>
+                                <th class="p-2 border-l border-[#e7eff7]">ضابط الليل</th>
+                                <th class="p-2">ملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#e7eff7]">
+                            ${rows.map((r, idx) => `
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="p-2 font-mono text-[#8fa4b8] border-l border-[#e7eff7]">${idx + 1}</td>
+                                    <td class="p-2 font-black text-[#002b66] border-l border-[#e7eff7]">${r.gate}</td>
+                                    <td class="p-2 font-mono font-bold text-amber-700 border-l border-[#e7eff7]">${r.dayBadge}</td>
+                                    <td class="p-2 font-bold text-[#1d2d3e] border-l border-[#e7eff7]">${r.dayOfficer}</td>
+                                    <td class="p-2 font-mono font-bold text-emerald-700 border-l border-[#e7eff7]">${r.nightBadge}</td>
+                                    <td class="p-2 font-bold text-[#1d2d3e] border-l border-[#e7eff7]">${r.nightOfficer}</td>
+                                    <td class="p-2 text-[#556b82]">${r.notes || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
     }
 
     handleRosterCsvUpload(event) {
@@ -1300,7 +1533,10 @@ class ManagerController {
         const reader = new FileReader();
         reader.onload = (e) => {
             const textarea = document.getElementById('roster-import-textarea');
-            if (textarea) textarea.value = e.target.result;
+            if (textarea) {
+                textarea.value = e.target.result;
+                this.updateRosterPreview();
+            }
         };
         reader.readAsText(file, 'utf-8');
     }
@@ -1310,7 +1546,7 @@ class ManagerController {
         const textarea = document.getElementById('roster-import-textarea');
         const csvContent = textarea ? textarea.value.trim() : '';
         if (!csvContent) {
-            alert(window.i18n.getLang() === 'ar' ? 'يرجى إدخال أو رفع بيانات كشف الـ CSV أولاً' : 'Please provide CSV content first.');
+            alert(window.i18n.getLang() === 'ar' ? 'يرجى إدخال أو رفع بيانات كشف الـ Excel / CSV أولاً' : 'Please provide Excel/CSV content first.');
             return;
         }
 
@@ -1329,16 +1565,18 @@ class ManagerController {
     }
 
     // =========================================================================
-    // MANAGER INSPECTION & ENTRY REQUEST REVIEW HUB (DUAL PHOTO VIEW)
+    // MANAGER INSPECTION & ENTRY REQUEST REVIEW HUB (DUAL PHOTO VIEW & HOLD REQUESTS)
     // =========================================================================
 
-    openPendingRequestsModal() {
+    openPendingRequestsModal(activeTab = 'inspection') {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
         const lang = window.i18n.getLang();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
-        const requests = window.DB.getInspectionRequests();
+        const requests = window.DB ? window.DB.getInspectionRequests() : [];
         const pending = requests.filter(r => r.status === 'pending');
+        const holdRequests = window.DB ? window.DB.getPermitHoldRequests() : [];
+        const pendingHold = holdRequests.filter(r => r.status === 'pending');
 
         modalContainer.innerHTML = `
             <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
@@ -1350,75 +1588,156 @@ class ManagerController {
                             </span>
                             <div>
                                 <h3 class="text-base font-black text-[#002b66]">
-                                    ${lang === 'ar' ? 'طلبات الاستئذان والفحص الواردة من ضباط البوابات' : 'Gate Officer Inspection & Pass Requests'}
+                                    ${lang === 'ar' ? 'مركز متابعة طلبات وإشعارات البوابات' : 'Gate Requests & Alerts Center'}
                                 </h3>
                                 <p class="text-xs text-[#556b82]">
-                                    ${lang === 'ar' ? `يوجد (${pending.length}) طلبات بانتظار قرار المدير` : `${pending.length} requests awaiting manager decision`}
+                                    ${lang === 'ar' ? `إجمالي (${pending.length + pendingHold.length}) طلبات بانتظار قرار واعتماد المدير` : `${pending.length + pendingHold.length} total pending requests`}
                                 </p>
                             </div>
                         </div>
                         <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
                     </div>
 
-                    <div class="py-4 space-y-3">
-                        ${requests.length === 0 ? `
-                            <div class="text-center py-10 bg-[#f8fafc] rounded-2xl border border-dashed border-[#d7e2ee]">
-                                <div class="text-3xl mb-2">🛡️</div>
-                                <div class="text-xs font-bold text-[#556b82]">لا توجد طلبات استئذان مسجلة حالياً</div>
-                            </div>
-                        ` : `
-                            <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
-                                ${requests.map(req => {
-                                    const isPending = req.status === 'pending';
-                                    const isApproved = req.status === 'approved';
-                                    const statusBadge = isPending 
-                                        ? '<span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-black animate-pulse">⏳ بانتظار القرار</span>'
-                                        : (isApproved ? '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full text-xs font-black">✅ معتمد</span>' : '<span class="px-2.5 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-full text-xs font-black">⛔ مرفوض</span>');
+                    <!-- Hub Switcher Tabs -->
+                    <div class="flex items-center gap-2 pt-3 pb-1 border-b border-[#e7eff7]">
+                        <button type="button" onclick="Manager.openPendingRequestsModal('inspection')" class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'inspection' ? 'bg-[#0070f2] text-white shadow-sm' : 'bg-[#f0f4f8] text-[#556b82] hover:text-[#002b66]'}">
+                            <span>📸</span>
+                            <span>${lang === 'ar' ? 'طلبات الاستئذان والفحص بالصور' : 'Inspection Requests'}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${activeTab === 'inspection' ? 'bg-white text-[#0070f2]' : 'bg-slate-200 text-slate-700'}">${pending.length}</span>
+                        </button>
+                        <button type="button" onclick="Manager.openPendingRequestsModal('hold')" class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'hold' ? 'bg-amber-600 text-white shadow-sm' : 'bg-[#f0f4f8] text-[#556b82] hover:text-[#002b66]'}">
+                            <span>⚠️</span>
+                            <span>${lang === 'ar' ? 'طلبات تعليق وسحب التصاريح' : 'Permit Hold Requests'}</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${activeTab === 'hold' ? 'bg-white text-amber-800' : 'bg-slate-200 text-slate-700'}">${pendingHold.length}</span>
+                        </button>
+                    </div>
 
-                                    return `
-                                        <div class="p-4 rounded-2xl bg-white border-2 ${isPending ? 'border-amber-300 bg-amber-50/20' : 'border-[#d7e2ee]'} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm hover:border-[#0070f2] transition-all">
-                                            <div class="space-y-1.5 flex-1">
-                                                <div class="flex items-center gap-2 flex-wrap">
-                                                    <span class="font-black text-sm text-[#002b66]">${req.plate_ar}</span>
-                                                    ${statusBadge}
-                                                    <span class="text-[11px] text-[#556b82] font-mono">📍 ${req.gate_name}</span>
+                    <div class="py-4 space-y-3">
+                        ${activeTab === 'hold' ? `
+                            <!-- HOLD / REVOKE REQUESTS LIST -->
+                            ${holdRequests.length === 0 ? `
+                                <div class="text-center py-10 bg-[#f8fafc] rounded-2xl border border-dashed border-[#d7e2ee]">
+                                    <div class="text-3xl mb-2">🛡️</div>
+                                    <div class="text-xs font-bold text-[#556b82]">لا توجد طلبات تعليق أو سحب تصاريح واردة من البوابات</div>
+                                </div>
+                            ` : `
+                                <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                                    ${holdRequests.map(req => {
+                                        const isPending = req.status === 'pending';
+                                        const isApproved = req.status === 'approved';
+                                        const isRevoke = req.request_type === 'revoke';
+                                        const typeBadge = isRevoke 
+                                            ? '<span class="px-2.5 py-0.5 bg-rose-100 text-rose-900 border border-rose-300 rounded-full text-xs font-black">⛔ طلب سحب وإلغاء</span>'
+                                            : '<span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-black">⏸️ طلب تعليق مؤقت</span>';
+                                        const statusBadge = isPending 
+                                            ? '<span class="px-2 py-0.5 bg-amber-500 text-slate-950 rounded-full text-[10px] font-black animate-pulse">بانتظار القرار</span>'
+                                            : (isApproved ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-900 rounded-full text-[10px] font-black">تم التنفيذ ✅</span>' : '<span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-black">مرفوض ❌</span>');
+
+                                        return `
+                                            <div class="p-4 rounded-2xl bg-white border-2 ${isPending ? 'border-amber-300 bg-amber-50/20' : 'border-[#d7e2ee]'} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm hover:border-[#0070f2] transition-all">
+                                                <div class="space-y-1.5 flex-1">
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span class="font-black text-sm text-[#002b66]">${req.plate_ar}</span>
+                                                        ${typeBadge}
+                                                        ${statusBadge}
+                                                        <span class="text-[11px] text-[#556b82] font-mono">📍 ${req.gate_name}</span>
+                                                    </div>
+                                                    <div class="text-xs text-[#1d2d3e] font-bold">
+                                                        <span>👤 السائق: ${req.driver_name}</span>
+                                                        ${req.permit_code ? `<span class="text-[#0070f2] font-mono"> • كود: ${req.permit_code}</span>` : ''}
+                                                    </div>
+                                                    <div class="text-[11px] text-amber-950 bg-amber-50 p-2 rounded-xl border border-amber-200 font-semibold">
+                                                        <span>⚠️ سبب الطلب: <b>${req.reason}</b></span>
+                                                        ${req.notes ? `<div class="mt-0.5 text-slate-600 font-normal">📝 ملاحظات: ${req.notes}</div>` : ''}
+                                                        <div class="mt-1 text-[10px] text-slate-500">مرسل من: 👮 ${req.officer_name} • ${new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                    </div>
                                                 </div>
-                                                <div class="text-xs text-[#1d2d3e] font-bold">
-                                                    <span>👤 السائق: ${req.driver_name}</span>
-                                                    ${req.driver_phone ? `<span class="text-[#0070f2] font-mono"> (${req.driver_phone})</span>` : ''}
-                                                    <span class="text-[#556b82]"> • 🏢 ${req.company}</span>
-                                                </div>
-                                                <div class="text-[11px] text-[#556b82]">
-                                                    <span>📦 الحمولة: <b>${req.cargo_details}</b></span> • <span>📍 الوجهة: <b>${req.destination}</b></span>
-                                                </div>
-                                                <div class="text-[11px] text-amber-900 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
-                                                    📝 ملاحظات الحارس: <b>${req.notes}</b> (👮 ${req.officer_name})
-                                                </div>
-                                                <div class="flex items-center gap-2 pt-1">
-                                                    ${req.plate_photo_url ? '<span class="text-[10px] bg-blue-50 text-[#0070f2] px-2 py-0.5 rounded border border-blue-200 font-bold">📸 صورة اللوحة مرفقة</span>' : ''}
-                                                    ${req.carriage_photo_url ? '<span class="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200 font-bold">📸 صورة الصندوق مرفقة</span>' : ''}
+                                                <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap flex-shrink-0 w-full sm:w-auto justify-end">
+                                                    ${isPending ? `
+                                                        <button type="button" onclick="Manager.handleDecideHoldRequest('${req.id}', 'approve_hold')" class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="اعتماد التعليق المؤقت للتصريح">
+                                                            <span>⏸️</span>
+                                                            <span>اعتماد التعليق</span>
+                                                        </button>
+                                                        <button type="button" onclick="Manager.handleDecideHoldRequest('${req.id}', 'approve_revoke')" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="سحب وإلغاء التصريح نهائياً">
+                                                            <span>⛔</span>
+                                                            <span>سحب وإلغاء</span>
+                                                        </button>
+                                                        <button type="button" onclick="Manager.handleDecideHoldRequest('${req.id}', 'reject')" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl border border-slate-300 shadow-xs flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="رفض طلب البوابة والإبقاء على التصريح سارياً">
+                                                            <span>❌</span>
+                                                            <span>رفض الطلب</span>
+                                                        </button>
+                                                    ` : `
+                                                        <div class="text-xs font-bold text-slate-500">
+                                                            ${req.manager_decision_notes || 'تم اتخاذ القرار'}
+                                                        </div>
+                                                    `}
                                                 </div>
                                             </div>
-                                            <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap flex-shrink-0 w-full sm:w-auto justify-end">
-                                                <button type="button" onclick="Manager.showRequestReviewModal('${req.id}')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl shadow-sm flex items-center gap-1.5 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="معاينة وفحص الصور بدقة">
-                                                    <span>🔍</span>
-                                                    <span>${isPending ? 'فحص الصور' : 'عرض التفاصيل'}</span>
-                                                </button>
-                                                ${isPending ? `
-                                                    <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'approve')" class="px-3.5 py-2 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="اعتماد فوري للدخول وتوليد التصريح">
-                                                        <span>✅</span>
-                                                        <span>اعتماد فوري</span>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `}
+                        ` : `
+                            <!-- INSPECTION REQUESTS LIST -->
+                            ${requests.length === 0 ? `
+                                <div class="text-center py-10 bg-[#f8fafc] rounded-2xl border border-dashed border-[#d7e2ee]">
+                                    <div class="text-3xl mb-2">🛡️</div>
+                                    <div class="text-xs font-bold text-[#556b82]">لا توجد طلبات استئذان مسجلة حالياً</div>
+                                </div>
+                            ` : `
+                                <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                                    ${requests.map(req => {
+                                        const isPending = req.status === 'pending';
+                                        const isApproved = req.status === 'approved';
+                                        const statusBadge = isPending 
+                                            ? '<span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-black animate-pulse">⏳ بانتظار القرار</span>'
+                                            : (isApproved ? '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full text-xs font-black">✅ معتمد</span>' : '<span class="px-2.5 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-full text-xs font-black">⛔ مرفوض</span>');
+
+                                        return `
+                                            <div class="p-4 rounded-2xl bg-white border-2 ${isPending ? 'border-amber-300 bg-amber-50/20' : 'border-[#d7e2ee]'} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm hover:border-[#0070f2] transition-all">
+                                                <div class="space-y-1.5 flex-1">
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span class="font-black text-sm text-[#002b66]">${req.plate_ar}</span>
+                                                        ${statusBadge}
+                                                        <span class="text-[11px] text-[#556b82] font-mono">📍 ${req.gate_name}</span>
+                                                    </div>
+                                                    <div class="text-xs text-[#1d2d3e] font-bold">
+                                                        <span>👤 السائق: ${req.driver_name}</span>
+                                                        ${req.driver_phone ? `<span class="text-[#0070f2] font-mono"> (${req.driver_phone})</span>` : ''}
+                                                        <span class="text-[#556b82]"> • 🏢 ${req.company}</span>
+                                                    </div>
+                                                    <div class="text-[11px] text-[#556b82]">
+                                                        <span>📦 الحمولة: <b>${req.cargo_details}</b></span> • <span>📍 الوجهة: <b>${req.destination}</b></span>
+                                                    </div>
+                                                    <div class="text-[11px] text-amber-900 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                                                        📝 ملاحظات الحارس: <b>${req.notes}</b> (👮 ${req.officer_name})
+                                                    </div>
+                                                    <div class="flex items-center gap-2 pt-1">
+                                                        ${req.plate_photo_url ? '<span class="text-[10px] bg-blue-50 text-[#0070f2] px-2 py-0.5 rounded border border-blue-200 font-bold">📸 صورة اللوحة مرفقة</span>' : ''}
+                                                        ${req.carriage_photo_url ? '<span class="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200 font-bold">📸 صورة الصندوق مرفقة</span>' : ''}
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap flex-shrink-0 w-full sm:w-auto justify-end">
+                                                    <button type="button" onclick="Manager.showRequestReviewModal('${req.id}')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl shadow-sm flex items-center gap-1.5 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="معاينة وفحص الصور بدقة">
+                                                        <span>🔍</span>
+                                                        <span>${isPending ? 'فحص الصور' : 'عرض التفاصيل'}</span>
                                                     </button>
-                                                    <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'reject')" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="رفض ومنع الدخول">
-                                                        <span>⛔</span>
-                                                        <span>رفض</span>
-                                                    </button>
-                                                ` : ''}
+                                                    ${isPending ? `
+                                                        <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'approve')" class="px-3.5 py-2 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="اعتماد فوري للدخول وتوليد التصريح">
+                                                            <span>✅</span>
+                                                            <span>اعتماد فوري</span>
+                                                        </button>
+                                                        <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'reject')" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="رفض ومنع الدخول">
+                                                            <span>⛔</span>
+                                                            <span>رفض</span>
+                                                        </button>
+                                                    ` : ''}
+                                                </div>
                                             </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `}
                         `}
                     </div>
 
@@ -1430,6 +1749,185 @@ class ManagerController {
                 </div>
             </div>
         `;
+    }
+
+    handleDecideHoldRequest(requestId, decision) {
+        const user = window.Auth ? window.Auth.getCurrentUser() : { id: 1 };
+        const res = window.DB.decidePermitHoldRequest(requestId, decision, '', user ? user.id : 1);
+        if (res.success) {
+            this.renderDashboard();
+            this.openPendingRequestsModal('hold');
+            const toastMsg = decision === 'approve_hold' 
+                ? 'تم تعليق وتجميد صلاحية التصريح بنجاح ⏸️' 
+                : (decision === 'approve_revoke' ? 'تم سحب وإلغاء التصريح نهائياً ⛔' : 'تم رفض الطلب والإبقاء على التصريح سارياً');
+            if (window.App && typeof window.App.showToast === 'function') {
+                window.App.showToast('⚠️ قرار تعليق التصريح', toastMsg, decision === 'reject' ? 'info' : 'warning');
+            }
+        } else {
+            alert(res.message || 'حدث خطأ أثناء معالجة القرار');
+        }
+    }
+
+    openHoldPermitModal(permitId) {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const permit = window.DB.getPermits().find(p => String(p.id) === String(permitId));
+        if (!permit) return;
+        const vehicle = window.DB.getVehicles().find(v => v.id === permit.vehicle_id) || {};
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border-2 border-amber-400 animate-scaleUp text-right" dir="rtl">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-xl border border-amber-300">⏸️</span>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">تعليق وتجميد التصريح مؤقتاً (Hold)</h3>
+                                <p class="text-xs text-[#556b82]">إيقاف صلاحية الدخول عند البوابات حتى إشعار آخر</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="event.preventDefault(); Manager.handleHoldPermit(${permit.id}, document.getElementById('hold-reason-select').value, document.getElementById('hold-notes-input').value)" class="py-4 space-y-4 text-xs">
+                        <div class="bg-[#f8fafc] p-3.5 rounded-2xl border border-[#d7e2ee] space-y-1.5">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">كود التصريح:</span>
+                                <span class="font-mono font-black text-[#0070f2]">${permit.permit_code} (PIN: ${permit.pin_code})</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">رقم اللوحة:</span>
+                                <span class="font-black text-sm text-[#002b66]">${vehicle.plate_ar || '—'}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">اسم السائق:</span>
+                                <span class="font-bold text-[#1d2d3e]">${vehicle.driver_name_ar || 'سائق مصرح'}</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1.5">سبب التعليق / التجميد:</label>
+                            <select id="hold-reason-select" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-2.5 text-xs font-bold text-[#1d2d3e]">
+                                <option value="مراجعة أمنية وإدارية">مراجعة أمنية وإدارية</option>
+                                <option value="فحص إضافي للحمولة والفواتير">فحص إضافي للحمولة والفواتير</option>
+                                <option value="تأكيد هوية السائق والمورد">تأكيد هوية السائق والمورد</option>
+                                <option value="مخالفة معايير السلامة عند البوابة">مخالفة معايير السلامة عند البوابة</option>
+                                <option value="أخرى">أخرى (موضحة بالملاحظات)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">تفاصيل وملاحظات إضافية:</label>
+                            <textarea id="hold-notes-input" rows="3" placeholder="اكتب تفاصيل قرار التعليق لإبلاغ الضباط به عند البوابات..." class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-3 text-xs text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none"></textarea>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">إلغاء</button>
+                            <button type="submit" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5">
+                                <span>⏸️</span>
+                                <span>تأكيد تعليق التصريح</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    openRevokePermitModal(permitId) {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const permit = window.DB.getPermits().find(p => String(p.id) === String(permitId));
+        if (!permit) return;
+        const vehicle = window.DB.getVehicles().find(v => v.id === permit.vehicle_id) || {};
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border-2 border-rose-500 animate-scaleUp text-right" dir="rtl">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-900 flex items-center justify-center font-black text-xl border border-rose-300">⛔</span>
+                            <div>
+                                <h3 class="text-base font-black text-rose-950">سحب وإلغاء التصريح نهائياً (Revoke)</h3>
+                                <p class="text-xs text-[#556b82]">إلغاء صلاحية هذا الكود والـ PIN تماماً ومنع الدخول</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="event.preventDefault(); Manager.handleRevokePermit(${permit.id}, document.getElementById('revoke-reason-select').value, document.getElementById('revoke-notes-input').value)" class="py-4 space-y-4 text-xs">
+                        <div class="bg-[#fff5f5] p-3.5 rounded-2xl border border-rose-200 space-y-1.5">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">كود التصريح:</span>
+                                <span class="font-mono font-black text-rose-700">${permit.permit_code} (PIN: ${permit.pin_code})</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">رقم اللوحة:</span>
+                                <span class="font-black text-sm text-[#002b66]">${vehicle.plate_ar || '—'}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">اسم السائق:</span>
+                                <span class="font-bold text-[#1d2d3e]">${vehicle.driver_name_ar || 'سائق مصرح'}</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1.5">سبب السحب والإلغاء النهائي:</label>
+                            <select id="revoke-reason-select" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-2.5 text-xs font-bold text-[#1d2d3e]">
+                                <option value="إلغاء أمر التوريد / الشحن من الإدارة">إلغاء أمر التوريد / الشحن من الإدارة</option>
+                                <option value="مخالفة أمنية جسيمة ومنع الدخول">مخالفة أمنية جسيمة ومنع الدخول</option>
+                                <option value="عدم مطابقة الشاحنة والحمولة للمواصفات">عدم مطابقة الشاحنة والحمولة للمواصفات</option>
+                                <option value="بيانات غير صحيحة أو مستندات ملغاة">بيانات غير صحيحة أو مستندات ملغاة</option>
+                                <option value="أخرى">أخرى (موضحة بالملاحظات)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">ملاحظات وقرار الإلغاء:</label>
+                            <textarea id="revoke-notes-input" rows="3" placeholder="اكتب أسباب إلغاء وسحب التصريح نهائياً..." class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-3 text-xs text-[#1d2d3e] focus:border-rose-500 focus:outline-none"></textarea>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">إلغاء</button>
+                            <button type="submit" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5">
+                                <span>⛔</span>
+                                <span>تأكيد سحب وإلغاء التصريح</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    handleHoldPermit(permitId, reason, notes = '') {
+        const fullReason = reason + (notes ? ` - ${notes}` : '');
+        window.DB.setPermitStatus(permitId, 'hold', fullReason);
+        document.getElementById('modal-container').innerHTML = '';
+        this.renderDashboard();
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast('⏸️ تعليق التصريح', 'تم تجميد صلاحية التصريح ومنع الدخول عند البوابات.', 'warning');
+        }
+    }
+
+    handleRevokePermit(permitId, reason, notes = '') {
+        const fullReason = reason + (notes ? ` - ${notes}` : '');
+        window.DB.setPermitStatus(permitId, 'revoked', fullReason);
+        document.getElementById('modal-container').innerHTML = '';
+        this.renderDashboard();
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast('⛔ سحب وإلغاء التصريح', 'تم سحب وإلغاء التصريح نهائياً بنجاح.', 'danger');
+        }
+    }
+
+    handleActivatePermit(permitId) {
+        window.DB.setPermitStatus(permitId, 'active');
+        document.getElementById('modal-container').innerHTML = '';
+        this.renderDashboard();
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast('✅ تفعيل التصريح', 'تم إلغاء التعليق وإعادة تفعيل التصريح للبوابات بنجاح.', 'success');
+        }
     }
 
     showRequestReviewModal(requestId) {
@@ -3232,7 +3730,10 @@ class ManagerController {
 window.Manager = new ManagerController();
 ManagerController.createPassCanvasDataUrl = (permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails, pinCode) => window.Manager.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails, pinCode);
 ManagerController.dataURItoBlob = (dataURI) => window.Manager.dataURItoBlob(dataURI);
-window.openPendingRequestsModal = () => { if (window.Manager && typeof window.Manager.openPendingRequestsModal === 'function') window.Manager.openPendingRequestsModal(); };
+window.openPendingRequestsModal = (tab) => { if (window.Manager && typeof window.Manager.openPendingRequestsModal === 'function') window.Manager.openPendingRequestsModal(tab); };
 window.showRequestReviewModal = (id) => { if (window.Manager && typeof window.Manager.showRequestReviewModal === 'function') window.Manager.showRequestReviewModal(id); };
 window.handleDecideRequest = (id, dec) => { if (window.Manager && typeof window.Manager.handleDecideRequest === 'function') window.Manager.handleDecideRequest(id, dec); };
+window.openHoldPermitModal = (id) => { if (window.Manager && typeof window.Manager.openHoldPermitModal === 'function') window.Manager.openHoldPermitModal(id); };
+window.openRevokePermitModal = (id) => { if (window.Manager && typeof window.Manager.openRevokePermitModal === 'function') window.Manager.openRevokePermitModal(id); };
+window.handleDecideHoldRequest = (id, dec) => { if (window.Manager && typeof window.Manager.handleDecideHoldRequest === 'function') window.Manager.handleDecideHoldRequest(id, dec); };
 

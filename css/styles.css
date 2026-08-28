@@ -131,10 +131,12 @@ body {
     background: linear-gradient(180deg, #007bf8 0%, #0070f2 100%);
     color: #ffffff;
     font-weight: 700;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid #005cbd;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 2px 6px rgba(0, 112, 242, 0.25);
+    user-select: none;
+    cursor: pointer;
 }
 
 .sap-btn-primary:hover {
@@ -145,7 +147,7 @@ body {
 
 .sap-btn-primary:active {
     background: #004791;
-    transform: translateY(1px) scale(0.99);
+    transform: translateY(1px) scale(0.98);
     box-shadow: 0 1px 3px rgba(0, 112, 242, 0.2);
 }
 
@@ -154,9 +156,11 @@ body {
     color: var(--sap-primary);
     border: 1px solid var(--sap-border);
     font-weight: 700;
-    border-radius: 10px;
+    border-radius: 12px;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    user-select: none;
+    cursor: pointer;
 }
 
 .sap-btn-secondary:hover {
@@ -167,8 +171,103 @@ body {
 }
 
 .sap-btn-secondary:active {
-    transform: translateY(1px);
+    transform: translateY(1px) scale(0.98);
     background-color: #dbeaff;
+}
+
+.sap-btn-success {
+    background: linear-gradient(180deg, #128c46 0%, #107e3e 100%);
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 12px;
+    border: 1px solid #0c6832;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(16, 126, 62, 0.25);
+    user-select: none;
+    cursor: pointer;
+}
+
+.sap-btn-success:hover {
+    background: linear-gradient(180deg, #0e783a 0%, #0c6832 100%);
+    box-shadow: 0 4px 12px rgba(16, 126, 62, 0.35);
+    transform: translateY(-1px);
+}
+
+.sap-btn-success:active {
+    background: #094e25;
+    transform: translateY(1px) scale(0.98);
+}
+
+.sap-btn-warning {
+    background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 12px;
+    border: 1px solid #92400e;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(180, 83, 9, 0.25);
+    user-select: none;
+    cursor: pointer;
+}
+
+.sap-btn-warning:hover {
+    background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
+    transform: translateY(-1px);
+}
+
+.sap-btn-warning:active {
+    transform: translateY(1px) scale(0.98);
+}
+
+.sap-btn-danger {
+    background: linear-gradient(180deg, #dc2626 0%, #bb0000 100%);
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 12px;
+    border: 1px solid #990000;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(187, 0, 0, 0.25);
+    user-select: none;
+    cursor: pointer;
+}
+
+.sap-btn-danger:hover {
+    background: linear-gradient(180deg, #b91c1c 0%, #990000 100%);
+    transform: translateY(-1px);
+}
+
+.sap-btn-danger:active {
+    transform: translateY(1px) scale(0.98);
+}
+
+/* Enterprise Form Inputs */
+.sap-input,
+.sap-select,
+.sap-textarea {
+    width: 100%;
+    background-color: #f8fafc;
+    border: 1px solid #d7e2ee;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2d3e;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.sap-input:focus,
+.sap-select:focus,
+.sap-textarea:focus {
+    background-color: #ffffff;
+    border-color: #0070f2;
+    box-shadow: 0 0 0 3px rgba(0, 112, 242, 0.15);
+}
+
+.sap-input::placeholder,
+.sap-textarea::placeholder {
+    color: #8da2b5;
+    font-weight: 400;
 }
 
 /* Status Badges with Ambient Glow */

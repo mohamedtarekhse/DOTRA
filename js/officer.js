@@ -368,6 +368,33 @@ class OfficerController {
                     </button>
                 </div>
             `;
+        } else if (permit && permit.status === 'revoked') {
+            decisionBadge = `
+                <div class="p-4 bg-[#3b0d0c] text-white rounded-2xl border-2 border-red-800 mb-3 text-center shadow-md">
+                    <div class="text-sm font-black flex items-center justify-center gap-1.5 text-red-300">
+                        ${icon('ban', 'w-5 h-5 text-red-400')}
+                        <span>⛔ تصريح ملغي ومسحوب نهائياً (REVOKED)</span>
+                    </div>
+                    <div class="text-xs text-red-200 mt-1 font-bold">
+                        كود التصريح: <b class="font-mono text-amber-300">${permit.permit_code}</b>
+                    </div>
+                    <p class="text-xs text-red-200 mt-1 font-semibold">
+                        ${permit.hold_reason ? `سبب الإلغاء والسحب: ${permit.hold_reason}` : 'تم إلغاء وسحب هذا التصريح نهائياً بقرار من إدارة العمليات. غير مصرح بالدخول.'}
+                    </p>
+                </div>
+            `;
+            actionButtons = `
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="Officer.promptDenial('تصريح ملغي ومسحوب نهائياً')" class="py-3.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-md active:scale-95">
+                        ${icon('ban', 'w-4 h-4')}
+                        <span>منع الدخول وتوثيق مخالفة</span>
+                    </button>
+                    <button type="button" onclick="Officer.handlePlateSearch('${OfficerController.escHtml(this.activeSearchQuery)}')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95">
+                        ${icon('refresh', 'w-4 h-4')}
+                        <span>إعادة التحقق</span>
+                    </button>
+                </div>
+            `;
         } else if (permit && permit.status === 'hold') {
             decisionBadge = `
                 <div class="p-4 bg-[#fff1e5] text-amber-900 rounded-2xl border-2 border-amber-400 mb-3 text-center shadow-sm">
@@ -394,6 +421,10 @@ class OfficerController {
                         <span>إعادة الفحص والتحقق</span>
                     </button>
                 </div>
+                <button type="button" onclick="Officer.openRequestHoldModal('${permit.id}')" class="w-full mt-2 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
+                    <span>⚠️</span>
+                    <span>طلب سحب أو إفادة بشأن التصريح من المدير</span>
+                </button>
             `;
         } else if (permit && permit.status === 'active') {
             const isExit = permit.permit_type === 'exit';
@@ -422,6 +453,10 @@ class OfficerController {
                             <span>منع وتفتيش</span>
                         </button>
                     </div>
+                    <button type="button" onclick="Officer.openRequestHoldModal('${permit.id}')" class="w-full mt-2 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
+                        <span>⚠️</span>
+                        <span>طلب تعليق / سحب التصريح من المدير</span>
+                    </button>
                 `;
             } else {
                 decisionBadge = `
@@ -446,6 +481,10 @@ class OfficerController {
                             <span>تسجيل خروج</span>
                         </button>
                     </div>
+                    <button type="button" onclick="Officer.openRequestHoldModal('${permit.id}')" class="w-full mt-2 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
+                        <span>⚠️</span>
+                        <span>طلب تعليق / سحب التصريح من المدير</span>
+                    </button>
                 `;
             }
         } else {
@@ -1277,6 +1316,137 @@ class OfficerController {
             else if (trackerCard) trackerCard.innerHTML = html;
         }
     }
+
+    openRequestHoldModal(permitId) {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+        const permit = permitId ? window.DB.getPermits().find(p => String(p.id) === String(permitId)) : this.selectedPermit;
+        const vehicle = this.selectedVehicle || (permit ? window.DB.getVehicles().find(v => v.id === permit.vehicle_id) : null);
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-amber-300 animate-scaleUp max-h-[92vh] overflow-y-auto text-right" dir="rtl">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-lg border border-amber-300">
+                                ⚠️
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'طلب تعليق أو سحب تصريح للمدير' : 'Request Permit Hold / Revocation'}
+                                </h3>
+                                <p class="text-xs text-[#556b82]">
+                                    ${lang === 'ar' ? 'إرسال إشعار فوري لمدير العمليات لتجميد أو سحب التصريح' : 'Send instant alert to manager to suspend pass'}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="Officer.submitRequestHold(event, '${permit ? permit.id : ''}')" class="py-4 space-y-4 text-xs">
+                        <div class="bg-[#f8fafc] p-3.5 rounded-2xl border border-[#d7e2ee] space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">رقم لوحة المركبة:</span>
+                                <span class="font-black text-sm text-[#002b66]">${vehicle ? vehicle.plate_ar : 'مركبة غير محددة'}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-[#556b82] font-bold">اسم السائق:</span>
+                                <span class="font-bold text-[#1d2d3e]">${vehicle ? (vehicle.driver_name_ar || vehicle.driver_name_en) : 'سائق زائر'}</span>
+                            </div>
+                            ${permit ? `
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[#556b82] font-bold">كود التصريح:</span>
+                                    <span class="font-mono font-bold text-[#0070f2]">${permit.permit_code} (PIN: ${permit.pin_code})</span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1.5">
+                                ${lang === 'ar' ? 'نوع الإجراء المطلوب من المدير:' : 'Requested Action:'}
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-amber-300 bg-amber-50 cursor-pointer">
+                                    <input type="radio" name="hold_request_type" value="hold" checked class="text-amber-600" />
+                                    <span class="font-bold text-amber-900">⏸️ تعليق مؤقت (Hold)</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-red-300 bg-red-50 cursor-pointer">
+                                    <input type="radio" name="hold_request_type" value="revoke" class="text-red-600" />
+                                    <span class="font-bold text-red-900">⛔ سحب وإلغاء نهائي</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">
+                                ${lang === 'ar' ? 'سبب طلب التعليق / السحب:' : 'Reason for request:'}
+                            </label>
+                            <select id="hold-request-reason" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-2.5 text-xs font-bold text-[#1d2d3e]">
+                                <option value="عدم تطابق بيانات السائق مع التصريح">عدم تطابق بيانات السائق مع التصريح</option>
+                                <option value="تلف أو تسريب أو حمولة غير مطابقة">تلف أو تسريب أو حمولة غير مطابقة</option>
+                                <option value="عدم وجود أو استكمال الفواتير وأذونات الصرف">عدم وجود أو استكمال الفواتير وأذونات الصرف</option>
+                                <option value="اشتباه أمني أو سلوك غير لائق">اشتباه أمني أو سلوك غير لائق</option>
+                                <option value="مخالفة معايير السلامة والأمان المهني">مخالفة معايير السلامة والأمان المهني</option>
+                                <option value="أخرى">أخرى (موضحة بالملاحظات)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">
+                                ${lang === 'ar' ? 'تفاصيل وملاحظات الضابط للمدير:' : 'Officer Notes:'}
+                            </label>
+                            <textarea id="hold-request-notes" rows="3" placeholder="اكتب ملاحظاتك وتفاصيل الحالة لمدير العمليات..." class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-3 text-xs text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none"></textarea>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                                ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            </button>
+                            <button type="submit" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs shadow-md active:scale-95 transition-all flex items-center gap-1.5">
+                                <span>📤</span>
+                                <span>${lang === 'ar' ? 'إرسال الطلب لمدير العمليات' : 'Send to Manager'}</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    submitRequestHold(event, permitId) {
+        if (event && event.preventDefault) event.preventDefault();
+        const user = window.Auth ? window.Auth.getCurrentUser() : { id: 2, name_ar: 'ضابط البوابة', gate_assigned: 'بوابة 1 الرئيسية - دوترا' };
+        const permit = permitId ? window.DB.getPermits().find(p => String(p.id) === String(permitId)) : this.selectedPermit;
+        const vehicle = this.selectedVehicle || (permit ? window.DB.getVehicles().find(v => v.id === permit.vehicle_id) : null);
+
+        const requestType = document.querySelector('input[name="hold_request_type"]:checked')?.value || 'hold';
+        const reason = document.getElementById('hold-request-reason')?.value || 'مراجعة أمنية';
+        const notes = document.getElementById('hold-request-notes')?.value || '';
+
+        const newReq = window.DB.createPermitHoldRequest({
+            permit_id: permit ? permit.id : null,
+            vehicle_id: vehicle ? vehicle.id : null,
+            plate_ar: vehicle ? vehicle.plate_ar : '',
+            driver_name: vehicle ? (vehicle.driver_name_ar || vehicle.driver_name_en) : 'سائق مصرح',
+            officer_id: user.id,
+            gate_name: user.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
+            request_type: requestType,
+            reason: reason,
+            notes: notes
+        });
+
+        document.getElementById('modal-container').innerHTML = '';
+
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast(
+                '⚠️ تم إرسال طلب التعليق',
+                `تم إرسال إشعار لمدير العمليات بطلب ${requestType === 'revoke' ? 'سحب' : 'تعليق'} التصريح (${newReq.plate_ar}).`,
+                'warning'
+            );
+        }
+    }
 }
 
 // Global Singleton
@@ -1293,6 +1463,11 @@ OfficerController.prototype.handleDeny = function(reason) { return this.recordAc
 window.openInspectionRequestModal = function() {
     if (window.Officer && typeof window.Officer.openInspectionRequestModal === 'function') {
         window.Officer.openInspectionRequestModal();
+    }
+};
+window.openRequestHoldModal = function(permitId) {
+    if (window.Officer && typeof window.Officer.openRequestHoldModal === 'function') {
+        window.Officer.openRequestHoldModal(permitId);
     }
 };
 

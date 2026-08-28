@@ -127,7 +127,7 @@ async function runTests() {
     assert(terminalHtml.includes('officer-plate-input'), "Terminal contains vehicle search input");
     assert(terminalHtml.includes('openInspectionRequestModal'), "Terminal contains pass request button");
     assert(terminalHtml.includes('openExpectedArrivalsModal'), "Terminal contains expected arrivals manifest button");
-    assert(terminalHtml.includes('openQuickWalkinModal'), "Terminal contains walk-in button");
+    assert(!terminalHtml.includes('openQuickWalkinModal'), "Terminal successfully removed quick walk-in button (Strict Security Protocol)");
 
     // --- TEST 4: Open Expected Arrivals Modal ---
     console.log("\n4. Testing openExpectedArrivalsModal()...");

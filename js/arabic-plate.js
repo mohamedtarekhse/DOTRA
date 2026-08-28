@@ -169,7 +169,11 @@ function renderArabicKeypad(targetInputId) {
                 <span class="text-[11px] text-[#556b82]">اختر الحروف والأرقام مباشرة:</span>
             </span>
             <div class="flex items-center gap-1.5">
-                <button type="button" class="text-xs text-rose-700 hover:text-white font-bold px-3 py-1 bg-rose-50 hover:bg-rose-600 rounded-lg border border-rose-200 transition-all flex items-center gap-1" onclick="ArabicPlate.backspaceKey('${targetInputId}')">
+                <button type="button" class="text-xs text-[#556b82] hover:text-slate-900 font-bold px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition-all flex items-center gap-1 active:scale-95" onclick="ArabicPlate.clearKey('${targetInputId}')">
+                    <span>✕</span>
+                    <span>مسح</span>
+                </button>
+                <button type="button" class="text-xs text-rose-700 hover:text-white font-bold px-3 py-1 bg-rose-50 hover:bg-rose-600 rounded-lg border border-rose-200 transition-all flex items-center gap-1 active:scale-95" onclick="ArabicPlate.backspaceKey('${targetInputId}')">
                     <span>⌫</span>
                     <span>حذف حرف</span>
                 </button>
@@ -211,6 +215,14 @@ function backspaceKey(inputId) {
     input.focus();
 }
 
+function clearKey(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+}
+
 function normalizeSearchText(str) {
     if (!str && str !== 0) return '';
     return String(str)
@@ -237,6 +249,7 @@ window.ArabicPlate = {
     renderArabicKeypad,
     insertKey,
     backspaceKey,
+    clearKey,
     toEasternArabicDigits,
     parsePlateParts,
     normalizeSearchText,

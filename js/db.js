@@ -1051,13 +1051,15 @@ class DatabaseService {
     }
 
     async getNotifications() {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return [];
+        if (typeof fetch === 'undefined') return [];
         const user = window.Auth ? window.Auth.getCurrentUser() : null;
         try {
             const url = user ? `/api/notifications?user_id=${user.id}` : '/api/notifications';
-            const res = await fetch(url);
+            const res = await fetch(url).catch(() => null);
             if (!res || !res.ok) return [];
-            const data = await res.json();
-            return data.notifications || [];
+            const data = await res.json().catch(() => ({}));
+            return Array.isArray(data.notifications) ? data.notifications : [];
         } catch (e) {
             return [];
         }
@@ -1638,26 +1640,161 @@ class DatabaseService {
         return "اسم البوابة,كود شارة ضابط وردية النهار,اسم ضابط النهار,كود شارة ضابط وردية الليل (المناوب البديل),اسم ضابط الليل,ملاحظات\nبوابة 1 الرئيسية - دوترا,GT-01,طارق محمود,GT-02,حسام حسن,البوابة الرئيسية للشاحنات\nبوابة 2 الشحن والجمارك - دوترا,GT-02,حسام حسن,GT-01,طارق محمود,بوابة الشحن والمستودعات\nبوابة 3 المواد الخام والكيماويات,,,,,\nبوابة 4 خروج الإنتاج والشاحنات,,,,,";
     }
 
-    importRosterFromCSV(csvText) {
-        if (!csvText || !csvText.trim()) return { success: false, count: 0, message: 'ملف الـ CSV فارغ' };
+    getRosterExcelTemplate() {
+        const headers = ['اسم البوابة', 'كود شارة ضابط وردية النهار', 'اسم ضابط النهار', 'كود شارة ضابط وردية الليل', 'اسم ضابط الليل', 'ملاحظات وتفاصيل التعيين'];
+        const sampleRows = [
+            ['بوابة 1 الرئيسية - دوترا', 'GT-01', 'طارق محمود', 'GT-02', 'حسام حسن', 'البوابة الرئيسية للشاحنات والموردين'],
+            ['بوابة 2 الشحن والجمارك - دوترا', 'GT-02', 'حسام حسن', 'GT-01', 'طارق محمود', 'بوابة الشحن والمستودعات المركزية'],
+            ['بوابة 3 المواد الخام والكيماويات', '', '', '', '', 'وردية نهارية فقط'],
+            ['بوابة 4 خروج الإنتاج والشاحنات', '', '', '', '', 'بوابة الخروج والميزان']
+        ];
 
-        const lines = csvText.trim().split(/\r?\n/);
-        if (lines.length < 2) return { success: false, count: 0, message: 'الملف لا يحتوي على صفوف بيانات' };
+        let rowsHtml = sampleRows.map(row => `
+            <tr>
+                <td style="font-weight:bold;color:#002b66;">${row[0]}</td>
+                <td style="mso-number-format:'\\@';font-weight:bold;text-align:center;color:#b85500;">${row[1]}</td>
+                <td style="font-weight:bold;">${row[2]}</td>
+                <td style="mso-number-format:'\\@';font-weight:bold;text-align:center;color:#107e3e;">${row[3]}</td>
+                <td style="font-weight:bold;">${row[4]}</td>
+                <td>${row[5]}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>جدول ورديات البوابات</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayRightToLeft/>
+                                    <x:Selected/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+                <style>
+                    table { border-collapse: collapse; width: 100%; direction: rtl; font-family: Segoe UI, Tahoma, Arial, sans-serif; font-size: 12px; }
+                    th { background-color: #002b66; color: #ffffff; font-weight: bold; border: 1px solid #001940; padding: 10px 8px; text-align: center; font-size: 12px; }
+                    td { border: 1px solid #d7e2ee; padding: 8px 10px; text-align: right; vertical-align: middle; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                </style>
+            </head>
+            <body dir="rtl">
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+    }
+
+    exportRosterToExcel() {
+        const roster = this.getGateRoster();
+        const headers = ['م', 'اسم البوابة', 'كود شارة ضابط النهار', 'اسم ضابط وردية النهار', 'كود شارة ضابط الليل', 'اسم ضابط وردية الليل', 'ملاحظات'];
+        
+        let rowsHtml = roster.map((r, idx) => `
+            <tr>
+                <td style="text-align:center;">${idx + 1}</td>
+                <td style="font-weight:bold;color:#002b66;">${r.gate_name || '--'}</td>
+                <td style="mso-number-format:'\\@';font-weight:bold;text-align:center;color:#b85500;">${r.day_officer_badge || '--'}</td>
+                <td style="font-weight:bold;">${r.day_officer_name || '--'}</td>
+                <td style="mso-number-format:'\\@';font-weight:bold;text-align:center;color:#107e3e;">${r.night_officer_badge || '--'}</td>
+                <td style="font-weight:bold;">${r.night_officer_name || '--'}</td>
+                <td>${r.notes || '--'}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>كشف مناوبات البوابات</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayRightToLeft/>
+                                    <x:Selected/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+                <style>
+                    table { border-collapse: collapse; width: 100%; direction: rtl; font-family: Segoe UI, Tahoma, Arial, sans-serif; font-size: 12px; }
+                    th { background-color: #002b66; color: #ffffff; font-weight: bold; border: 1px solid #001940; padding: 10px 8px; text-align: center; font-size: 12px; }
+                    td { border: 1px solid #d7e2ee; padding: 8px 10px; text-align: right; vertical-align: middle; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                </style>
+            </head>
+            <body dir="rtl">
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+    }
+
+    importRosterFromCSV(text) {
+        if (!text || !text.trim()) return { success: false, count: 0, message: 'الملف فارغ' };
+
+        let rows = [];
+        if (text.includes('<tr') || text.includes('<table')) {
+            const trMatches = text.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            trMatches.forEach(tr => {
+                const cellMatches = tr.match(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi) || [];
+                const rowData = cellMatches.map(cell => cell.replace(/<[^>]+>/g, '').trim());
+                if (rowData.length > 0) rows.push(rowData);
+            });
+        } else {
+            const lines = text.trim().split(/\r?\n/);
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                let parts = [];
+                if (line.includes('\t')) parts = line.split('\t');
+                else if (line.includes(';')) parts = line.split(';');
+                else parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+                if (parts.length > 0) rows.push(parts.map(p => p.trim()));
+            });
+        }
+
+        if (rows.length < 2) return { success: false, count: 0, message: 'الملف لا يحتوي على صفوف بيانات' };
 
         const users = this.getUsers();
         const currentGates = this.getGates();
         const roster = this.getGateRoster();
         let updatedCount = 0;
 
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
+        const startIdx = (rows[0][0] && (rows[0][0].includes('بوابة') || rows[0][0].toLowerCase().includes('gate'))) ? 1 : 0;
 
-            let parts = [];
-            if (line.includes('\t')) parts = line.split('\t');
-            else if (line.includes(';')) parts = line.split(';');
-            else parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
-
+        for (let i = startIdx; i < rows.length; i++) {
+            const parts = rows[i];
             if (parts.length < 1 || !parts[0]) continue;
 
             const gateName = parts[0]?.trim();
@@ -1667,7 +1804,7 @@ class DatabaseService {
             const nightName = parts[4]?.trim() || '';
             const notes = parts[5]?.trim() || '';
 
-            if (!gateName) continue;
+            if (!gateName || gateName.includes('اسم البوابة')) continue;
 
             // Ensure gate exists in gates list
             if (!currentGates.includes(gateName)) {
@@ -1697,16 +1834,11 @@ class DatabaseService {
         }
 
         this.saveGateRoster(roster);
-        return { success: true, count: updatedCount, message: `تم تحديث جدول المناوبات لعدد (${updatedCount}) بوابة بنجاح` };
+        return { success: true, count: updatedCount, message: `تم تحديث وتعيين جدول المناوبات لعدد (${updatedCount}) بوابة بنجاح` };
     }
 
     exportRosterToCSV() {
-        const roster = this.getGateRoster();
-        let csv = 'اسم البوابة (Gate_Name),كود شارة ضابط النهار (Day_Badge),اسم ضابط النهار (Day_Officer),كود شارة ضابط الليل (Night_Badge),اسم ضابط الليل (Night_Officer),ملاحظات (Notes)\n';
-        roster.forEach(r => {
-            csv += `"${r.gate_name || ''}","${r.day_officer_badge || ''}","${r.day_officer_name || ''}","${r.night_officer_badge || ''}","${r.night_officer_name || ''}","${r.notes || ''}"\n`;
-        });
-        return csv;
+        return this.exportRosterToExcel();
     }
 
     // =========================================================================
@@ -1869,6 +2001,126 @@ class DatabaseService {
 
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return { success: true, request: req, permit: generatedPermit };
+    }
+
+    // =========================================================================
+    // GATE OFFICER HOLD / REVOKE PERMIT REQUESTS
+    // =========================================================================
+
+    getPermitHoldRequests() {
+        const raw = localStorage.getItem('gate_hold_requests');
+        try {
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    getPendingPermitHoldRequests() {
+        return this.getPermitHoldRequests().filter(r => r.status === 'pending');
+    }
+
+    createPermitHoldRequest({
+        permit_id,
+        vehicle_id,
+        plate_ar,
+        driver_name = 'سائق مصرح',
+        officer_id = 2,
+        gate_name = 'بوابة 1 الرئيسية - دوترا',
+        request_type = 'hold', // 'hold' | 'revoke'
+        reason = 'مراجعة أمنية',
+        notes = ''
+    }) {
+        const requests = this.getPermitHoldRequests();
+        const users = this.getUsers();
+        const officer = users.find(u => u.id === officer_id);
+        const permit = permit_id ? this.getPermits().find(p => String(p.id) === String(permit_id)) : null;
+
+        const newRequest = {
+            id: this.generateId(),
+            permit_id: permit ? permit.id : null,
+            permit_code: permit ? permit.permit_code : '',
+            pin_code: permit ? permit.pin_code : '',
+            vehicle_id: vehicle_id || (permit ? permit.vehicle_id : null),
+            plate_ar: plate_ar || '',
+            driver_name: driver_name || '',
+            officer_id: officer_id,
+            officer_name: officer ? officer.name_ar : 'ضابط البوابة',
+            gate_name: gate_name,
+            request_type: request_type, // 'hold' | 'revoke'
+            reason: reason || 'مراجعة أمنية',
+            notes: notes || '',
+            status: 'pending', // 'pending' | 'approved' | 'rejected'
+            manager_decision_notes: '',
+            created_at: new Date().toISOString(),
+            decided_at: null
+        };
+
+        requests.push(newRequest);
+        localStorage.setItem('gate_hold_requests', JSON.stringify(requests));
+
+        // Announce live event to manager
+        this.announce('PERMIT_HOLD_REQUEST_CREATED', {
+            request_id: newRequest.id,
+            permit_id: newRequest.permit_id,
+            permit_code: newRequest.permit_code,
+            plate: newRequest.plate_ar,
+            gate: newRequest.gate_name,
+            officer: newRequest.officer_name,
+            type: newRequest.request_type,
+            reason: newRequest.reason
+        });
+
+        // Push notification to manager
+        if (typeof window !== 'undefined' && window.PushService && typeof window.PushService.sendCustomNotification === 'function') {
+            window.PushService.sendCustomNotification({
+                title: `⚠️ طلب ${newRequest.request_type === 'revoke' ? 'سحب وإلغاء' : 'تعليق'} تصريح: ${newRequest.plate_ar}`,
+                body: `الضابط: ${newRequest.officer_name} عند ${newRequest.gate_name}. السبب: ${newRequest.reason}`,
+                targetRole: 'manager',
+                tag: `hold-request-${newRequest.id}`
+            }).catch(() => {});
+        }
+
+        return newRequest;
+    }
+
+    decidePermitHoldRequest(requestId, decision, managerNotes = '', managerUserId = 1) {
+        const requests = this.getPermitHoldRequests();
+        const req = requests.find(r => String(r.id) === String(requestId));
+        if (!req) return { success: false, message: 'طلب التعليق غير موجود' };
+
+        const users = this.getUsers();
+        const manager = users.find(u => u.id === managerUserId) || { name_ar: 'م. أحمد فؤاد (مدير العمليات)' };
+
+        req.status = decision === 'reject' ? 'rejected' : 'approved';
+        req.manager_decision_notes = managerNotes || (decision === 'reject' ? 'تم رفض طلب التعليق والإبقاء على التصريح سارياً' : 'تم اعتماد الطلب وتطبيق الإجراء');
+        req.decided_at = new Date().toISOString();
+        req.decided_by_name = manager.name_ar;
+
+        if (decision === 'approve_hold') {
+            if (req.permit_id) {
+                this.setPermitStatus(req.permit_id, 'hold', `${req.reason}${managerNotes ? ' - ' + managerNotes : ''}`);
+            }
+        } else if (decision === 'approve_revoke') {
+            if (req.permit_id) {
+                this.setPermitStatus(req.permit_id, 'revoked', `${req.reason}${managerNotes ? ' - ' + managerNotes : ''}`);
+            }
+        }
+
+        localStorage.setItem('gate_hold_requests', JSON.stringify(requests));
+
+        // Announce decision live
+        this.announce('PERMIT_HOLD_REQUEST_DECIDED', {
+            request_id: req.id,
+            permit_id: req.permit_id,
+            status: req.status,
+            decision: decision,
+            plate: req.plate_ar,
+            gate: req.gate_name
+        });
+
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        return { success: true, request: req };
     }
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dotra-gate-v4';
+const CACHE_NAME = 'dotra-gate-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -44,19 +44,19 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  
   // API requests go network-first with graceful fallback
   if (event.request.url.includes('/api/')) {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return new Response(JSON.stringify({ offline: true }), {
+        return new Response(JSON.stringify({ offline: true, success: true, notifications: [] }), {
           headers: { 'Content-Type': 'application/json' }
         });
       })
     );
     return;
   }
+
+  if (event.request.method !== 'GET') return;
 
   // Application Scripts & HTML: Network-First with Cache Fallback (Ensures fresh code on update)
   if (event.request.url.endsWith('.js') || event.request.url.endsWith('.html') || event.request.url.endsWith('/')) {

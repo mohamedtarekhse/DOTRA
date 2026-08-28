@@ -158,31 +158,52 @@ class PushManagerService {
         return await this.showSystemNotification('🔔 اختبار إشعارات دوترا', 'نظام الإشعارات الفورية متصل ويعمل بنجاح!', 'info', 'test-notif');
     }
 
-    startPolling(intervalMs = 3000) {
+    startPolling(intervalMs = 4000) {
         if (this._pollTimer) clearInterval(this._pollTimer);
+        this._consecutiveErrors = 0;
+
+        if (typeof window !== 'undefined' && !this._onlineListenerBound) {
+            this._onlineListenerBound = true;
+            window.addEventListener('online', () => {
+                this._consecutiveErrors = 0;
+                this.startPolling(4000);
+            });
+        }
+
         this._pollTimer = setInterval(async () => {
             if (!window.DB) return;
-            const notifs = await window.DB.getNotifications();
-            const badge = document.getElementById('notif-badge');
-            const mobileDot = document.getElementById('mobile-notif-dot');
-            if (notifs && notifs.length > 0) {
-                if (badge) { badge.textContent = notifs.length; badge.classList.remove('hidden'); }
-                if (mobileDot) { mobileDot.classList.remove('hidden'); }
-                for (const n of notifs) {
-                    const type = n.type === 'entry' ? 'success' : (n.type === 'exit' ? 'warning' : (n.type === 'denied' ? 'error' : 'info'));
-                    
-                    // 1. Native Service Worker / OS Notification with Sound
-                    await this.showSystemNotification(n.title, n.body, type, `notif-${n.id}`);
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
-                    // 2. In-App Toast
-                    if (window.App && typeof window.App.showToast === 'function') {
-                        window.App.showToast(n.title, n.body, type, n.type === 'entry' ? 'check' : (n.type === 'exit' ? 'logout' : (n.type === 'denied' ? 'ban' : 'bell')));
+            try {
+                const notifs = await window.DB.getNotifications();
+                this._consecutiveErrors = 0;
+                const badge = document.getElementById('notif-badge');
+                const mobileDot = document.getElementById('mobile-notif-dot');
+                if (notifs && notifs.length > 0) {
+                    if (badge) { badge.textContent = notifs.length; badge.classList.remove('hidden'); }
+                    if (mobileDot) { mobileDot.classList.remove('hidden'); }
+                    for (const n of notifs) {
+                        const type = n.type === 'entry' ? 'success' : (n.type === 'exit' ? 'warning' : (n.type === 'denied' ? 'error' : 'info'));
+                        
+                        // 1. Native Service Worker / OS Notification with Sound
+                        await this.showSystemNotification(n.title, n.body, type, `notif-${n.id}`);
+
+                        // 2. In-App Toast
+                        if (window.App && typeof window.App.showToast === 'function') {
+                            window.App.showToast(n.title, n.body, type, n.type === 'entry' ? 'check' : (n.type === 'exit' ? 'logout' : (n.type === 'denied' ? 'ban' : 'bell')));
+                        }
+                        // 3. Mark as read
+                        await window.DB.markNotificationRead(n.id);
                     }
-                    // 3. Mark as read in Neon database
-                    await window.DB.markNotificationRead(n.id);
+                } else {
+                    if (badge) { badge.classList.add('hidden'); }
                 }
-            } else {
-                if (badge) { badge.classList.add('hidden'); }
+            } catch (err) {
+                this._consecutiveErrors = (this._consecutiveErrors || 0) + 1;
+                // If offline or static host has no backend, back off polling to avoid console spam
+                if (this._consecutiveErrors >= 3 && intervalMs < 20000) {
+                    this.startPolling(20000);
+                }
             }
         }, intervalMs);
     }
