@@ -304,16 +304,18 @@ class AppController {
                                 <span>${lang === 'ar' ? 'تحديث الكاش' : 'Sync Cache'}</span>
                             </button>
 
-                            <!-- Push Notification Toggle -->
-                            <button type="button"
-                                onclick="App.toggleUserPush()"
-                                title="${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات الفورية مفعلة (انقر للتعطيل)' : 'Push Notifications Active (Click to disable)') : (lang === 'ar' ? 'تفعيل الإشعارات الفورية لهذا الحساب' : 'Enable Push Notifications')}"
-                                class="nav-action-btn relative ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-white/20 border-white/30 text-white' : ''}">
-                                ${icon(localStorage.getItem('gate_push_enabled') === 'true' ? 'bell' : 'bellOff', 'w-3.5 h-3.5')}
-                                <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات' : 'Push') : (lang === 'ar' ? 'تفعيل التنبيهات' : 'Enable Push')}</span>
-                                ${localStorage.getItem('gate_push_enabled') === 'true' ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>` : ''}
-                                <span id="notif-badge" class="hidden absolute -top-1 ${lang === 'ar' ? '-left-1' : '-right-1'} w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center shadow"></span>
-                            </button>
+                            <!-- Push Notification Toggle (Hidden for Gate Officers) -->
+                            ${(!user || user.role !== 'officer') ? `
+                                <button type="button"
+                                    onclick="App.toggleUserPush()"
+                                    title="${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات الفورية مفعلة (انقر للتعطيل)' : 'Push Notifications Active (Click to disable)') : (lang === 'ar' ? 'تفعيل الإشعارات الفورية لهذا الحساب' : 'Enable Push Notifications')}"
+                                    class="nav-action-btn relative ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-white/20 border-white/30 text-white' : ''}">
+                                    ${icon(localStorage.getItem('gate_push_enabled') === 'true' ? 'bell' : 'bellOff', 'w-3.5 h-3.5')}
+                                    <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات' : 'Push') : (lang === 'ar' ? 'تفعيل التنبيهات' : 'Enable Push')}</span>
+                                    ${localStorage.getItem('gate_push_enabled') === 'true' ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>` : ''}
+                                    <span id="notif-badge" class="hidden absolute -top-1 ${lang === 'ar' ? '-left-1' : '-right-1'} w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center shadow"></span>
+                                </button>
+                            ` : ''}
 
                             <!-- Language Segmented Control -->
                             <div class="flex items-center bg-black/25 border border-white/15 p-0.5 rounded-xl text-xs font-bold shadow-inner">
@@ -399,13 +401,15 @@ class AppController {
                         </div>
 
                         <!-- Mobile Action Buttons -->
-                        <div class="grid grid-cols-2 gap-2">
-                            <button type="button"
-                                onclick="App.toggleUserPush()"
-                                class="nav-action-btn justify-center py-2 text-xs ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-white/20 border-white/30' : ''}">
-                                ${icon(localStorage.getItem('gate_push_enabled') === 'true' ? 'bell' : 'bellOff', 'w-4 h-4')}
-                                <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Push Active') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
-                            </button>
+                        <div class="grid ${(!user || user.role !== 'officer') ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+                            ${(!user || user.role !== 'officer') ? `
+                                <button type="button"
+                                    onclick="App.toggleUserPush()"
+                                    class="nav-action-btn justify-center py-2 text-xs ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-white/20 border-white/30' : ''}">
+                                    ${icon(localStorage.getItem('gate_push_enabled') === 'true' ? 'bell' : 'bellOff', 'w-4 h-4')}
+                                    <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Push Active') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
+                                </button>
+                            ` : ''}
 
                             <button type="button"
                                 onclick="App.bustCache()"

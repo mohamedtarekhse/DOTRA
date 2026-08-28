@@ -185,21 +185,73 @@ class ManagerController {
                             </button>
                         `;
                     })()}
-                    <button type="button" onclick="Manager.openImportCsvModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="${lang === 'ar' ? 'استيراد وإدارة كشف الشاحنات المتوقع وصولها (Excel / CSV)' : 'Import Pre-Arrival Manifest (Excel / CSV)'}">
-                        ${icon('table', 'w-4 h-4 text-emerald-600')}
-                        <span>${lang === 'ar' ? 'كشف الوصول (Excel)' : 'Pre-Arrival Excel'}</span>
-                    </button>
-                    <button type="button" onclick="Manager.openQuickPermitModal()" class="sap-btn-primary px-4 py-2.5 flex items-center gap-2 text-sm shadow-md">
-                        ${icon('bolt', 'w-4 h-4 text-amber-300')}
-                        <span>${lang === 'ar' ? 'إصدار تصريح سريع' : 'Quick Pass'}</span>
-                    </button>
-                    <button type="button" onclick="Manager.openSettingsModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="إعدادات النظام، توزيع البوابات والمناوبات">
+                    <!-- Quick Actions Dropdown Menu -->
+                    <div class="relative inline-block text-right">
+                        <button type="button" 
+                            id="btn-quick-actions-menu" 
+                            onclick="Manager.toggleQuickActionsMenu(event)" 
+                            class="sap-btn-primary px-4 py-2.5 flex items-center gap-2 text-sm font-black shadow-md active:scale-95 transition-all" 
+                            title="${lang === 'ar' ? 'أوامر سريعة: كشف الوصول، تصدير الإكسل، وإصدار تصريح' : 'Quick Actions'}">
+                            ${icon('bolt', 'w-4 h-4 text-amber-300')}
+                            <span>${lang === 'ar' ? 'أوامر سريعة' : 'Quick Actions'}</span>
+                            <svg class="w-4 h-4 text-white/80 transition-transform duration-200" id="quick-actions-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown Content -->
+                        <div id="quick-actions-dropdown" class="hidden absolute ${lang === 'ar' ? 'left-0' : 'right-0'} mt-2 w-64 bg-white rounded-2xl shadow-2xl border-2 border-[#b0cfee] py-2 z-50 animate-scaleUp">
+                            
+                            <!-- 1. Issue Quick Permit -->
+                            <button type="button" 
+                                onclick="Manager.closeQuickActionsMenu(); Manager.openQuickPermitModal();" 
+                                class="w-full px-4 py-2.5 ${lang === 'ar' ? 'text-right' : 'text-left'} hover:bg-[#ebf3fb] flex items-center gap-3 transition-colors group">
+                                <div class="w-8 h-8 rounded-xl bg-amber-100 group-hover:bg-amber-200 text-amber-900 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                    ⚡
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-black text-xs text-[#002b66]">${lang === 'ar' ? 'إصدار تصريح سريع' : 'Issue Quick Pass'}</div>
+                                    <div class="text-[10px] text-[#556b82] font-semibold">${lang === 'ar' ? 'توليد كارت فوري مع كود PIN' : 'Instant pass generation'}</div>
+                                </div>
+                            </button>
+
+                            <div class="border-t border-[#edf2f7] my-1"></div>
+
+                            <!-- 2. Pre-Arrival Manifest (Excel) -->
+                            <button type="button" 
+                                onclick="Manager.closeQuickActionsMenu(); Manager.openImportCsvModal();" 
+                                class="w-full px-4 py-2.5 ${lang === 'ar' ? 'text-right' : 'text-left'} hover:bg-[#ebf3fb] flex items-center gap-3 transition-colors group">
+                                <div class="w-8 h-8 rounded-xl bg-emerald-100 group-hover:bg-emerald-200 text-[#107e3e] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                    📋
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-black text-xs text-[#002b66]">${lang === 'ar' ? 'كشف الوصول (Excel)' : 'Pre-Arrival Manifest'}</div>
+                                    <div class="text-[10px] text-[#556b82] font-semibold">${lang === 'ar' ? 'استيراد وإدارة الشاحنات المتوقعة' : 'Import expected trucks'}</div>
+                                </div>
+                            </button>
+
+                            <div class="border-t border-[#edf2f7] my-1"></div>
+
+                            <!-- 3. Export Excel Sheet -->
+                            <button type="button" 
+                                onclick="Manager.closeQuickActionsMenu(); Manager.exportExcel();" 
+                                class="w-full px-4 py-2.5 ${lang === 'ar' ? 'text-right' : 'text-left'} hover:bg-[#ebf3fb] flex items-center gap-3 transition-colors group">
+                                <div class="w-8 h-8 rounded-xl bg-blue-100 group-hover:bg-blue-200 text-[#0070f2] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                    📊
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-black text-xs text-[#002b66]">${lang === 'ar' ? 'تصدير شيت الإكسيل' : 'Export Excel Sheet'}</div>
+                                    <div class="text-[10px] text-[#556b82] font-semibold">${lang === 'ar' ? 'تنزيل سجل الحركات بصيغة Excel' : 'Download logs as Excel'}</div>
+                                </div>
+                            </button>
+
+                        </div>
+                    </div>
+
+                    <!-- Settings & Roster Button -->
+                    <button type="button" onclick="Manager.openSettingsModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="${lang === 'ar' ? 'إعدادات النظام، وتوزيع المناوبات والبوابات' : 'Settings & Roster'}">
                         ${icon('settings', 'w-4 h-4 text-[#0070f2]')}
                         <span>${lang === 'ar' ? 'الإعدادات والمناوبات' : 'Settings & Roster'}</span>
-                    </button>
-                    <button type="button" onclick="Manager.exportCSV()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="تصدير إكسل">
-                        ${icon('download', 'w-4 h-4 text-[#0070f2]')}
-                        <span class="hidden sm:inline">${window.i18n.t('exportCsv')}</span>
                     </button>
                 </div>
             </div>
@@ -396,29 +448,41 @@ class ManagerController {
                     ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] font-bold">📥 دخول</span>`
                     : (isExit ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 خروج</span>` : `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
                 
+                const hasVehicleEntered = !!p.entryLog || !!window.DB.isVehicleInside(p.vehicle_id) || p.status === 'used';
                 let statusTag = '';
                 let permitActionBtns = '';
                 if (p.status === 'active') {
                     statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">🟢 ساري</span>`;
                     permitActionBtns = `
                         <button type="button" onclick="Manager.openHoldPermitModal(${p.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-300 text-[11px] font-bold">⏸️ تعليق</button>
-                        <button type="button" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-lg border border-rose-300 text-[11px] font-bold">⛔ سحب</button>
+                        ${!hasVehicleEntered ? `
+                            <button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold" title="حذف التصريح نهائياً في حالة إنشائه بالخطأ">🗑️ حذف</button>
+                        ` : `
+                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مسجلة</span>
+                        `}
                     `;
                 } else if (p.status === 'hold') {
                     statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-bold border border-amber-300">⏸️ معلق بقرار الإدارة</span>`;
                     permitActionBtns = `
                         <button type="button" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold">▶️ تفعيل</button>
-                        <button type="button" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-lg border border-rose-300 text-[11px] font-bold">⛔ سحب</button>
+                        ${!hasVehicleEntered ? `
+                            <button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold" title="حذف التصريح نهائياً">🗑️ حذف</button>
+                        ` : `
+                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مسجلة</span>
+                        `}
                     `;
                 } else if (p.status === 'revoked') {
                     statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-900 font-bold border border-rose-300">⛔ مسحوب وملغي</span>`;
                     permitActionBtns = `
                         <button type="button" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold">▶️ إعادة تفعيل</button>
+                        <button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold">🗑️ حذف</button>
                     `;
                 } else if (p.status === 'used') {
                     statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold border border-blue-300">🔵 تم الاستخدام</span>`;
+                    permitActionBtns = `<span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مكتملة</span>`;
                 } else {
                     statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-bold border border-slate-300">⏳ ملغي</span>`;
+                    permitActionBtns = `<button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold">🗑️ حذف</button>`;
                 }
 
                 return `
@@ -701,29 +765,41 @@ class ManagerController {
                     ? `<span class="px-2.5 py-1 rounded-full text-xs bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] font-bold">📥 تصريح دخول</span>`
                     : (isExit ? `<span class="px-2.5 py-1 rounded-full text-xs bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 تصريح خروج</span>` : `<span class="px-2.5 py-1 rounded-full text-xs bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
                 
+                const hasVehicleEntered = !!p.entryLog || !!window.DB.isVehicleInside(p.vehicle_id) || p.status === 'used';
                 let statusTag = '';
                 let holdActionBtn = '';
                 if (p.status === 'active') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>ساري وصالح</span></span>`;
                     holdActionBtn = `
-                        <button type="button" title="تعليق وتجميد الصلاحية" onclick="Manager.openHoldPermitModal(${p.id})" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⏸️ تعليق</span></button>
-                        <button type="button" title="سحب وإلغاء التصريح نهائياً" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-xl border border-rose-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⛔ سحب</span></button>
+                        <button type="button" title="تعليق وتجميد الصلاحية مؤقتاً" onclick="Manager.openHoldPermitModal(${p.id})" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⏸️ تعليق</span></button>
+                        ${!hasVehicleEntered ? `
+                            <button type="button" title="حذف التصريح نهائياً من النظام (تم إنشاؤه بالخطأ قبل الدخول)" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>
+                        ` : `
+                            <span class="text-[11px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]" title="لا يمكن حذف التصريح نظراً لتسجيل حركة دخول فعلية بالمصنع">🔒 حركة مسجلة</span>
+                        `}
                     `;
                 } else if (p.status === 'hold') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-amber-100 text-amber-900 font-bold border border-amber-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> <span>⏸️ معلق بقرار الإدارة</span></span>`;
                     holdActionBtn = `
                         <button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ تفعيل</span></button>
-                        <button type="button" title="سحب وإلغاء التصريح نهائياً" onclick="Manager.openRevokePermitModal(${p.id})" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-900 rounded-xl border border-rose-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⛔ سحب</span></button>
+                        ${!hasVehicleEntered ? `
+                            <button type="button" title="حذف التصريح نهائياً من النظام" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>
+                        ` : `
+                            <span class="text-[11px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]">🔒 حركة مسجلة</span>
+                        `}
                     `;
                 } else if (p.status === 'revoked') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> <span>⛔ مسحوب وملغي</span></span>`;
                     holdActionBtn = `
                         <button type="button" title="إعادة تفعيل التصريح" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ إعادة تفعيل</span></button>
+                        <button type="button" title="حذف التصريح نهائياً من النظام" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>
                     `;
                 } else if (p.status === 'used') {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-blue-100 text-blue-800 font-bold border border-blue-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> <span>تم الاستخدام</span></span>`;
+                    holdActionBtn = `<span class="text-[11px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]">🔒 حركة مكتملة</span>`;
                 } else {
                     statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-700 font-bold border border-slate-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>ملغي / مستبدل</span></span>`;
+                    holdActionBtn = `<button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>`;
                 }
 
                 const createdDate = new Date(p.valid_from || p.id).toLocaleDateString();
@@ -1930,6 +2006,33 @@ class ManagerController {
         }
     }
 
+    handleDeletePermit(permitId) {
+        const lang = window.i18n.getLang();
+        const permits = window.DB.getPermits();
+        const permit = permits.find(p => String(p.id) === String(permitId));
+        if (!permit) return;
+
+        const confirmMsg = lang === 'ar'
+            ? `⚠️ هل أنت متأكد من رغبتك في حذف وإلغاء التصريح (${permit.permit_code}) نهائياً من النظام؟\n(تم إنشاؤه بالخطأ قبل وصول ودخول المركبة للمصنع)`
+            : `Are you sure you want to permanently delete pass (${permit.permit_code})?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        const res = window.DB.deletePermit(permitId);
+        if (res.success) {
+            const modal = document.getElementById('modal-container');
+            if (modal) modal.innerHTML = '';
+            this.renderDashboard();
+            if (window.App && typeof window.App.showToast === 'function') {
+                window.App.showToast('🗑️ تم حذف التصريح', res.message, 'success');
+            } else {
+                alert(res.message);
+            }
+        } else {
+            alert(res.message || 'تعذر حذف التصريح');
+        }
+    }
+
     showRequestReviewModal(requestId) {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
@@ -2645,6 +2748,9 @@ class ManagerController {
         const typeLabel = isExit ? '📤 تصريح خروج بضائع معتمد (EXIT PASS)' : (isBoth ? '🔄 تصريح دخول وخروج معتمد' : '🟢 تصريح دخول معتمد (AUTHORIZED)');
         const typeColor = isExit ? 'bg-[#ebf3fb] text-[#0070f2] border-[#b3d5fa]' : 'bg-[#e5f6eb] text-[#107e3e] border-[#b4e3c4]';
 
+        const logs = window.DB.getLogs();
+        const hasVehicleEntered = logs.some(l => l.permit_id === permit.id || (l.vehicle_id === permit.vehicle_id && l.action_type === 'entry')) || !!window.DB.isVehicleInside(permit.vehicle_id) || permit.status === 'used';
+
         const qrPayload = JSON.stringify({
             permit: permit.permit_code,
             type: permit.permit_type || 'entry',
@@ -2822,6 +2928,16 @@ class ManagerController {
                                     <span>تعليق هذا التصريح وتجميد الصلاحية مؤقتاً (Hold)</span>
                                 </button>
                             `}
+                            ${!hasVehicleEntered ? `
+                                <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="w-full mt-2 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="حذف التصريح نهائياً في حالة إنشائه بالخطأ قبل وصول المركبة">
+                                    <span>🗑️</span>
+                                    <span>حذف وإلغاء هذا التصريح بالكامل (تم إنشاؤه بالخطأ)</span>
+                                </button>
+                            ` : `
+                                <div class="mt-2 text-[10px] text-center text-[#556b82] font-semibold bg-[#f0f4f8] p-1.5 rounded-lg border border-[#d7e2ee]">
+                                    🔒 لا يمكن حذف التصريح - تم تسجيل حركة دخول فعلية للشاحنة بالمصنع.
+                                </div>
+                            `}
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
@@ -2843,6 +2959,37 @@ class ManagerController {
         if (window.QREngine && qrBox && typeof qrBox.appendChild === 'function') {
             window.QREngine.render('qrcode-canvas-box', qrPayload, { size: 160 });
         }
+    }
+
+    toggleQuickActionsMenu(event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        const dropdown = document.getElementById('quick-actions-dropdown');
+        const arrow = document.getElementById('quick-actions-arrow');
+        if (!dropdown) return;
+        const isHidden = dropdown.classList.contains('hidden');
+        if (isHidden) {
+            dropdown.classList.remove('hidden');
+            if (arrow) arrow.style.transform = 'rotate(180deg)';
+            const closeListener = (e) => {
+                const btn = document.getElementById('btn-quick-actions-menu');
+                if (dropdown && !dropdown.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                    dropdown.classList.add('hidden');
+                    if (arrow) arrow.style.transform = 'rotate(0deg)';
+                    document.removeEventListener('click', closeListener);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closeListener), 10);
+        } else {
+            dropdown.classList.add('hidden');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }
+    }
+
+    closeQuickActionsMenu() {
+        const dropdown = document.getElementById('quick-actions-dropdown');
+        const arrow = document.getElementById('quick-actions-arrow');
+        if (dropdown) dropdown.classList.add('hidden');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
     }
 
     async togglePermitHold(permitId, desiredStatus) {
@@ -3735,5 +3882,7 @@ window.showRequestReviewModal = (id) => { if (window.Manager && typeof window.Ma
 window.handleDecideRequest = (id, dec) => { if (window.Manager && typeof window.Manager.handleDecideRequest === 'function') window.Manager.handleDecideRequest(id, dec); };
 window.openHoldPermitModal = (id) => { if (window.Manager && typeof window.Manager.openHoldPermitModal === 'function') window.Manager.openHoldPermitModal(id); };
 window.openRevokePermitModal = (id) => { if (window.Manager && typeof window.Manager.openRevokePermitModal === 'function') window.Manager.openRevokePermitModal(id); };
-window.handleDecideHoldRequest = (id, dec) => { if (window.Manager && typeof window.Manager.handleDecideHoldRequest === 'function') window.Manager.handleDecideHoldRequest(id, dec); };
+window.handleDeletePermit = (id) => { if (window.Manager && typeof window.Manager.handleDeletePermit === 'function') window.Manager.handleDeletePermit(id); };
+window.toggleQuickActionsMenu = (e) => { if (window.Manager && typeof window.Manager.toggleQuickActionsMenu === 'function') window.Manager.toggleQuickActionsMenu(e); };
+window.closeQuickActionsMenu = () => { if (window.Manager && typeof window.Manager.closeQuickActionsMenu === 'function') window.Manager.closeQuickActionsMenu(); };
 

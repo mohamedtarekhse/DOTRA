@@ -802,6 +802,47 @@ class DatabaseService {
         return permit;
     }
 
+    deletePermit(permitId) {
+        const user = window.Auth ? window.Auth.getCurrentUser() : null;
+        if (user && user.role !== 'manager' && user.role !== 'admin') {
+            throw new Error('Unauthorized: Only managers can delete permits.');
+        }
+
+        const permits = this.getPermits();
+        const permitIdx = permits.findIndex(p => String(p.id) === String(permitId));
+        if (permitIdx === -1) {
+            return { success: false, message: 'التصريح غير موجود أو تم حذفه مسبقاً.' };
+        }
+
+        const permit = permits[permitIdx];
+        const logs = this.getLogs();
+        const hasEntryLog = logs.some(l => l.permit_id === permit.id || (l.vehicle_id === permit.vehicle_id && l.action_type === 'entry'));
+        const isInside = !!this.isVehicleInside(permit.vehicle_id);
+
+        if (hasEntryLog || isInside) {
+            return {
+                success: false,
+                message: 'لا يمكن حذف هذا التصريح نظراً لتسجيل حركة دخول فعلية للشاحنة بالمصنع. يمكنك تعليق أو سحب التصريح بدلاً من الحذف.'
+            };
+        }
+
+        const vehicle = this.getVehicles().find(v => v.id === permit.vehicle_id);
+        const plate = vehicle ? vehicle.plate_ar : `مركبة #${permit.vehicle_id}`;
+
+        // Remove from list
+        permits.splice(permitIdx, 1);
+        localStorage.setItem('gate_permits', JSON.stringify(permits));
+
+        this.announce('PERMIT_DELETED', {
+            permit_id: permit.id,
+            permit_code: permit.permit_code,
+            plate: plate
+        });
+
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        return { success: true, message: `تم حذف التصريح (${permit.permit_code}) نهائياً بنجاح.` };
+    }
+
     expireExistingPermitsForVehicle(vehicleId) {
         const permits = this.getPermits();
         let updated = false;

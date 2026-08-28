@@ -9,6 +9,9 @@ class OfficerController {
         this.selectedPermit = null;
         this.currentCapturedPhoto = null;
         this.activeSearchQuery = '';
+        this.currentZoom = 1.0;
+        this.mediaStreamTrack = null;
+        this.isTorchOn = false;
     }
 
     static escHtml(str) {
@@ -799,31 +802,126 @@ class OfficerController {
         this.renderTerminal();
     }
 
-    toggleCameraScanner() {
-        const container = document.getElementById('scanner-container');
-        const textSpan = document.getElementById('scan-qr-text');
+    openCameraScannerModal() {
+        if (typeof Html5Qrcode === 'undefined') {
+            const lang = window.i18n.getLang();
+            alert(lang === 'ar' ? 'قارئ الكاميرا غير متوفر حالياً. يرجى التأكد من اتصال الإنترنت وإعادة التحميل.' : 'Camera scanner not ready.');
+            return;
+        }
 
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+
+        this.currentZoom = 1.0;
+        this.isTorchOn = false;
+        this.mediaStreamTrack = null;
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onclick="if(event.target === this) Officer.stopScanner()">
+                <div class="sap-modal-content bg-slate-900 border-2 border-[#0070f2] rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl text-white relative animate-scaleUp overflow-hidden" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    
+                    <!-- Header -->
+                    <div class="flex items-center justify-between border-b border-slate-700/80 pb-3 mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-[#0070f2]/20 border border-[#0070f2] text-amber-300 flex items-center justify-center font-black text-lg shadow-sm">
+                                📷
+                            </div>
+                            <div>
+                                <h3 class="font-black text-sm text-white">${lang === 'ar' ? 'ماسح التصاريح الذكي (QR Scanner)' : 'Smart QR Pass Scanner'}</h3>
+                                <p class="text-[11px] text-slate-400 font-semibold">${lang === 'ar' ? 'وجه الكاميرا نحو كارت التصريح أو شاشة السائق' : 'Point camera at permit QR code'}</p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="Officer.stopScanner()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <!-- Camera Viewport Box with Viewfinder Overlay & Zoom -->
+                    <div class="relative bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-inner aspect-square flex items-center justify-center">
+                        
+                        <div id="qr-reader" class="w-full h-full object-cover"></div>
+
+                        <!-- Viewfinder Reticle with Pulse Laser Line -->
+                        <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
+                            <div class="w-60 h-60 border-2 border-dashed border-[#0070f2]/50 rounded-2xl relative shadow-[0_0_25px_rgba(0,112,242,0.25)]">
+                                <!-- 4 Corners -->
+                                <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-amber-400 rounded-tl-lg"></div>
+                                <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-amber-400 rounded-tr-lg"></div>
+                                <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-amber-400 rounded-bl-lg"></div>
+                                <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-amber-400 rounded-br-lg"></div>
+                                
+                                <!-- Laser Line -->
+                                <div class="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_10px_#ef4444] animate-pulse top-1/2 -translate-y-1/2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Zoom Indicator Badge -->
+                        <div class="absolute top-3 ${lang === 'ar' ? 'left-3' : 'right-3'} bg-black/75 backdrop-blur-md px-2.5 py-1 rounded-xl text-[11px] font-mono font-black text-amber-300 border border-white/10 z-10 flex items-center gap-1">
+                            <span>🔍 ${lang === 'ar' ? 'التقريب' : 'Zoom'}:</span>
+                            <span id="scanner-zoom-value">1.0x</span>
+                        </div>
+
+                        <!-- Torch Button -->
+                        <button type="button" id="scanner-torch-btn" onclick="Officer.toggleTorch()" class="absolute top-3 ${lang === 'ar' ? 'right-3' : 'left-3'} bg-black/75 hover:bg-black/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-bold text-white border border-white/10 z-10 flex items-center gap-1.5 active:scale-95 transition-all">
+                            <span>🔦</span>
+                            <span id="torch-btn-text">${lang === 'ar' ? 'فلاش' : 'Torch'}</span>
+                        </button>
+                    </div>
+
+                    <!-- Enhanced Zoom Control Toolbar -->
+                    <div class="mt-3.5 p-3 rounded-2xl bg-slate-800/80 border border-slate-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                                <span>🔍</span>
+                                <span>${lang === 'ar' ? 'درجة التكبير (Camera Zoom):' : 'Camera Zoom Level:'}</span>
+                            </span>
+                            <div class="flex items-center gap-1">
+                                <button type="button" onclick="Officer.setZoom(1.0)" class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-slate-700 hover:bg-[#0070f2] text-white transition-all">1.0x</button>
+                                <button type="button" onclick="Officer.setZoom(1.8)" class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-slate-700 hover:bg-[#0070f2] text-white transition-all">1.8x</button>
+                                <button type="button" onclick="Officer.setZoom(2.5)" class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-slate-700 hover:bg-[#0070f2] text-white transition-all">2.5x</button>
+                                <button type="button" onclick="Officer.setZoom(3.5)" class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-slate-700 hover:bg-[#0070f2] text-white transition-all">3.5x</button>
+                            </div>
+                        </div>
+
+                        <!-- Continuous Slider & Steppers -->
+                        <div class="flex items-center gap-3">
+                            <button type="button" onclick="Officer.stepZoom(-0.3)" class="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-black text-base flex items-center justify-center shadow-sm" title="تصغير">
+                                ➖
+                            </button>
+                            <input 
+                                type="range" 
+                                id="scanner-zoom-slider" 
+                                min="1.0" 
+                                max="4.0" 
+                                step="0.1" 
+                                value="1.0" 
+                                oninput="Officer.setZoom(parseFloat(this.value))" 
+                                class="flex-1 accent-[#0070f2] h-2.5 bg-slate-700 rounded-lg cursor-pointer"
+                            />
+                            <button type="button" onclick="Officer.stepZoom(0.3)" class="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-black text-base flex items-center justify-center shadow-sm" title="تكبير">
+                                ➕
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Close / Manual Search Fallback -->
+                    <div class="mt-3 flex justify-end">
+                        <button type="button" onclick="Officer.stopScanner()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all">
+                            ${lang === 'ar' ? 'إغلاق الكاميرا والعودة للبحث اليدوي' : 'Close Camera & Manual Search'}
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        this.startScanner();
+    }
+
+    toggleCameraScanner() {
         if (this.isScanning) {
-            this.isScanning = false;
-            if (this.html5QrCode) {
-                try {
-                    this.html5QrCode.stop().then(() => {
-                        if (container) container.classList.add('hidden');
-                        if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
-                    }).catch(() => {
-                        if (container) container.classList.add('hidden');
-                        if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
-                    });
-                } catch (e) {
-                    if (container) container.classList.add('hidden');
-                    if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
-                }
-                this.html5QrCode = null;
-            }
+            this.stopScanner();
         } else {
-            if (container) container.classList.remove('hidden');
-            if (textSpan) textSpan.textContent = window.i18n.t('closeScanner');
-            this.startScanner();
+            this.openCameraScannerModal();
         }
     }
 
@@ -833,9 +931,16 @@ class OfficerController {
             try { this.html5QrCode.stop().catch(() => {}); } catch (e) {}
             this.html5QrCode = null;
         }
+        this.mediaStreamTrack = null;
+        this.isTorchOn = false;
+
+        const modalContainer = document.getElementById('modal-container');
+        if (modalContainer && modalContainer.querySelector('#qr-reader')) {
+            modalContainer.innerHTML = '';
+        }
         const container = document.getElementById('scanner-container');
-        const textSpan = document.getElementById('scan-qr-text');
         if (container) container.classList.add('hidden');
+        const textSpan = document.getElementById('scan-qr-text');
         if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
     }
 
@@ -847,20 +952,32 @@ class OfficerController {
             return;
         }
 
-        const container = document.getElementById('scanner-container');
-        const qrReaderEl = container ? container.querySelector('#qr-reader') : null;
+        const qrReaderEl = document.getElementById('qr-reader');
         if (!qrReaderEl) {
-            const lang = window.i18n.getLang();
-            alert(lang === 'ar' ? 'عنصر الكاميرا غير موجود في الصفحة.' : 'Camera element not found in DOM.');
             this.stopScanner();
             return;
         }
 
+        if (this.html5QrCode) {
+            try { this.html5QrCode.stop().catch(() => {}); } catch(e) {}
+            this.html5QrCode = null;
+        }
+
         this.html5QrCode = new Html5Qrcode("qr-reader");
+
+        const qrConfig = {
+            fps: 15,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const size = Math.max(180, Math.floor(minEdge * 0.75));
+                return { width: size, height: size };
+            },
+            aspectRatio: 1.0
+        };
 
         this.html5QrCode.start(
             { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
+            qrConfig,
             (decodedText) => {
                 this.handleScannedCode(decodedText);
                 this.stopScanner();
@@ -868,11 +985,21 @@ class OfficerController {
             () => {}
         ).then(() => {
             this.isScanning = true;
+            // Capture MediaStreamTrack for hardware zoom & torch
+            const videoEl = document.querySelector('#qr-reader video');
+            if (videoEl && videoEl.srcObject) {
+                const stream = videoEl.srcObject;
+                const tracks = stream.getVideoTracks();
+                if (tracks && tracks.length > 0) {
+                    this.mediaStreamTrack = tracks[0];
+                }
+            }
+            this.applyZoom(this.currentZoom || 1.0);
         }).catch(err => {
-            console.error("Camera error:", err.name, err.message);
+            console.error("Camera error:", err);
             this.stopScanner();
             const lang = window.i18n.getLang();
-            const errStr = err.toString();
+            const errStr = err ? err.toString() : '';
             if (errStr.includes('NotAllowedError') || errStr.includes('Permission denied')) {
                 alert(lang === 'ar' ? 'تم رفض إذن الكاميرا. افتح إعدادات المتصفح واسمح بالوصول.' : 'Camera permission denied. Open browser settings and allow access.');
             } else if (errStr.includes('NotReadableError') || errStr.includes('Could not start video')) {
@@ -883,6 +1010,65 @@ class OfficerController {
                 alert(lang === 'ar' ? 'تعذر فتح الكاميرا. يمكنك إدخال رقم اللوحة يدوياً.' : 'Could not open camera. Enter the plate number manually.');
             }
         });
+    }
+
+    setZoom(zoomLevel) {
+        const clamped = Math.max(1.0, Math.min(4.0, Math.round(zoomLevel * 10) / 10));
+        this.currentZoom = clamped;
+        this.applyZoom(clamped);
+    }
+
+    stepZoom(delta) {
+        const nextZoom = (this.currentZoom || 1.0) + delta;
+        this.setZoom(nextZoom);
+    }
+
+    applyZoom(zoomLevel) {
+        const labelEl = document.getElementById('scanner-zoom-value');
+        if (labelEl) labelEl.textContent = `${zoomLevel.toFixed(1)}x`;
+        const sliderEl = document.getElementById('scanner-zoom-slider');
+        if (sliderEl) sliderEl.value = zoomLevel;
+
+        // 1. Hardware MediaStreamTrack native zoom (if supported by device/browser)
+        if (this.mediaStreamTrack && typeof this.mediaStreamTrack.getCapabilities === 'function') {
+            try {
+                const capabilities = this.mediaStreamTrack.getCapabilities();
+                if (capabilities && capabilities.zoom) {
+                    const min = capabilities.zoom.min || 1;
+                    const max = capabilities.zoom.max || 5;
+                    const hZoom = Math.max(min, Math.min(max, zoomLevel));
+                    this.mediaStreamTrack.applyConstraints({
+                        advanced: [{ zoom: hZoom }]
+                    }).catch(() => {});
+                }
+            } catch (e) {}
+        }
+
+        // 2. Universal Video Transform Zoom (Works reliably on all mobile & desktop browsers)
+        const videoEl = document.querySelector('#qr-reader video');
+        if (videoEl) {
+            videoEl.style.transform = `scale(${zoomLevel})`;
+            videoEl.style.transformOrigin = 'center center';
+            videoEl.style.transition = 'transform 0.15s ease-out';
+        }
+    }
+
+    toggleTorch() {
+        if (!this.mediaStreamTrack) {
+            alert(window.i18n.getLang() === 'ar' ? 'الفلاش غير مدعوم على هذه الكاميرا' : 'Torch not supported');
+            return;
+        }
+        this.isTorchOn = !this.isTorchOn;
+        try {
+            this.mediaStreamTrack.applyConstraints({
+                advanced: [{ torch: this.isTorchOn }]
+            }).catch(() => {});
+        } catch(e) {}
+
+        const textEl = document.getElementById('torch-btn-text');
+        if (textEl) {
+            textEl.textContent = this.isTorchOn ? (window.i18n.getLang() === 'ar' ? 'إطفاء' : 'Off') : (window.i18n.getLang() === 'ar' ? 'فلاش' : 'Torch');
+        }
     }
 
     // Multi-format QR payload parsing (PIN, permit code, plate JSON, or raw string)
