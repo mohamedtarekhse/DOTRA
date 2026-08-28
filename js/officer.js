@@ -73,13 +73,13 @@ class OfficerController {
                             </div>
                         </div>
 
-                        <!-- Unified Action Toolbar -->
+                        <!-- Unified Action Toolbar (Desktop & Mobile) -->
                         <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap pt-2 sm:pt-0 border-t sm:border-t-0 border-[#edf2f7]">
-                            <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 sm:flex-initial px-3.5 py-2 sap-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
-                                ${icon('camera', 'w-3.5 h-3.5')}
-                                <span>${lang === 'ar' ? 'طلب استئذان وتفتيش' : 'Pass Request'}</span>
+                            <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 sm:flex-initial px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl border border-amber-400 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان أمر مرور مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
+                                <span>🚨</span>
+                                <span>${lang === 'ar' ? 'طلب أمر مرور / استئذان' : 'Pass Request'}</span>
                             </button>
-                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3.5 py-2 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
+                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3.5 py-2.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
                                 ${icon('file', 'w-3.5 h-3.5 text-[#0070f2]')}
                                 <span>${lang === 'ar' ? 'كشف المتوقع' : 'Manifest'}</span>
                                 <span class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold leading-none">${window.DB.getExpectedArrivals().length}</span>
@@ -114,17 +114,21 @@ class OfficerController {
                         ${window.ArabicPlate ? window.ArabicPlate.renderArabicKeypad('officer-plate-input') : ''}
                     </div>
 
-                    <!-- Scan QR Camera & Snap Photo Buttons -->
-                    <div class="grid grid-cols-2 gap-2 mt-3">
+                    <!-- Primary Action Grid (Scan QR, Snap Photo, Pass Request, Walk-in) -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
                         <button type="button" id="scan-qr-btn" onclick="Officer.toggleCameraScanner()" class="py-3 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold active:scale-95 transition-all">
                             ${icon('camera', 'w-4 h-4')}
                             <span id="scan-qr-text">${window.i18n.t('openScanner')}</span>
                         </button>
                         <label class="py-3 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] rounded-xl text-xs flex items-center justify-center gap-1.5 font-bold cursor-pointer transition-all shadow-sm active:scale-95">
                             <span>📸</span>
-                            <span>${lang === 'ar' ? 'تصوير الشاحنة / اللوحة' : 'Snap Vehicle Photo'}</span>
+                            <span>${lang === 'ar' ? 'تصوير الشاحنة' : 'Snap Photo'}</span>
                             <input type="file" id="officer-camera-file" accept="image/*" capture="environment" onchange="Officer.handlePhotoCapture(event)" class="hidden" />
                         </label>
+                        <button type="button" onclick="Officer.openInspectionRequestModal()" class="col-span-2 sm:col-span-1 py-3 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="إرسال طلب أمر مرور واستئذان تفتيش للمدير">
+                            <span>🚨</span>
+                            <span>${lang === 'ar' ? 'طلب أمر مرور' : 'Pass Request'}</span>
+                        </button>
                     </div>
 
                     <!-- Captured Photo Preview Container -->
@@ -155,6 +159,23 @@ class OfficerController {
                         ${this.renderRecentLogs(logs, lang)}
                     </div>
                 </div>
+
+                <!-- Floating Mobile Action Bar (Always Accessible on Phone Screens) -->
+                <div class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#d7e2ee] p-2.5 sm:hidden flex items-center justify-around gap-2 shadow-2xl">
+                    <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all">
+                        <span>🚨</span>
+                        <span>${lang === 'ar' ? 'أمر مرور' : 'Pass Req'}</span>
+                    </button>
+                    <button type="button" onclick="Officer.toggleCameraScanner()" class="flex-1 py-2.5 sap-btn-primary rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all">
+                        ${icon('camera', 'w-4 h-4')}
+                        <span>${lang === 'ar' ? 'مسح QR' : 'Scan QR'}</span>
+                    </button>
+                    <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 py-2.5 bg-[#f0f4f8] text-[#002b66] border border-[#d7e2ee] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
+                        ${icon('file', 'w-4 h-4 text-[#0070f2]')}
+                        <span>${lang === 'ar' ? 'المتوقع' : 'Manifest'}</span>
+                    </button>
+                </div>
+
             </div>
         `;
 
@@ -289,17 +310,23 @@ class OfficerController {
                 <div class="sap-card p-5 bg-[#fff8eb] border-2 border-[#ffc966] rounded-2xl animate-scaleUp">
                     <div class="flex items-center justify-between mb-3">
                         <span class="px-2.5 py-1 bg-[#fff1e5] text-[#b85500] rounded-full text-xs font-bold border border-[#ffd8b3]">
-                            ⚠️ ${lang === 'ar' ? 'مركبة / كود غير مسجل' : 'Unregistered Vehicle / PIN'}
+                            ⚠️ ${lang === 'ar' ? 'مركبة / كود غير مسجل مسبقاً' : 'Unregistered Vehicle / PIN'}
                         </span>
                         <div class="text-xs font-mono font-bold text-[#556b82]">${cleanQuery}</div>
                     </div>
                     <p class="text-xs text-[#556b82] mb-3">
-                        ${lang === 'ar' ? 'لم يتم العثور على تصريح مسبق برقم اللوحة أو كود PIN هذا. يمكنك تسجيل دخول فوري كزائر الآن.' : 'No prior permit found for this plate or PIN. You can register an instant walk-in pass.'}
+                        ${lang === 'ar' ? 'لم يتم العثور على تصريح مسبق برقم اللوحة هذا. اختر الإجراء المناسب:' : 'No prior pass found for this plate. Choose the required action:'}
                     </p>
-                    <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(cleanQuery)}')" class="w-full py-3 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold active:scale-95 transition-all">
-                        <span>⚡</span>
-                        <span>${lang === 'ar' ? 'تسجيل دخول فوري لهذه المركبة' : 'Register Instant Entry'}</span>
-                    </button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button type="button" onclick="Officer.openInspectionRequestModal('${OfficerController.escHtml(cleanQuery)}')" class="py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl border border-amber-400 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                            <span>🚨</span>
+                            <span>${lang === 'ar' ? 'طلب أمر مرور واستئذان' : 'Pass & Inspection Request'}</span>
+                        </button>
+                        <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(cleanQuery)}')" class="py-3 sap-btn-primary text-xs flex items-center justify-center gap-1.5 shadow-sm font-bold active:scale-95 transition-all">
+                            <span>⚡</span>
+                            <span>${lang === 'ar' ? 'تسجيل دخول فوري كزائر' : 'Instant Walk-in Entry'}</span>
+                        </button>
+                    </div>
                 </div>
             `;
             return;
@@ -802,7 +829,7 @@ class OfficerController {
         this.renderTerminal();
     }
 
-    openCameraScannerModal() {
+    async openCameraScannerModal() {
         if (typeof Html5Qrcode === 'undefined') {
             const lang = window.i18n.getLang();
             alert(lang === 'ar' ? 'قارئ الكاميرا غير متوفر حالياً. يرجى التأكد من اتصال الإنترنت وإعادة التحميل.' : 'Camera scanner not ready.');
@@ -817,8 +844,15 @@ class OfficerController {
         this.isTorchOn = false;
         this.mediaStreamTrack = null;
 
+        // Query available video devices
+        try {
+            this.availableCameras = await Html5Qrcode.getCameras().catch(() => []);
+        } catch (e) {
+            this.availableCameras = [];
+        }
+
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onclick="if(event.target === this) Officer.stopScanner()">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onclick="if(event.target === this) Officer.stopScanner()">
                 <div class="sap-modal-content bg-slate-900 border-2 border-[#0070f2] rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl text-white relative animate-scaleUp overflow-hidden" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     
                     <!-- Header -->
@@ -836,13 +870,19 @@ class OfficerController {
                     </div>
 
                     <!-- Camera Viewport Box with Viewfinder Overlay & Zoom -->
-                    <div class="relative bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-inner aspect-square flex items-center justify-center">
+                    <div class="relative bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-inner min-h-[300px] flex items-center justify-center">
                         
-                        <div id="qr-reader" class="w-full h-full object-cover"></div>
+                        <!-- Html5Qrcode Viewport Target -->
+                        <div id="qr-reader" class="w-full h-full min-h-[300px] flex items-center justify-center">
+                            <div id="camera-loading-spinner" class="flex flex-col items-center justify-center gap-2 text-slate-400 py-12">
+                                <div class="w-8 h-8 border-3 border-[#0070f2] border-t-transparent rounded-full animate-spin"></div>
+                                <span class="text-xs font-bold">${lang === 'ar' ? 'جاري فتح الكاميرا...' : 'Starting camera...'}</span>
+                            </div>
+                        </div>
 
                         <!-- Viewfinder Reticle with Pulse Laser Line -->
                         <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-                            <div class="w-60 h-60 border-2 border-dashed border-[#0070f2]/50 rounded-2xl relative shadow-[0_0_25px_rgba(0,112,242,0.25)]">
+                            <div class="w-56 h-56 border-2 border-dashed border-[#0070f2]/60 rounded-2xl relative shadow-[0_0_25px_rgba(0,112,242,0.25)]">
                                 <!-- 4 Corners -->
                                 <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-amber-400 rounded-tl-lg"></div>
                                 <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-amber-400 rounded-tr-lg"></div>
@@ -860,11 +900,19 @@ class OfficerController {
                             <span id="scanner-zoom-value">1.0x</span>
                         </div>
 
-                        <!-- Torch Button -->
-                        <button type="button" id="scanner-torch-btn" onclick="Officer.toggleTorch()" class="absolute top-3 ${lang === 'ar' ? 'right-3' : 'left-3'} bg-black/75 hover:bg-black/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-bold text-white border border-white/10 z-10 flex items-center gap-1.5 active:scale-95 transition-all">
-                            <span>🔦</span>
-                            <span id="torch-btn-text">${lang === 'ar' ? 'فلاش' : 'Torch'}</span>
-                        </button>
+                        <!-- Top Controls: Switch Camera & Torch Buttons -->
+                        <div class="absolute top-3 ${lang === 'ar' ? 'right-3' : 'left-3'} flex items-center gap-1.5 z-10">
+                            ${this.availableCameras && this.availableCameras.length > 1 ? `
+                                <button type="button" onclick="Officer.switchCamera()" class="bg-black/75 hover:bg-black/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-bold text-white border border-white/10 flex items-center gap-1 active:scale-95 transition-all" title="${lang === 'ar' ? 'تبديل الكاميرا (الأمامية/الخلفية)' : 'Switch Camera'}">
+                                    <span>🔄</span>
+                                    <span class="hidden sm:inline">${lang === 'ar' ? 'تبديل' : 'Switch'}</span>
+                                </button>
+                            ` : ''}
+                            <button type="button" id="scanner-torch-btn" onclick="Officer.toggleTorch()" class="bg-black/75 hover:bg-black/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-xs font-bold text-white border border-white/10 flex items-center gap-1.5 active:scale-95 transition-all">
+                                <span>🔦</span>
+                                <span id="torch-btn-text">${lang === 'ar' ? 'فلاش' : 'Torch'}</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Enhanced Zoom Control Toolbar -->
@@ -914,6 +962,17 @@ class OfficerController {
             </div>
         `;
 
+        // Small timeout allows DOM to finish rendering layout before camera stream attaches
+        setTimeout(() => this.startScanner(), 50);
+    }
+
+    async switchCamera() {
+        if (!this.availableCameras || this.availableCameras.length <= 1) return;
+        this.currentCameraIndex = ((this.currentCameraIndex || 0) + 1) % this.availableCameras.length;
+        if (this.html5QrCode) {
+            try { await this.html5QrCode.stop(); } catch(e) {}
+            this.html5QrCode = null;
+        }
         this.startScanner();
     }
 
@@ -944,7 +1003,7 @@ class OfficerController {
         if (textSpan) textSpan.textContent = window.i18n.t('openScanner');
     }
 
-    startScanner() {
+    async startScanner() {
         if (typeof Html5Qrcode === 'undefined') {
             const lang = window.i18n.getLang();
             alert(lang === 'ar' ? 'قارئ الكاميرا غير جاهز. أعد تحميل الصفحة.' : 'Camera reader not ready. Reload the page.');
@@ -959,24 +1018,44 @@ class OfficerController {
         }
 
         if (this.html5QrCode) {
-            try { this.html5QrCode.stop().catch(() => {}); } catch(e) {}
+            try { await this.html5QrCode.stop(); } catch(e) {}
             this.html5QrCode = null;
         }
 
         this.html5QrCode = new Html5Qrcode("qr-reader");
 
+        // Determine best camera source (Back camera if available, otherwise first device)
+        let cameraSelection = { facingMode: { ideal: "environment" } };
+        if (this.availableCameras && this.availableCameras.length > 0) {
+            if (this.currentCameraIndex !== undefined && this.availableCameras[this.currentCameraIndex]) {
+                cameraSelection = this.availableCameras[this.currentCameraIndex].id;
+            } else {
+                const backCam = this.availableCameras.find(c => {
+                    const l = (c.label || '').toLowerCase();
+                    return l.includes('back') || l.includes('rear') || l.includes('environment');
+                });
+                if (backCam) {
+                    cameraSelection = backCam.id;
+                    this.currentCameraIndex = this.availableCameras.indexOf(backCam);
+                } else {
+                    cameraSelection = this.availableCameras[0].id;
+                    this.currentCameraIndex = 0;
+                }
+            }
+        }
+
         const qrConfig = {
             fps: 15,
             qrbox: (viewfinderWidth, viewfinderHeight) => {
                 const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const size = Math.max(180, Math.floor(minEdge * 0.75));
+                const size = Math.max(160, Math.floor(minEdge * 0.7));
                 return { width: size, height: size };
             },
             aspectRatio: 1.0
         };
 
         this.html5QrCode.start(
-            { facingMode: "environment" },
+            cameraSelection,
             qrConfig,
             (decodedText) => {
                 this.handleScannedCode(decodedText);
@@ -985,6 +1064,9 @@ class OfficerController {
             () => {}
         ).then(() => {
             this.isScanning = true;
+            const spinner = document.getElementById('camera-loading-spinner');
+            if (spinner) spinner.remove();
+
             // Capture MediaStreamTrack for hardware zoom & torch
             const videoEl = document.querySelector('#qr-reader video');
             if (videoEl && videoEl.srcObject) {
@@ -995,19 +1077,37 @@ class OfficerController {
                 }
             }
             this.applyZoom(this.currentZoom || 1.0);
-        }).catch(err => {
-            console.error("Camera error:", err);
-            this.stopScanner();
-            const lang = window.i18n.getLang();
-            const errStr = err ? err.toString() : '';
-            if (errStr.includes('NotAllowedError') || errStr.includes('Permission denied')) {
-                alert(lang === 'ar' ? 'تم رفض إذن الكاميرا. افتح إعدادات المتصفح واسمح بالوصول.' : 'Camera permission denied. Open browser settings and allow access.');
-            } else if (errStr.includes('NotReadableError') || errStr.includes('Could not start video')) {
-                alert(lang === 'ar' ? 'الكاميرا مستخدمة من تطبيق آخر أو غير متاحة. أغلق التطبيقات الأخرى وأعد المحاولة.' : 'Camera is in use by another app or unavailable. Close other apps and try again.');
-            } else if (errStr.includes('NotFoundError')) {
-                alert(lang === 'ar' ? 'لم يتم العثور على كاميرا على هذا الجهاز.' : 'No camera found on this device.');
-            } else {
-                alert(lang === 'ar' ? 'تعذر فتح الكاميرا. يمكنك إدخال رقم اللوحة يدوياً.' : 'Could not open camera. Enter the plate number manually.');
+        }).catch(async err => {
+            console.warn("Primary camera start failed, attempting fallback:", err);
+            // Fallback try with generic environment or user constraints
+            try {
+                await this.html5QrCode.start(
+                    { facingMode: "user" },
+                    qrConfig,
+                    (decodedText) => {
+                        this.handleScannedCode(decodedText);
+                        this.stopScanner();
+                    },
+                    () => {}
+                );
+                this.isScanning = true;
+                const spinner = document.getElementById('camera-loading-spinner');
+                if (spinner) spinner.remove();
+                this.applyZoom(this.currentZoom || 1.0);
+            } catch (fallbackErr) {
+                console.error("Camera fallback failed:", fallbackErr);
+                this.stopScanner();
+                const lang = window.i18n.getLang();
+                const errStr = (err || fallbackErr || '').toString();
+                if (errStr.includes('NotAllowedError') || errStr.includes('Permission denied')) {
+                    alert(lang === 'ar' ? 'تم رفض إذن الكاميرا. افتح إعدادات المتصفح واسمح بالوصول.' : 'Camera permission denied. Open browser settings and allow access.');
+                } else if (errStr.includes('NotReadableError') || errStr.includes('Could not start video')) {
+                    alert(lang === 'ar' ? 'الكاميرا مستخدمة من تطبيق آخر أو غير متاحة. أغلق التطبيقات الأخرى وأعد المحاولة.' : 'Camera is in use by another app or unavailable. Close other apps and try again.');
+                } else if (errStr.includes('NotFoundError')) {
+                    alert(lang === 'ar' ? 'لم يتم العثور على كاميرا على هذا الجهاز.' : 'No camera found on this device.');
+                } else {
+                    alert(lang === 'ar' ? 'تعذر فتح الكاميرا. يمكنك إدخال رقم اللوحة أو PIN يدوياً.' : 'Could not open camera. Enter the plate or PIN manually.');
+                }
             }
         });
     }
@@ -1182,7 +1282,7 @@ class OfficerController {
     // MULTI-PHOTO INSPECTION & ENTRY APPROVAL REQUESTS (CAR PLATE + CARRIAGE)
     // =========================================================================
 
-    openInspectionRequestModal() {
+    openInspectionRequestModal(prefillPlate = '') {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
         const lang = window.i18n ? window.i18n.getLang() : 'ar';
@@ -1194,7 +1294,7 @@ class OfficerController {
             shift_name_ar: 'وردية النهار (صباحية)'
         };
         const destinations = (window.DB && typeof window.DB.getDestinations === 'function' ? window.DB.getDestinations() : null) || ['المستودع الرئيسي', 'مصنع الأسمدة والمخصبات', 'مستودع الكيماويات والمواد الخام'];
-        const currentPlateInput = document.getElementById('officer-plate-input')?.value.trim() || '';
+        const currentPlateInput = (typeof prefillPlate === 'string' && prefillPlate.trim()) ? prefillPlate.trim() : (document.getElementById('officer-plate-input')?.value.trim() || '');
 
         this._inspectionPhotos = {
             plate: null,
@@ -1646,9 +1746,9 @@ OfficerController.prototype.handleAdmit = function(cargo) { return this.recordAc
 OfficerController.prototype.handleExit = function() { return this.recordAction('exited'); };
 OfficerController.prototype.handleDeny = function(reason) { return this.recordAction('denied', reason); };
 
-window.openInspectionRequestModal = function() {
+window.openInspectionRequestModal = function(plate) {
     if (window.Officer && typeof window.Officer.openInspectionRequestModal === 'function') {
-        window.Officer.openInspectionRequestModal();
+        window.Officer.openInspectionRequestModal(plate);
     }
 };
 window.openRequestHoldModal = function(permitId) {
