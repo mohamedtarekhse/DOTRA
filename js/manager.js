@@ -178,9 +178,9 @@ class ManagerController {
                         <span>${lang === 'ar' ? 'طلبات الاستئذان' : 'Requests'}</span>
                         ${window.DB.getPendingInspectionRequests().length > 0 ? `<span class="px-2 py-0.5 bg-slate-950 text-amber-300 rounded-full text-xs font-mono font-black">${window.DB.getPendingInspectionRequests().length}</span>` : ''}
                     </button>
-                    <button type="button" onclick="Manager.openImportCsvModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="${lang === 'ar' ? 'استيراد كشف الشاحنات المتوقع وصولها من اليوم السابق (CSV)' : 'Import Pre-Arrival Manifest (CSV)'}">
-                        ${icon('file', 'w-4 h-4 text-emerald-600')}
-                        <span>${lang === 'ar' ? 'كشف الوصول (CSV)' : 'Pre-Arrival CSV'}</span>
+                    <button type="button" onclick="Manager.openImportCsvModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="${lang === 'ar' ? 'استيراد وإدارة كشف الشاحنات المتوقع وصولها (Excel / CSV)' : 'Import Pre-Arrival Manifest (Excel / CSV)'}">
+                        ${icon('table', 'w-4 h-4 text-emerald-600')}
+                        <span>${lang === 'ar' ? 'كشف الوصول (Excel)' : 'Pre-Arrival Excel'}</span>
                     </button>
                     <button type="button" onclick="Manager.openQuickPermitModal()" class="sap-btn-primary px-4 py-2.5 flex items-center gap-2 text-sm shadow-md">
                         ${icon('bolt', 'w-4 h-4 text-amber-300')}
@@ -1460,10 +1460,22 @@ class ManagerController {
                                                     ${req.carriage_photo_url ? '<span class="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200 font-bold">📸 صورة الصندوق مرفقة</span>' : ''}
                                                 </div>
                                             </div>
-                                            <button type="button" onclick="Manager.showRequestReviewModal('${req.id}')" class="px-4 py-2.5 ${isPending ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-black' : 'sap-btn-secondary text-xs font-bold'} rounded-xl shadow-sm flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-center active:scale-95 transition-all">
-                                                <span>🔍</span>
-                                                <span>${isPending ? 'فحص الصور واتخاذ القرار' : 'عرض التفاصيل'}</span>
-                                            </button>
+                                            <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap flex-shrink-0 w-full sm:w-auto justify-end">
+                                                <button type="button" onclick="Manager.showRequestReviewModal('${req.id}')" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl shadow-sm flex items-center gap-1.5 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="معاينة وفحص الصور بدقة">
+                                                    <span>🔍</span>
+                                                    <span>${isPending ? 'فحص الصور' : 'عرض التفاصيل'}</span>
+                                                </button>
+                                                ${isPending ? `
+                                                    <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'approve')" class="px-3.5 py-2 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="اعتماد فوري للدخول وتوليد التصريح">
+                                                        <span>✅</span>
+                                                        <span>اعتماد فوري</span>
+                                                    </button>
+                                                    <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'reject')" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl shadow-sm flex items-center gap-1 active:scale-95 transition-all text-xs flex-1 sm:flex-initial justify-center" title="رفض ومنع الدخول">
+                                                        <span>⛔</span>
+                                                        <span>رفض</span>
+                                                    </button>
+                                                ` : ''}
+                                            </div>
                                         </div>
                                     `;
                                 }).join('')}
@@ -1487,7 +1499,7 @@ class ManagerController {
         const lang = window.i18n.getLang();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
         const requests = window.DB.getInspectionRequests();
-        const req = requests.find(r => r.id === requestId);
+        const req = requests.find(r => String(r.id) === String(requestId));
         if (!req) return;
 
         const isPending = req.status === 'pending';
@@ -2940,7 +2952,30 @@ class ManagerController {
         return this.exportExcel();
     }
 
-    // --- Pre-Arrival Manifest (CSV Import) Modal ---
+    // --- Pre-Arrival Manifest (Excel / CSV Import & Export) ---
+    downloadExcelTemplate() {
+        const excelContent = window.DB.getExcelTemplate();
+        if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+            try {
+                const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `نموذج_كشف_الوصول_المسبق_دوترا.xls`;
+                if (document.body && typeof document.body.appendChild === 'function') {
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    a.click();
+                }
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                console.error('Download Excel error:', e);
+            }
+        }
+    }
+
     downloadCsvTemplate() {
         const template = window.DB.getCsvTemplate();
         if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
@@ -2950,8 +2985,38 @@ class ManagerController {
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `نموذج_كشف_الوصول_المسبق_دوترا.csv`;
-                if (typeof a.click === 'function') a.click();
+                if (document.body && typeof document.body.appendChild === 'function') {
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    a.click();
+                }
+                URL.revokeObjectURL(url);
             } catch(e) {}
+        }
+    }
+
+    exportExpectedArrivalsExcel() {
+        const excelContent = window.DB.exportExpectedArrivalsToExcel();
+        if (typeof document !== 'undefined' && document.createElement && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
+            try {
+                const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `كشف_الشاحنات_المتوقع_وصولها_دوترا_${new Date().toISOString().split('T')[0]}.xls`;
+                if (document.body && typeof document.body.appendChild === 'function') {
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } else {
+                    a.click();
+                }
+                URL.revokeObjectURL(url);
+            } catch(e) {
+                console.error('Export Expected Arrivals Excel error:', e);
+            }
         }
     }
 
@@ -2967,47 +3032,60 @@ class ManagerController {
                 <div class="sap-modal-content bg-white rounded-2xl max-w-3xl w-full p-5 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <h3 class="text-base font-black text-[#002b66] flex items-center gap-2">
-                            ${icon('file', 'w-5 h-5 text-emerald-600')}
-                            <span>${lang === 'ar' ? '📥 استيراد كشف الشاحنات المتوقع وصولها (CSV Table)' : 'Import Expected Trucks Manifest (CSV)'}</span>
+                            ${icon('table', 'w-5 h-5 text-emerald-600')}
+                            <span>${lang === 'ar' ? '📥 استيراد وإدارة كشف الشاحنات المتوقع وصولها (Excel Sheet / CSV)' : 'Import Expected Trucks Manifest (Excel / CSV)'}</span>
                         </h3>
                         <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
                     </div>
 
                     <form onsubmit="Manager.submitImportCsv(event)" class="py-3 space-y-4">
+                        <!-- Top Banner with Download & Export Actions -->
                         <div class="bg-[#ebf3fb] p-3.5 rounded-2xl border border-[#b3d5fa] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <div>
                                 <div class="text-xs font-black text-[#002b66]">
-                                    ${lang === 'ar' ? '📄 كشف الوصول المسبق للشاحنات (Pre-Arrivals Manifest)' : 'Pre-Arrivals Daily Manifest'}
+                                    ${lang === 'ar' ? '📊 كشف الوصول المسبق للشاحنات (Excel Sheet Manifest)' : 'Pre-Arrivals Daily Manifest'}
                                 </div>
                                 <div class="text-[11px] text-[#556b82] mt-0.5">
-                                    ${lang === 'ar' ? 'قم برفع ملف Excel/CSV المعتمد أو الصق الجدول، لتظهر الشاحنات للحارس فوراً للاعتماد السريع.' : 'Upload expected trucks CSV or paste the table directly.'}
+                                    ${lang === 'ar' ? 'قم برفع شيت Excel (.xls/.xlsx) أو ملف CSV، لتظهر الشاحنات للحارس على البوابات فوراً للاعتماد السريع.' : 'Upload expected trucks Excel sheet or CSV table.'}
                                 </div>
                             </div>
-                            <button type="button" onclick="Manager.downloadCsvTemplate()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm flex-shrink-0 transition-all">
-                                ${icon('download', 'w-3.5 h-3.5')}
-                                <span>${lang === 'ar' ? 'تحميل نموذج CSV الجاهز' : 'Download CSV Template'}</span>
-                            </button>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button type="button" onclick="Manager.downloadExcelTemplate()" class="px-3.5 py-2 bg-[#107e3e] hover:bg-[#0c6b33] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm flex-shrink-0 transition-all" title="تحميل شيت إكسيل معتمد جاهز للتعبئة">
+                                    <span>📗</span>
+                                    <span>${lang === 'ar' ? 'نموذج Excel (.xls)' : 'Excel Template'}</span>
+                                </button>
+                                <button type="button" onclick="Manager.downloadCsvTemplate()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-[#002b66] rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0 transition-all" title="تحميل ملف CSV نصي">
+                                    <span>📄</span>
+                                    <span>CSV</span>
+                                </button>
+                                ${expected.length > 0 ? `
+                                    <button type="button" onclick="Manager.exportExpectedArrivalsExcel()" class="px-3 py-2 bg-[#0070f2] hover:bg-[#005bb5] text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0 transition-all" title="تصدير الشاحنات المتوقعة حالياً إلى إكسيل">
+                                        <span>📊</span>
+                                        <span>تصدير الحالي</span>
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
 
                         <!-- File Picker Box -->
                         <div class="border-2 border-dashed border-[#b0cfee] hover:border-[#0070f2] rounded-2xl p-4 text-center bg-[#f8fafc] transition-all">
                             <label class="cursor-pointer flex flex-col items-center justify-center gap-2">
                                 <span class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200 shadow-sm">
-                                    ${icon('file', 'w-5 h-5')}
+                                    ${icon('table', 'w-5 h-5')}
                                 </span>
                                 <span class="text-xs font-bold text-[#002b66]">
-                                    ${lang === 'ar' ? 'اختر ملف CSV من جهازك أو اسحبه هنا' : 'Choose CSV file or drag & drop here'}
+                                    ${lang === 'ar' ? 'اختر ملف Excel (.xls / .xlsx) أو CSV من جهازك أو اسحبه هنا' : 'Choose Excel (.xls/.xlsx) or CSV file'}
                                 </span>
-                                <span class="text-[10px] text-[#8fa4b8]">.csv, .txt (UTF-8)</span>
-                                <input type="file" accept=".csv, .txt" onchange="Manager.handleCsvFileUpload(event)" class="hidden" />
+                                <span class="text-[10px] text-[#8fa4b8]">يدعم .xls, .xlsx, .csv, .txt (التعرف التلقائي على الجداول والخلايا)</span>
+                                <input type="file" accept=".xlsx, .xls, .csv, .txt" onchange="Manager.handleCsvFileUpload(event)" class="hidden" />
                             </label>
                         </div>
 
-                        <!-- CSV Textarea Input -->
+                        <!-- Textarea Input (Allows pasting directly from Excel Cells) -->
                         <div>
                             <div class="flex justify-between items-center mb-1.5">
                                 <label class="text-xs font-bold text-[#1d2d3e]">
-                                    ${lang === 'ar' ? 'أو الصق بيانات الكشف مباشرة أدناه:' : 'Or paste CSV data directly:'}
+                                    ${lang === 'ar' ? 'أو الصق بيانات خلايا الإكسيل مباشرة أدناه (Copy/Paste):' : 'Or paste Excel cells / CSV data directly:'}
                                 </label>
                                 <button type="button" onclick="Manager.loadSampleDataIntoTextarea()" class="text-[11px] text-[#0070f2] hover:underline font-bold">
                                     ${lang === 'ar' ? '⚡ تجربة بيانات نموذجية' : 'Load Sample'}
@@ -3068,32 +3146,45 @@ class ManagerController {
         if (!content) {
             container.innerHTML = `
                 <div class="p-3 bg-[#f8fafc] rounded-xl border border-[#e7eff7] text-center text-xs text-[#8fa4b8]">
-                    ${lang === 'ar' ? 'سيظهر جدول المعاينة التفاعلي هنا فور رفع أو لصق بيانات الكشف.' : 'Table preview will appear here once CSV data is provided.'}
+                    ${lang === 'ar' ? 'سيظهر جدول المعاينة التفاعلي هنا فور رفع شيت Excel أو لصق البيانات.' : 'Table preview will appear here once Excel/CSV data is provided.'}
                 </div>
             `;
             return;
         }
 
-        const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
-        if (lines.length < 2) {
+        let parsedRows = [];
+        if (content.includes('<tr') || content.includes('<table')) {
+            const trMatches = content.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            trMatches.forEach(tr => {
+                const cellMatches = tr.match(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi) || [];
+                const rowData = cellMatches.map(cell => cell.replace(/<[^>]+>/g, '').trim());
+                if (rowData.length > 0) parsedRows.push(rowData);
+            });
+        } else {
+            const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+            lines.forEach(line => {
+                let parts = [];
+                if (line.includes('\t')) parts = line.split('\t');
+                else if (line.includes(';')) parts = line.split(';');
+                else parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+                if (parts.length > 0) parsedRows.push(parts);
+            });
+        }
+
+        if (parsedRows.length < 2) {
             container.innerHTML = `
                 <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center text-xs text-amber-800 font-bold">
-                    ${lang === 'ar' ? '⚠️ يرجى التأكد من احتواء الملف على سطر الرأس وبيانات شاحنة واحدة على الأقل.' : 'Ensure CSV contains a header and at least one vehicle row.'}
+                    ${lang === 'ar' ? '⚠️ يرجى التأكد من احتواء الشيت على سطر الرأس وبيانات شاحنة واحدة على الأقل.' : 'Ensure file contains a header and at least one vehicle row.'}
                 </div>
             `;
             return;
         }
 
+        const startIdx = (parsedRows[0][0] && (parsedRows[0][0].includes('لوحة') || parsedRows[0][0].toLowerCase().includes('plate'))) ? 1 : 0;
         const rows = [];
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            let parts = [];
-            if (line.includes('\t')) parts = line.split('\t');
-            else if (line.includes(';')) parts = line.split(';');
-            else parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
-
-            if (parts.length > 0 && parts[0]) {
+        for (let i = startIdx; i < parsedRows.length; i++) {
+            const parts = parsedRows[i];
+            if (parts.length > 0 && parts[0] && !parts[0].includes('رقم اللوحة')) {
                 rows.push({
                     plate: parts[0] || '',
                     driver: parts[1] || 'سائق مصرح',
@@ -3111,7 +3202,7 @@ class ManagerController {
                 <div class="bg-[#f0f4f8] px-3.5 py-2 border-b border-[#d7e2ee] flex justify-between items-center">
                     <span class="text-xs font-black text-[#002b66] flex items-center gap-1.5">
                         ${icon('table', 'w-4 h-4 text-[#0070f2]')}
-                        <span>${lang === 'ar' ? `معاينة الجدول (${rows.length} شاحنة جاهزة للاعتماد):` : `Table Preview (${rows.length} Trucks):`}</span>
+                        <span>${lang === 'ar' ? `معاينة الشيت (${rows.length} شاحنة جاهزة للاعتماد):` : `Sheet Preview (${rows.length} Trucks):`}</span>
                     </span>
                     <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-[10px] font-bold">
                         ${lang === 'ar' ? 'جاهز للاستيراد' : 'Ready'}
@@ -3204,4 +3295,5 @@ ManagerController.createPassCanvasDataUrl = (permitCode, plate, phone, driverNam
 ManagerController.dataURItoBlob = (dataURI) => window.Manager.dataURItoBlob(dataURI);
 window.openPendingRequestsModal = () => { if (window.Manager && typeof window.Manager.openPendingRequestsModal === 'function') window.Manager.openPendingRequestsModal(); };
 window.showRequestReviewModal = (id) => { if (window.Manager && typeof window.Manager.showRequestReviewModal === 'function') window.Manager.showRequestReviewModal(id); };
+window.handleDecideRequest = (id, dec) => { if (window.Manager && typeof window.Manager.handleDecideRequest === 'function') window.Manager.handleDecideRequest(id, dec); };
 

@@ -1275,29 +1275,172 @@ class DatabaseService {
     }
 
     getCsvTemplate() {
-        return "رقم اللوحة,اسم السائق,رقم الهاتف,الشركة,الوجهة داخل المصنع,تفاصيل الحمولة,رقم إذن الصرف أو الفاتورة\nط ر ق ٩ ٨ ٢ ١,محمود عبدالفتاح,01012345678,شركة النيل للتوريدات,المستودع الرئيسي,شحنة أسمدة زراعية 25 طن,INV-2026-101\nس ف ر ٤ ٥ ٢ ٠,كريم الباز,01123456789,دي إتش إل مصر,مصنع المبيدات والكيماويات,طرود مستلزمات معامل,INV-2026-102";
+        return "رقم اللوحة,اسم السائق,رقم الهاتف,الشركة,الوجهة داخل المصنع,تفاصيل الحمولة,رقم إذن الصرف أو الفاتورة\nط ر ق ٩ ٨ ٢ ١,محمود عبدالفتاح,01012345678,شركة النيل للتوريدات,المستودع الرئيسي,شحنة أسمدة زراعية 25 طن,INV-2026-101\nس ف ر ٤ ٥ ٢ ٠,كريم الباز,01123456789,دي إتش إل مصر,مصنع المبيدات والكيماويات,طرود مستلزمات معامل,INV-2026-102\nد و ت ٧ ٧ ٨ ٨,أحمد إبراهيم الشناوي,01234567890,السويس للمواد الخام,محطة الصهاريج والتفريغ,حمولة نترات سائلة 30 ألف لتر,INV-2026-103";
     }
 
-    importPreArrivalsFromCSV(csvText) {
-        if (!csvText || !csvText.trim()) return { success: false, count: 0, message: 'ملف الـ CSV فارغ' };
+    getExcelTemplate() {
+        const headers = ['رقم اللوحة', 'اسم السائق', 'رقم الهاتف', 'الشركة / المورد', 'الوجهة داخل المصنع', 'تفاصيل الحمولة', 'رقم إذن الصرف أو الفاتورة'];
+        const sampleRows = [
+            ['ط ر ق ٩ ٨ ٢ ١', 'محمود عبدالفتاح', '01012345678', 'شركة النيل للتوريدات', 'المستودع الرئيسي', 'شحنة أسمدة زراعية 25 طن', 'INV-2026-101'],
+            ['س ف ر ٤ ٥ ٢ ٠', 'كريم الباز', '01123456789', 'دي إتش إل مصر', 'مصنع المبيدات والكيماويات', 'طرود مستلزمات معامل', 'INV-2026-102'],
+            ['د و ت ٧ ٧ ٨ ٨', 'أحمد إبراهيم الشناوي', '01234567890', 'السويس للمواد الخام', 'محطة الصهاريج والتفريغ', 'حمولة نترات سائلة 30 ألف لتر', 'INV-2026-103'],
+            ['ب ط ل ١ ٢ ٣ ٤', 'سامح عبد المجيد', '01099887766', 'المتحدة للنقل الثقيل', 'مستودع المنتج التام والتعبئة', 'شحنة شكائر تعبئة وتغليف', 'INV-2026-104']
+        ];
+
+        let rowsHtml = sampleRows.map(row => `
+            <tr>
+                <td style="mso-number-format:'\\@';font-weight:bold;text-align:center;color:#002b66;">${row[0]}</td>
+                <td style="font-weight:bold;">${row[1]}</td>
+                <td style="mso-number-format:'\\@';text-align:center;color:#107e3e;">${row[2]}</td>
+                <td>${row[3]}</td>
+                <td style="font-weight:bold;color:#002b66;">${row[4]}</td>
+                <td>${row[5]}</td>
+                <td style="mso-number-format:'\\@';text-align:center;font-weight:bold;">${row[6]}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>كشف الوصول المسبق</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayRightToLeft/>
+                                    <x:Selected/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+                <style>
+                    table { border-collapse: collapse; width: 100%; direction: rtl; font-family: Segoe UI, Tahoma, Arial, sans-serif; font-size: 12px; }
+                    th { background-color: #002b66; color: #ffffff; font-weight: bold; border: 1px solid #001940; padding: 10px 8px; text-align: center; font-size: 12px; }
+                    td { border: 1px solid #d7e2ee; padding: 8px 10px; text-align: right; vertical-align: middle; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                </style>
+            </head>
+            <body dir="rtl">
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+    }
+
+    exportExpectedArrivalsToExcel() {
+        const expected = this.getExpectedArrivals();
+        const headers = ['م', 'رقم اللوحة', 'اسم السائق', 'رقم الهاتف', 'الشركة / المورد', 'الوجهة داخل المصنع', 'تفاصيل الحمولة', 'رقم إذن الصرف / الفاتورة', 'رمز PIN المعتمد', 'صالح حتى'];
         
-        const lines = csvText.trim().split(/\r?\n/);
-        if (lines.length < 2) return { success: false, count: 0, message: 'الملف لا يحتوي على بيانات شاحنات' };
+        let rowsHtml = expected.map((item, idx) => `
+            <tr>
+                <td style="text-align:center;">${idx + 1}</td>
+                <td style="mso-number-format:'\\@';font-weight:bold;text-align:center;color:#002b66;">${item.plate_ar}</td>
+                <td style="font-weight:bold;">${item.driver_name_ar}</td>
+                <td style="mso-number-format:'\\@';text-align:center;color:#107e3e;">${item.driver_phone || '--'}</td>
+                <td>${item.company_ar}</td>
+                <td style="font-weight:bold;color:#002b66;">${item.destination_ar}</td>
+                <td>${item.cargo_details || '--'}</td>
+                <td style="mso-number-format:'\\@';text-align:center;">${item.invoice_no || '--'}</td>
+                <td style="mso-number-format:'\\@';font-weight:bold;text-align:center;color:#b85500;">${item.pin_code || '--'}</td>
+                <td style="mso-number-format:'\\@';text-align:center;">${item.valid_until ? new Date(item.valid_until).toLocaleTimeString('ar-EG') : '--'}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>كشف الشاحنات المتوقعة</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayRightToLeft/>
+                                    <x:Selected/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
+                <style>
+                    table { border-collapse: collapse; width: 100%; direction: rtl; font-family: Segoe UI, Tahoma, Arial, sans-serif; font-size: 12px; }
+                    th { background-color: #002b66; color: #ffffff; font-weight: bold; border: 1px solid #001940; padding: 10px 8px; text-align: center; font-size: 12px; }
+                    td { border: 1px solid #d7e2ee; padding: 8px 10px; text-align: right; vertical-align: middle; }
+                    tr:nth-child(even) { background-color: #f8fafc; }
+                </style>
+            </head>
+            <body dir="rtl">
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(h => `<th>${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+    }
+
+    importPreArrivalsFromCSV(text) {
+        if (!text || !text.trim()) return { success: false, count: 0, message: 'الملف فارغ' };
+        
+        let rows = [];
+
+        // Check if text is HTML / XML Excel table format
+        if (text.includes('<tr') || text.includes('<table')) {
+            const trMatches = text.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+            trMatches.forEach((tr) => {
+                const cellMatches = tr.match(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi) || [];
+                const rowData = cellMatches.map(cell => cell.replace(/<[^>]+>/g, '').trim());
+                if (rowData.length > 0) {
+                    rows.push(rowData);
+                }
+            });
+        } else {
+            // Text / CSV / TSV rows
+            const lines = text.trim().split(/\r?\n/);
+            lines.forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                let parts = [];
+                if (line.includes('\t')) parts = line.split('\t');
+                else if (line.includes(';')) parts = line.split(';');
+                else {
+                    parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+                }
+                if (parts.length > 0) rows.push(parts.map(p => p.trim()));
+            });
+        }
+
+        if (rows.length < 2) return { success: false, count: 0, message: 'الملف لا يحتوي على بيانات شاحنات' };
+
+        // Skip header row if it contains header words
+        const startIdx = (rows[0][0] && (rows[0][0].includes('لوحة') || rows[0][0].toLowerCase().includes('plate'))) ? 1 : 0;
 
         const imported = [];
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-
-            let parts = [];
-            if (line.includes('\t')) parts = line.split('\t');
-            else if (line.includes(';')) parts = line.split(';');
-            else {
-                parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
-            }
-
-            if (parts.length < 1 || !parts[0]) continue;
-
+        for (let i = startIdx; i < rows.length; i++) {
+            const parts = rows[i];
             const plate = parts[0]?.trim();
             const driverName = parts[1]?.trim() || 'سائق مصرح';
             const phone = parts[2]?.trim() || '';
@@ -1306,7 +1449,7 @@ class DatabaseService {
             const cargo = parts[5]?.trim() || 'بضائع ومستلزمات عامة';
             const invoice = parts[6]?.trim() || '';
 
-            if (!plate) continue;
+            if (!plate || plate.includes('رقم اللوحة') || plate.toLowerCase() === 'plate') continue;
 
             let vehicle = this.findVehicleByPlate(plate);
             if (!vehicle) {
@@ -1652,7 +1795,7 @@ class DatabaseService {
 
     decideInspectionRequest(requestId, decision, managerNotes = '', managerUserId = 1) {
         const requests = this.getInspectionRequests();
-        const req = requests.find(r => r.id === requestId);
+        const req = requests.find(r => String(r.id) === String(requestId));
         if (!req) return { success: false, message: 'الطلب غير موجود' };
 
         const users = this.getUsers();
