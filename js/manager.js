@@ -2754,13 +2754,8 @@ class ManagerController {
         const qrPayload = JSON.stringify({
             permit: permit.permit_code,
             pin: permit.pin_code || '',
-            type: permit.permit_type || 'entry',
             plate: vehicle.plate_ar,
-            driver: vehicle.driver_name_ar || '',
-            phone: vehicle.driver_phone || '',
-            dest: permit.destination_ar || '',
-            cargo: permit.cargo_details || '',
-            invoice: permit.invoice_no || ''
+            type: permit.permit_type || 'entry'
         });
 
         const validUntilText = new Date(permit.valid_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

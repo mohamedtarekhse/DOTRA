@@ -542,19 +542,23 @@
         }
     };
 
-    // Auto-calculate best TypeNumber (Version 1..10) based on text length
+    // Auto-calculate best TypeNumber (Version 1..10) and best error correction based on text length
     function findBestTypeNumber(text, ecLevel) {
-        for (var t = 1; t <= 10; t++) {
-            try {
-                var qr = new QRCodeModel(t, ecLevel);
-                qr.addData(text);
-                qr.make();
-                return t;
-            } catch (e) {
-                // Try next type number
+        var levels = [ecLevel, QRErrorCorrectLevel.L];
+        for (var l = 0; l < levels.length; l++) {
+            var curEc = levels[l];
+            for (var t = 1; t <= 10; t++) {
+                try {
+                    var qr = new QRCodeModel(t, curEc);
+                    qr.addData(text);
+                    qr.make();
+                    return { typeNumber: t, errorCorrectLevel: curEc };
+                } catch (e) {
+                    // Try next type number
+                }
             }
         }
-        return 10;
+        return { typeNumber: 10, errorCorrectLevel: QRErrorCorrectLevel.L };
     }
 
     /**
@@ -578,10 +582,28 @@
 
             container.innerHTML = '';
 
+            // Clean text payload to prevent overflow
+            var cleanText = text;
             try {
-                var typeNum = findBestTypeNumber(text, ecLevel);
-                var qr = new QRCodeModel(typeNum, ecLevel);
-                qr.addData(text);
+                if (typeof text === 'string' && text.startsWith('{') && text.endsWith('}')) {
+                    var parsed = JSON.parse(text);
+                    if (parsed.permit || parsed.pin || parsed.plate) {
+                        cleanText = JSON.stringify({
+                            permit: parsed.permit || '',
+                            pin: parsed.pin || '',
+                            plate: parsed.plate || '',
+                            type: parsed.type || 'entry'
+                        });
+                    }
+                }
+            } catch (e) {
+                cleanText = text;
+            }
+
+            try {
+                var best = findBestTypeNumber(cleanText, ecLevel);
+                var qr = new QRCodeModel(best.typeNumber, best.errorCorrectLevel);
+                qr.addData(cleanText);
                 qr.make();
 
                 var moduleCount = qr.getModuleCount();
@@ -613,15 +635,53 @@
                 container.appendChild(canvas);
                 return canvas;
             } catch (err) {
-                console.error("QREngine error:", err);
-                // Fallback SVG / image
-                var encoded = encodeURIComponent(text);
-                var img = document.createElement('img');
-                img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&data=' + encoded + '&color=002b66';
-                img.alt = 'QR Code';
-                img.className = 'w-[' + size + 'px] h-[' + size + 'px] rounded-lg';
-                container.appendChild(img);
-                return img;
+                // Secondary fallback with essential PIN/Code if still overflows
+                try {
+                    var fallbackText = cleanText;
+                    try {
+                        var p = JSON.parse(cleanText);
+                        fallbackText = p.pin || p.permit || p.plate || cleanText;
+                    } catch (e) {}
+
+                    var bestFallback = findBestTypeNumber(fallbackText, QRErrorCorrectLevel.L);
+                    var qrFallback = new QRCodeModel(bestFallback.typeNumber, bestFallback.errorCorrectLevel);
+                    qrFallback.addData(fallbackText);
+                    qrFallback.make();
+
+                    var mCount = qrFallback.getModuleCount();
+                    var cSize = size / mCount;
+                    var cvs = document.createElement('canvas');
+                    cvs.width = size;
+                    cvs.height = size;
+                    cvs.style.display = 'block';
+                    cvs.style.borderRadius = '8px';
+                    var ctxt = cvs.getContext('2d');
+                    ctxt.fillStyle = colorLight;
+                    ctxt.fillRect(0, 0, size, size);
+                    ctxt.fillStyle = colorDark;
+                    for (var r = 0; r < mCount; r++) {
+                        for (var c = 0; c < mCount; c++) {
+                            if (qrFallback.isDark(r, c)) {
+                                var x = Math.round(c * cSize);
+                                var y = Math.round(r * cSize);
+                                var w = Math.ceil((c + 1) * cSize) - x;
+                                var h = Math.ceil((r + 1) * cSize) - y;
+                                ctxt.fillRect(x, y, w, h);
+                            }
+                        }
+                    }
+                    container.appendChild(cvs);
+                    return cvs;
+                } catch (fallbackErr) {
+                    console.warn("QREngine fallback error:", fallbackErr);
+                    var encoded = encodeURIComponent(cleanText);
+                    var img = document.createElement('img');
+                    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&data=' + encoded + '&color=002b66';
+                    img.alt = 'QR Code';
+                    img.className = 'w-[' + size + 'px] h-[' + size + 'px] rounded-lg';
+                    container.appendChild(img);
+                    return img;
+                }
             }
         },
 
