@@ -109,6 +109,56 @@ class AppController {
             body = lang === 'ar' ? `تم تحديث حالة أمان المركبة ${data.plate}` : `Security status updated for ${data.plate}`;
             notifType = 'error';
             this.showToast(title, body, 'error', 'ban');
+        } else if (data.type === 'INSPECTION_REQUEST_CREATED') {
+            title = lang === 'ar' ? '🚨 طلب فحص واستئذان دخول جديد' : 'New Gate Pass Request';
+            body = lang === 'ar' ? `شاحنة: ${data.plate} عند ${data.gate} (👮 ${data.officer})` : `Truck ${data.plate} at ${data.gate} awaiting approval`;
+            notifType = 'warning';
+            this.showToast(title, body, 'warning', 'shield');
+        } else if (data.type === 'INSPECTION_REQUEST_DECIDED') {
+            const isApprove = data.status === 'approved';
+            title = isApprove ? (lang === 'ar' ? '✅ تم اعتماد الدخول من الإدارة' : 'Entry Approved by Manager') : (lang === 'ar' ? '⛔ تم رفض طلب الدخول' : 'Entry Denied by Manager');
+            body = isApprove 
+                ? (lang === 'ar' ? `المركبة: ${data.plate} • كود: ${data.permit_code} • PIN: ${data.pin_code}` : `Vehicle: ${data.plate} • Pass: ${data.permit_code}`)
+                : (lang === 'ar' ? `المركبة: ${data.plate} • السبب: ${data.manager_notes || 'مرفوض'}` : `Vehicle: ${data.plate} denied`);
+            notifType = isApprove ? 'success' : 'error';
+            this.showToast(title, body, notifType, isApprove ? 'check' : 'ban');
+
+            // If Officer is currently waiting on modal, auto-refresh and display decision
+            if (this.currentView === 'officer' && document.getElementById('modal-container')) {
+                const modal = document.getElementById('modal-container');
+                if (isApprove && data.permit_id) {
+                    if (window.Officer && typeof window.Officer.handlePlateSearch === 'function') {
+                        window.Officer.handlePlateSearch(data.pin_code || data.plate);
+                    }
+                } else if (!isApprove) {
+                    modal.innerHTML = `
+                        <div class="sap-modal-overlay">
+                            <div class="sap-modal-content max-w-md w-full p-6 text-center" dir="rtl">
+                                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3 text-3xl">
+                                    ⛔
+                                </div>
+                                <h3 class="text-base font-black text-rose-700 mb-1">
+                                    تم رفض طلب الدخول من مدير العمليات
+                                </h3>
+                                <p class="text-xs text-[#556b82] mb-3">
+                                    المركبة: <b class="font-mono text-[#1d2d3e]">${data.plate}</b>
+                                </p>
+                                <div class="bg-rose-50 p-3 rounded-xl border border-rose-200 text-xs text-rose-900 mb-4 font-bold">
+                                    السبب: ${data.manager_notes || 'رفض الدخول ومنع المركبة'}
+                                </div>
+                                <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-6 py-2.5 sap-btn-secondary text-xs font-bold">
+                                    إغلاق
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        } else if (data.type === 'ROSTER_UPDATED') {
+            title = lang === 'ar' ? '📊 تحديث جدول المناوبات' : 'Roster Updated';
+            body = lang === 'ar' ? 'تم تحديث جدول توزيع البوابات والمناوبات من الإدارة' : 'Gate shift roster updated by manager';
+            notifType = 'info';
+            this.showToast(title, body, 'info', 'shield');
         }
 
         // Re-render current view with updated state

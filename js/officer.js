@@ -23,8 +23,8 @@ class OfficerController {
 
         const lang = window.i18n.getLang();
         const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'أمين الشرطة طارق', name_en: 'Duty Officer', gate_assigned: 'بوابة 1 الرئيسية - دوترا', badge_id: 'GT-01' };
+        const rosterInfo = window.DB.getOfficerRoster(user.id);
         const logs = window.DB.getLogs().slice().reverse().slice(0, 6);
-        const gates = window.DB.getGates();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         // IN-PLACE SMART UPDATE: If officer terminal is already loaded in DOM, only refresh the recent logs list and return!
@@ -34,10 +34,9 @@ class OfficerController {
             return;
         }
 
-
         container.innerHTML = `
             <div class="max-w-xl mx-auto pb-12 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                <!-- Officer & Gate Header Banner (SAP Style) -->
+                <!-- Officer & Gate Header Banner (SAP Style - Locked Gate by Manager) -->
                 <div class="sap-card p-4 mb-4 flex items-center justify-between border-l-4 border-l-[#0070f2] bg-white shadow-sm rounded-2xl">
                     <div class="flex items-center gap-3">
                         <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
@@ -48,15 +47,27 @@ class OfficerController {
                                 <span class="w-2 h-2 rounded-full bg-[#107e3e] animate-pulse"></span>
                                 <span class="text-xs font-bold text-[#107e3e] uppercase font-mono">${user.badge_id || 'GT-01'}</span>
                                 <span class="text-xs text-[#d7e2ee]">•</span>
-                                <!-- Quick Gate Selector for Multi-Gate Stationing -->
-                                <select onchange="Officer.handleSwitchGate(this.value)" class="bg-[#f0f4f8] hover:bg-[#e2edf8] border border-[#b0cfee] text-[#002b66] text-[11px] font-bold rounded-lg px-2 py-0.5 focus:outline-none cursor-pointer">
-                                    ${gates.map(g => `<option value="${g}" ${user.gate_assigned === g ? 'selected' : ''}>📍 ${g}</option>`).join('')}
-                                </select>
+                                <!-- Fixed Locked Gate & Shift Stationing (Assigned by Manager) -->
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#ebf3fb] border border-[#b3d5fa] text-[#002b66] text-[11px] font-black shadow-xs" title="البوابة المعينة رسمياً من مدير العمليات">
+                                    <span>📍</span>
+                                    <span>${rosterInfo.gate_name}</span>
+                                    <span class="text-[10px] text-[#0070f2] font-bold">(${rosterInfo.shift === 'day' ? '☀️ نهار' : '🌙 ليل'})</span>
+                                </span>
                             </div>
                             <h2 class="text-base font-black text-[#002b66] mt-0.5">${lang === 'ar' ? user.name_ar : user.name_en}</h2>
+                            ${rosterInfo.partner_name_ar && rosterInfo.partner_name_ar !== 'غير محدد' ? `
+                                <div class="text-[10px] text-[#556b82] font-semibold mt-0.5 flex items-center gap-1">
+                                    <span>🔄 المناوب البديل (Back-to-Back):</span>
+                                    <b class="text-[#1d2d3e]">${rosterInfo.partner_name_ar} (${rosterInfo.partner_badge})</b>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button type="button" onclick="Officer.openInspectionRequestModal()" class="px-2.5 sm:px-3 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl border border-amber-400 text-xs font-black flex items-center gap-1.5 shadow-md active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
+                            <span>🚨</span>
+                            <span>${lang === 'ar' ? 'طلب استئذان وتفتيش' : 'Request Pass'}</span>
+                        </button>
                         <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="px-2.5 sm:px-3 py-2.5 bg-[#ebf3fb] hover:bg-[#d8e9f8] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
                             ${icon('file', 'w-4 h-4')}
                             <span class="hidden sm:inline">${lang === 'ar' ? 'المتوقع وصولهم' : 'Manifest'}</span>
@@ -935,7 +946,273 @@ class OfficerController {
         }
         this.handlePlateSearch(pinCode);
     }
+
+    // =========================================================================
+    // MULTI-PHOTO INSPECTION & ENTRY APPROVAL REQUESTS (CAR PLATE + CARRIAGE)
+    // =========================================================================
+
+    openInspectionRequestModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'أمين الشرطة طارق', gate_assigned: 'بوابة 1 الرئيسية - دوترا' };
+        const rosterInfo = window.DB.getOfficerRoster(user.id);
+        const destinations = window.DB.getDestinations();
+        const currentPlateInput = document.getElementById('officer-plate-input')?.value.trim() || '';
+
+        this._inspectionPhotos = {
+            plate: null,
+            carriage: null
+        };
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-2xl w-full p-5 max-h-[92vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-lg border border-amber-300 shadow-sm">
+                                🚨
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'طلب فحص واستئذان دخول شاحنة للمدير' : 'Send Vehicle Inspection & Pass Request'}
+                                </h3>
+                                <p class="text-[11px] text-[#556b82] font-semibold">
+                                    ${lang === 'ar' ? 'إرسال صور لوحة السيارة وصندوق الحمولة لمدير العمليات للاعتماد الفوري' : 'Attach car plate & carriage photos for manager investigation and approval'}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="Officer.submitInspectionRequest(event)" class="py-3 space-y-4 text-xs">
+                        
+                        <!-- Station & Officer Banner -->
+                        <div class="p-3 bg-[#ebf3fb] rounded-2xl border border-[#b3d5fa] flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span>🚪</span>
+                                <span class="font-bold text-[#002b66]">${rosterInfo.gate_name}</span>
+                                <span class="text-[10px] text-[#0070f2] font-mono font-black">(${rosterInfo.shift_name_ar})</span>
+                            </div>
+                            <div class="text-[11px] text-[#556b82] font-bold">
+                                👮 ${user.name_ar}
+                            </div>
+                        </div>
+
+                        <!-- Plate Input & Keypad -->
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label class="font-bold text-[#1d2d3e]">رقم لوحة المركبة (مطلوب):</label>
+                                <button type="button" onclick="Officer.toggleKeypad('req-arabic-keypad')" class="text-[#0070f2] font-bold text-[11px] flex items-center gap-1">
+                                    ${icon('keyboard', 'w-3.5 h-3.5')}
+                                    <span>لوحة المفاتيح المصرية</span>
+                                </button>
+                            </div>
+                            <input type="text" id="req-plate-input" required value="${Officer.escHtml(currentPlateInput)}" placeholder="مثال: ط ر ق ٩ ٨ ٢ ١" class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-3.5 py-2.5 text-base font-black text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            <div id="req-arabic-keypad" class="hidden mt-2">
+                                ${window.ArabicPlate ? window.ArabicPlate.renderArabicKeypad('req-plate-input') : ''}
+                            </div>
+                        </div>
+
+                        <!-- Driver Info Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">اسم السائق:</label>
+                                <input type="text" id="req-driver-name" placeholder="اسم السائق" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">رقم هاتف / واتساب السائق:</label>
+                                <input type="tel" id="req-driver-phone" placeholder="01012345678" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                            </div>
+                        </div>
+
+                        <!-- Company & Destination Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">الشركة / الجهة الموردة:</label>
+                                <input type="text" id="req-company" placeholder="اسم الشركة الموردة" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-semibold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">الوجهة داخل المصنع:</label>
+                                <select id="req-destination" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none">
+                                    ${destinations.map(d => `<option value="${d}">${d}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Cargo & Inspection Notes -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">بيانات وتفاصيل الحمولة:</label>
+                                <input type="text" id="req-cargo" placeholder="مثال: شحنة براميل كيماويات 10 طن" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">سبب الاستئذان / ملاحظات الحارس للمدير:</label>
+                                <input type="text" id="req-notes" required placeholder="مثال: شاحنة بدون تصريح مسبق تطلب تسليم عاجل" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                            </div>
+                        </div>
+
+                        <!-- MULTI-PHOTO UPLOAD SECTION (PLATE PHOTO + CARRIAGE PHOTO) -->
+                        <div class="pt-2 border-t border-[#d7e2ee]">
+                            <div class="font-black text-xs text-[#002b66] mb-2 flex items-center gap-1.5">
+                                <span>📸</span>
+                                <span>إرفاق الصور الإلزامية للمدير (صورة لوحة السيارة + صورة صندوق الحمولة):</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                
+                                <!-- PHOTO SLOT 1: CAR PLATE PHOTO -->
+                                <div class="p-3 bg-[#f8fafc] rounded-2xl border-2 border-dashed border-[#b0cfee] hover:border-[#0070f2] transition-all">
+                                    <div class="font-bold text-[11px] text-[#002b66] mb-1.5 flex items-center justify-between">
+                                        <span>1️⃣ صورة لوحة السيارة (Car Plate)</span>
+                                        <span id="plate-photo-status" class="text-[10px] text-[#8fa4b8]">لم يتم التقاط صورة</span>
+                                    </div>
+                                    <label class="cursor-pointer flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-[#d7e2ee] hover:bg-[#ebf3fb] transition-all">
+                                        <span class="text-2xl mb-1">🚘</span>
+                                        <span class="text-[11px] font-bold text-[#0070f2]">التقاط أو رفع صورة اللوحة</span>
+                                        <span class="text-[9px] text-[#8fa4b8]">كاميرا الجوال / ملف</span>
+                                        <input type="file" accept="image/*" capture="environment" onchange="Officer.handleInspectionPhoto(event, 'plate')" class="hidden" />
+                                    </label>
+                                    <div id="plate-photo-preview" class="hidden mt-2 text-center relative">
+                                        <img src="" alt="لوحة السيارة" class="w-full h-28 object-cover rounded-xl border border-emerald-300 shadow-sm" />
+                                        <span class="absolute top-1 right-1 px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[9px] font-bold">✅ تم إرفاق اللوحة</span>
+                                    </div>
+                                </div>
+
+                                <!-- PHOTO SLOT 2: CAR CARRIAGE / CARGO PHOTO -->
+                                <div class="p-3 bg-[#f8fafc] rounded-2xl border-2 border-dashed border-[#b0cfee] hover:border-[#0070f2] transition-all">
+                                    <div class="font-bold text-[11px] text-[#002b66] mb-1.5 flex items-center justify-between">
+                                        <span>2️⃣ صورة صندوق / حمولة الشاحنة (Carriage)</span>
+                                        <span id="carriage-photo-status" class="text-[10px] text-[#8fa4b8]">لم يتم التقاط صورة</span>
+                                    </div>
+                                    <label class="cursor-pointer flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-[#d7e2ee] hover:bg-[#ebf3fb] transition-all">
+                                        <span class="text-2xl mb-1">📦</span>
+                                        <span class="text-[11px] font-bold text-[#0070f2]">التقاط أو رفع صورة الصندوق</span>
+                                        <span class="text-[9px] text-[#8fa4b8]">كاميرا الجوال / ملف</span>
+                                        <input type="file" accept="image/*" capture="environment" onchange="Officer.handleInspectionPhoto(event, 'carriage')" class="hidden" />
+                                    </label>
+                                    <div id="carriage-photo-preview" class="hidden mt-2 text-center relative">
+                                        <img src="" alt="صندوق الشاحنة" class="w-full h-28 object-cover rounded-xl border border-emerald-300 shadow-sm" />
+                                        <span class="absolute top-1 right-1 px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[9px] font-bold">✅ تم إرفاق الصندوق</span>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Footer Actions -->
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2.5 sap-btn-secondary text-xs">
+                                إلغاء
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
+                                <span>🚀</span>
+                                <span>إرسال الطلب والصور للمدير فورا</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    handleInspectionPhoto(event, photoType) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            if (!this._inspectionPhotos) this._inspectionPhotos = {};
+            this._inspectionPhotos[photoType] = dataUrl;
+
+            const previewContainer = document.getElementById(`${photoType}-photo-preview`);
+            const statusSpan = document.getElementById(`${photoType}-photo-status`);
+            if (previewContainer) {
+                const img = previewContainer.querySelector('img');
+                if (img) img.src = dataUrl;
+                previewContainer.classList.remove('hidden');
+            }
+            if (statusSpan) {
+                statusSpan.innerHTML = '<span class="text-emerald-700 font-bold">✅ تم الالتقاط</span>';
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    submitInspectionRequest(event) {
+        if (event && event.preventDefault) event.preventDefault();
+
+        const plate = document.getElementById('req-plate-input')?.value.trim();
+        if (!plate) {
+            alert('يرجى إدخال رقم لوحة المركبة');
+            return;
+        }
+
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'أمين الشرطة طارق', gate_assigned: 'بوابة 1 الرئيسية - دوتra' };
+        const rosterInfo = window.DB.getOfficerRoster(user.id);
+        const driverName = document.getElementById('req-driver-name')?.value.trim() || 'سائق زائر';
+        const driverPhone = document.getElementById('req-driver-phone')?.value.trim() || '';
+        const company = document.getElementById('req-company')?.value.trim() || 'مورد عام';
+        const destination = document.getElementById('req-destination')?.value || 'المستودع الرئيسي';
+        const cargo = document.getElementById('req-cargo')?.value.trim() || 'بضائع ومستلزمات عامة';
+        const notes = document.getElementById('req-notes')?.value.trim() || 'طلب استئذان فحص ودخول عاجل';
+
+        const platePhoto = this._inspectionPhotos?.plate || null;
+        const carriagePhoto = this._inspectionPhotos?.carriage || null;
+
+        const req = window.DB.createInspectionRequest({
+            plate_ar: plate,
+            plate_en: plate,
+            driver_name: driverName,
+            driver_phone: driverPhone,
+            company: company,
+            destination: destination,
+            cargo_details: cargo,
+            notes: notes,
+            plate_photo_url: platePhoto,
+            carriage_photo_url: carriagePhoto,
+            officer_id: user.id,
+            gate_name: rosterInfo.gate_name
+        });
+
+        // Show Officer Real-Time Pending Tracker Modal
+        const modalContainer = document.getElementById('modal-container');
+        if (modalContainer) {
+            modalContainer.innerHTML = `
+                <div class="sap-modal-overlay">
+                    <div class="sap-modal-content max-w-md w-full p-6 text-center" dir="rtl">
+                        <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-3xl animate-bounce">
+                            ⏳
+                        </div>
+                        <h3 class="text-base font-black text-[#002b66] mb-1">
+                            تم إرسال طلب الاستئذان والصور للمدير بنجاح!
+                        </h3>
+                        <p class="text-xs text-[#556b82] mb-3">
+                            المركبة: <b class="text-[#002b66] font-mono">${req.plate_ar}</b> • السائق: <b>${req.driver_name}</b>
+                        </p>
+                        <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900 mb-4 font-bold flex items-center justify-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
+                            <span>بانتظار مراجعة وقرار مدير العمليات الآن...</span>
+                        </div>
+                        <p class="text-[11px] text-[#8fa4b8] mb-4">
+                            ستتحدث هذه النافذة فوراً عند اتخاذ المدير لقرار الموافقة أو الرفض تلقائياً.
+                        </p>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-5 py-2 sap-btn-secondary text-xs font-bold">
+                            إغلاق ومتابعة العمل
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast('🚨 طلب استئذان مرسل', `تم إرسال طلب الشاحنة (${plate}) لمدير العمليات للمراجعة.`, 'warning');
+        }
+    }
 }
 
+// Global Singleton
 window.Officer = new OfficerController();
 

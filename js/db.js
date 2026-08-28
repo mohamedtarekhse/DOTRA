@@ -8,6 +8,33 @@ const SEED_GATES = [
     'بوابة 4 خروج الإنتاج والشاحنات'
 ];
 
+const SEED_ROSTER = [
+    {
+        gate_name: 'بوابة 1 الرئيسية - دوترا',
+        day_officer_id: 2,
+        night_officer_id: 3,
+        notes: 'بوابة الدخول الرئيسية للمركبات والشاحنات'
+    },
+    {
+        gate_name: 'بوابة 2 الشحن والجمارك - دوترا',
+        day_officer_id: 3,
+        night_officer_id: 2,
+        notes: 'بوابة شحن البضائع والجمارك'
+    },
+    {
+        gate_name: 'بوابة 3 المواد الخام والكيماويات',
+        day_officer_id: null,
+        night_officer_id: null,
+        notes: 'مستودعات المواد الخام'
+    },
+    {
+        gate_name: 'بوابة 4 خروج الإنتاج والشاحنات',
+        day_officer_id: null,
+        night_officer_id: null,
+        notes: 'بوابة الشحن والتفريغ السريع'
+    }
+];
+
 const SEED_DESTINATIONS = [
     'المستودع الرئيسي',
     'مصنع الأسمدة والمخصبات',
@@ -44,7 +71,8 @@ const SEED_USERS = [
         name_ar: 'أمين الشرطة / طارق محمود',
         name_en: 'Officer Tariq Mahmoud',
         role: 'officer',
-        gate_assigned: 'بوابة 1 الرئيسية - دوترا'
+        gate_assigned: 'بوابة 1 الرئيسية - دوترا',
+        shift: 'day'
     },
     {
         id: 3,
@@ -53,7 +81,8 @@ const SEED_USERS = [
         name_ar: 'مساعد شرطة / حسام حسن',
         name_en: 'Officer Hossam Hassan',
         role: 'officer',
-        gate_assigned: 'بوابة 2 الشحن والجمارك - دوترا'
+        gate_assigned: 'بوابة 1 الرئيسية - دوترا',
+        shift: 'night'
     },
     {
         id: 4,
@@ -208,6 +237,12 @@ class DatabaseService {
         }
         if (!localStorage.getItem('gate_settings')) {
             localStorage.setItem('gate_settings', JSON.stringify(SEED_SETTINGS));
+        }
+        if (!localStorage.getItem('gate_roster')) {
+            localStorage.setItem('gate_roster', JSON.stringify(SEED_ROSTER));
+        }
+        if (!localStorage.getItem('gate_requests')) {
+            localStorage.setItem('gate_requests', JSON.stringify([]));
         }
 
         this.syncFromCloud().catch(() => {});
@@ -1269,6 +1304,378 @@ class DatabaseService {
 
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return { success: true, count: imported.length, items: imported };
+    }
+
+    // =========================================================================
+    // GATE & SHIFT ROSTER MANAGEMENT (DAY & NIGHT SHIFTS / BACK-TO-BACK)
+    // =========================================================================
+
+    getGateRoster() {
+        const raw = localStorage.getItem('gate_roster');
+        let roster = [];
+        try {
+            roster = raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            roster = [];
+        }
+
+        const gates = this.getGates();
+        const users = this.getUsers().filter(u => u.role === 'officer');
+
+        // Ensure all existing gates are represented in the roster
+        gates.forEach(gate => {
+            if (!roster.find(r => r.gate_name === gate)) {
+                roster.push({
+                    gate_name: gate,
+                    day_officer_id: null,
+                    night_officer_id: null,
+                    notes: ''
+                });
+            }
+        });
+
+        // Enrich with officer details
+        return roster.map(item => {
+            const dayOfficer = users.find(u => u.id === item.day_officer_id) || null;
+            const nightOfficer = users.find(u => u.id === item.night_officer_id) || null;
+            return {
+                ...item,
+                day_officer: dayOfficer,
+                night_officer: nightOfficer,
+                day_officer_name: dayOfficer ? dayOfficer.name_ar : '',
+                day_officer_badge: dayOfficer ? dayOfficer.badge_id : '',
+                night_officer_name: nightOfficer ? nightOfficer.name_ar : '',
+                night_officer_badge: nightOfficer ? nightOfficer.badge_id : ''
+            };
+        });
+    }
+
+    saveGateRoster(roster) {
+        if (!Array.isArray(roster)) return false;
+        localStorage.setItem('gate_roster', JSON.stringify(roster));
+
+        // Sync officer users with their newly assigned gates & shifts
+        const users = this.getUsers();
+        roster.forEach(item => {
+            if (item.day_officer_id) {
+                const u = users.find(x => x.id === item.day_officer_id);
+                if (u) {
+                    u.gate_assigned = item.gate_name;
+                    u.shift = 'day';
+                    u.back_to_back_user_id = item.night_officer_id || null;
+                }
+            }
+            if (item.night_officer_id) {
+                const u = users.find(x => x.id === item.night_officer_id);
+                if (u) {
+                    u.gate_assigned = item.gate_name;
+                    u.shift = 'night';
+                    u.back_to_back_user_id = item.day_officer_id || null;
+                }
+            }
+        });
+        localStorage.setItem('gate_users', JSON.stringify(users));
+
+        this.announce('ROSTER_UPDATED', { timestamp: Date.now() });
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        return true;
+    }
+
+    assignGateOfficers(gateName, dayOfficerId, nightOfficerId, notes = '') {
+        const roster = this.getGateRoster();
+        let entry = roster.find(r => r.gate_name === gateName);
+        if (!entry) {
+            entry = { gate_name: gateName, day_officer_id: null, night_officer_id: null, notes: '' };
+            roster.push(entry);
+        }
+        entry.day_officer_id = dayOfficerId ? parseInt(dayOfficerId) : null;
+        entry.night_officer_id = nightOfficerId ? parseInt(nightOfficerId) : null;
+        if (notes) entry.notes = notes;
+
+        return this.saveGateRoster(roster);
+    }
+
+    getOfficerRoster(officerId) {
+        if (!officerId) return null;
+        const roster = this.getGateRoster();
+        const users = this.getUsers();
+        const id = parseInt(officerId);
+
+        for (const item of roster) {
+            if (item.day_officer_id === id) {
+                const partner = users.find(u => u.id === item.night_officer_id) || null;
+                return {
+                    gate_name: item.gate_name,
+                    shift: 'day',
+                    shift_name_ar: 'وردية النهار (صباحية)',
+                    shift_name_en: 'Day Shift',
+                    partner_officer: partner,
+                    partner_name_ar: partner ? partner.name_ar : 'غير محدد',
+                    partner_badge: partner ? partner.badge_id : '--'
+                };
+            }
+            if (item.night_officer_id === id) {
+                const partner = users.find(u => u.id === item.day_officer_id) || null;
+                return {
+                    gate_name: item.gate_name,
+                    shift: 'night',
+                    shift_name_ar: 'وردية الليل (مسائية)',
+                    shift_name_en: 'Night Shift',
+                    partner_officer: partner,
+                    partner_name_ar: partner ? partner.name_ar : 'غير محدد',
+                    partner_badge: partner ? partner.badge_id : '--'
+                };
+            }
+        }
+
+        // Fallback to user profile if not in roster
+        const user = users.find(u => u.id === id);
+        return {
+            gate_name: user?.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
+            shift: user?.shift || 'day',
+            shift_name_ar: user?.shift === 'night' ? 'وردية الليل (مسائية)' : 'وردية النهار (صباحية)',
+            shift_name_en: user?.shift === 'night' ? 'Night Shift' : 'Day Shift',
+            partner_officer: null,
+            partner_name_ar: 'غير محدد',
+            partner_badge: '--'
+        };
+    }
+
+    getRosterCsvTemplate() {
+        return "اسم البوابة,كود شارة ضابط وردية النهار,اسم ضابط النهار,كود شارة ضابط وردية الليل (المناوب البديل),اسم ضابط الليل,ملاحظات\nبوابة 1 الرئيسية - دوترا,GT-01,طارق محمود,GT-02,حسام حسن,البوابة الرئيسية للشاحنات\nبوابة 2 الشحن والجمارك - دوترا,GT-02,حسام حسن,GT-01,طارق محمود,بوابة الشحن والمستودعات\nبوابة 3 المواد الخام والكيماويات,,,,,\nبوابة 4 خروج الإنتاج والشاحنات,,,,,";
+    }
+
+    importRosterFromCSV(csvText) {
+        if (!csvText || !csvText.trim()) return { success: false, count: 0, message: 'ملف الـ CSV فارغ' };
+
+        const lines = csvText.trim().split(/\r?\n/);
+        if (lines.length < 2) return { success: false, count: 0, message: 'الملف لا يحتوي على صفوف بيانات' };
+
+        const users = this.getUsers();
+        const currentGates = this.getGates();
+        const roster = this.getGateRoster();
+        let updatedCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            let parts = [];
+            if (line.includes('\t')) parts = line.split('\t');
+            else if (line.includes(';')) parts = line.split(';');
+            else parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+
+            if (parts.length < 1 || !parts[0]) continue;
+
+            const gateName = parts[0]?.trim();
+            const dayBadge = parts[1]?.trim() || '';
+            const dayName = parts[2]?.trim() || '';
+            const nightBadge = parts[3]?.trim() || '';
+            const nightName = parts[4]?.trim() || '';
+            const notes = parts[5]?.trim() || '';
+
+            if (!gateName) continue;
+
+            // Ensure gate exists in gates list
+            if (!currentGates.includes(gateName)) {
+                this.addGate(gateName);
+            }
+
+            // Match day officer by badge ID or name
+            let dayOfficer = null;
+            if (dayBadge) dayOfficer = users.find(u => u.badge_id && u.badge_id.toLowerCase() === dayBadge.toLowerCase());
+            if (!dayOfficer && dayName) dayOfficer = users.find(u => u.name_ar && u.name_ar.includes(dayName));
+
+            // Match night officer by badge ID or name
+            let nightOfficer = null;
+            if (nightBadge) nightOfficer = users.find(u => u.badge_id && u.badge_id.toLowerCase() === nightBadge.toLowerCase());
+            if (!nightOfficer && nightName) nightOfficer = users.find(u => u.name_ar && u.name_ar.includes(nightName));
+
+            let entry = roster.find(r => r.gate_name === gateName);
+            if (!entry) {
+                entry = { gate_name: gateName, day_officer_id: null, night_officer_id: null, notes: '' };
+                roster.push(entry);
+            }
+
+            entry.day_officer_id = dayOfficer ? dayOfficer.id : null;
+            entry.night_officer_id = nightOfficer ? nightOfficer.id : null;
+            if (notes) entry.notes = notes;
+            updatedCount++;
+        }
+
+        this.saveGateRoster(roster);
+        return { success: true, count: updatedCount, message: `تم تحديث جدول المناوبات لعدد (${updatedCount}) بوابة بنجاح` };
+    }
+
+    exportRosterToCSV() {
+        const roster = this.getGateRoster();
+        let csv = 'اسم البوابة (Gate_Name),كود شارة ضابط النهار (Day_Badge),اسم ضابط النهار (Day_Officer),كود شارة ضابط الليل (Night_Badge),اسم ضابط الليل (Night_Officer),ملاحظات (Notes)\n';
+        roster.forEach(r => {
+            csv += `"${r.gate_name || ''}","${r.day_officer_badge || ''}","${r.day_officer_name || ''}","${r.night_officer_badge || ''}","${r.night_officer_name || ''}","${r.notes || ''}"\n`;
+        });
+        return csv;
+    }
+
+    // =========================================================================
+    // OFFICER INSPECTION & ENTRY APPROVAL REQUESTS (MULTI-PHOTO: PLATE & CARRIAGE)
+    // =========================================================================
+
+    getInspectionRequests() {
+        const raw = localStorage.getItem('gate_requests');
+        try {
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    getPendingInspectionRequests() {
+        return this.getInspectionRequests().filter(r => r.status === 'pending');
+    }
+
+    createInspectionRequest({
+        plate_ar,
+        plate_en = '',
+        driver_name = 'سائق زائر',
+        driver_phone = '',
+        company = 'مورد عام',
+        destination = 'المستودع الرئيسي',
+        cargo_details = 'بضائع ومواد',
+        vehicle_type = 'truckHeavy',
+        notes = '',
+        plate_photo_url = null,
+        carriage_photo_url = null,
+        officer_id = 2,
+        gate_name = 'بوابة 1 الرئيسية - دوترا'
+    }) {
+        const requests = this.getInspectionRequests();
+        const users = this.getUsers();
+        const officer = users.find(u => u.id === officer_id);
+
+        const newRequest = {
+            id: this.generateId(),
+            plate_ar: plate_ar || '',
+            plate_en: plate_en || plate_ar || '',
+            driver_name: driver_name || 'سائق زائر',
+            driver_phone: driver_phone || '',
+            company: company || 'مورد عام',
+            destination: destination || 'المستودع الرئيسي',
+            cargo_details: cargo_details || 'بضائع ومواد',
+            vehicle_type: vehicle_type || 'truckHeavy',
+            notes: notes || '',
+            plate_photo_url: plate_photo_url || null,
+            carriage_photo_url: carriage_photo_url || null,
+            officer_id: officer_id,
+            officer_name: officer ? officer.name_ar : 'حارس البوابة',
+            gate_name: gate_name,
+            status: 'pending', // 'pending' | 'approved' | 'rejected'
+            manager_decision_notes: '',
+            created_at: new Date().toISOString(),
+            decided_at: null,
+            permit_id: null
+        };
+
+        requests.push(newRequest);
+        localStorage.setItem('gate_requests', JSON.stringify(requests));
+
+        // Announce live event across all manager tabs
+        this.announce('INSPECTION_REQUEST_CREATED', {
+            request_id: newRequest.id,
+            plate: newRequest.plate_ar,
+            driver: newRequest.driver_name,
+            gate: newRequest.gate_name,
+            officer: newRequest.officer_name
+        });
+
+        // Trigger push notification to managers
+        if (typeof window !== 'undefined' && window.PushService && typeof window.PushService.sendCustomNotification === 'function') {
+            window.PushService.sendCustomNotification({
+                title: `🚨 طلب فحص واستئذان دخول: ${newRequest.plate_ar}`,
+                body: `السائق: ${newRequest.driver_name} عند ${newRequest.gate_name}. يرجى مراجعة صور اللوحة والصندوق واتخاذ القرار.`,
+                targetRole: 'manager',
+                tag: `request-${newRequest.id}`
+            }).catch(() => {});
+        }
+
+        return newRequest;
+    }
+
+    decideInspectionRequest(requestId, decision, managerNotes = '', managerUserId = 1) {
+        const requests = this.getInspectionRequests();
+        const req = requests.find(r => r.id === requestId);
+        if (!req) return { success: false, message: 'الطلب غير موجود' };
+
+        const users = this.getUsers();
+        const manager = users.find(u => u.id === managerUserId) || { name_ar: 'م. أحمد فؤاد (مدير العمليات)' };
+
+        req.status = decision === 'approve' ? 'approved' : 'rejected';
+        req.manager_decision_notes = managerNotes || (decision === 'approve' ? 'تمت الموافقة والاعتماد المباشر من المدير' : 'تم رفض الدخول');
+        req.decided_at = new Date().toISOString();
+        req.decided_by_name = manager.name_ar;
+
+        let generatedPermit = null;
+
+        if (decision === 'approve') {
+            // Find or create vehicle
+            let vehicle = this.findVehicleByPlate(req.plate_ar);
+            if (!vehicle) {
+                vehicle = this.addVehicle({
+                    plate_ar: req.plate_ar,
+                    plate_en: req.plate_en,
+                    vehicle_type: req.vehicle_type,
+                    driver_name_ar: req.driver_name,
+                    driver_name_en: req.driver_name,
+                    driver_phone: req.driver_phone,
+                    company_ar: req.company,
+                    company_en: req.company,
+                    status: 'visitor',
+                    photo_url: req.plate_photo_url
+                });
+            } else {
+                if (req.plate_photo_url) vehicle.photo_url = req.plate_photo_url;
+                if (req.driver_phone) vehicle.driver_phone = req.driver_phone;
+            }
+
+            // Expire previous active permits for this vehicle to prevent duplicates
+            this.expireExistingPermitsForVehicle(vehicle.id);
+
+            // Generate approved permit
+            generatedPermit = this.addPermit({
+                vehicle_id: vehicle.id,
+                destination_ar: req.destination,
+                destination_en: req.destination,
+                cargo_details: req.cargo_details,
+                purpose_ar: `طلب استئذان معتمد: ${req.notes || 'دخول استثنائي معتمد بالصور'}`,
+                permit_type: 'entry',
+                valid_from: new Date().toISOString(),
+                valid_until: new Date(Date.now() + 8 * 3600000).toISOString(),
+                created_by: managerUserId,
+                created_by_name: manager.name_ar,
+                approved_by: managerUserId,
+                approved_by_name: manager.name_ar
+            });
+
+            req.permit_id = generatedPermit.id;
+            req.permit_code = generatedPermit.permit_code;
+            req.pin_code = generatedPermit.pin_code;
+        }
+
+        localStorage.setItem('gate_requests', JSON.stringify(requests));
+
+        // Announce decision live to gate officer
+        this.announce('INSPECTION_REQUEST_DECIDED', {
+            request_id: req.id,
+            status: req.status,
+            plate: req.plate_ar,
+            gate: req.gate_name,
+            permit_id: req.permit_id,
+            permit_code: req.permit_code,
+            pin_code: req.pin_code,
+            manager_notes: req.manager_decision_notes
+        });
+
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        return { success: true, request: req, permit: generatedPermit };
     }
 }
 

@@ -159,6 +159,13 @@ class ManagerController {
                         ${lang === 'ar' ? 'نظام تصاريح بوابات مصانع مجموعة دوترا - إرسال فوري لواتساب وطباعة معتمدة A4' : 'DOTRA Gate System - WhatsApp Dispatch & Official A4 Pass Printing'}
                     </p>
                 </div>
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <!-- Pending Officer Inspection Requests Button -->
+                    <button type="button" onclick="Manager.openPendingRequestsModal()" class="px-3.5 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all ${window.DB.getPendingInspectionRequests().length > 0 ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 animate-pulse font-black' : 'sap-btn-secondary'}" title="طلبات الاستئذان والتفتيش المرسلة من ضباط البوابات مع الصور">
+                        <span>🚨</span>
+                        <span>${lang === 'ar' ? 'طلبات الاستئذان' : 'Requests'}</span>
+                        ${window.DB.getPendingInspectionRequests().length > 0 ? `<span class="px-2 py-0.5 bg-slate-950 text-amber-300 rounded-full text-xs font-mono font-black">${window.DB.getPendingInspectionRequests().length}</span>` : ''}
+                    </button>
                     <button type="button" onclick="Manager.openImportCsvModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="${lang === 'ar' ? 'استيراد كشف الشاحنات المتوقع وصولها من اليوم السابق (CSV)' : 'Import Pre-Arrival Manifest (CSV)'}">
                         ${icon('file', 'w-4 h-4 text-emerald-600')}
                         <span>${lang === 'ar' ? 'كشف الوصول (CSV)' : 'Pre-Arrival CSV'}</span>
@@ -167,9 +174,9 @@ class ManagerController {
                         ${icon('bolt', 'w-4 h-4 text-amber-300')}
                         <span>${lang === 'ar' ? 'إصدار تصريح سريع' : 'Quick Pass'}</span>
                     </button>
-                    <button type="button" onclick="Manager.openSettingsModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="إعدادات النظام ورقم واتساب الافتراضي">
+                    <button type="button" onclick="Manager.openSettingsModal()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="إعدادات النظام، توزيع البوابات والمناوبات">
                         ${icon('settings', 'w-4 h-4 text-[#0070f2]')}
-                        <span>${lang === 'ar' ? 'الإعدادات' : 'Settings'}</span>
+                        <span>${lang === 'ar' ? 'الإعدادات والمناوبات' : 'Settings & Roster'}</span>
                     </button>
                     <button type="button" onclick="Manager.exportCSV()" class="sap-btn-secondary px-3.5 py-2.5 flex items-center gap-1.5 text-sm shadow-sm" title="تصدير إكسل">
                         ${icon('download', 'w-4 h-4 text-[#0070f2]')}
@@ -947,11 +954,12 @@ class ManagerController {
         const gates = window.DB.getGates();
         const destinations = window.DB.getDestinations();
         const officers = window.DB.getOfficers();
+        const roster = window.DB.getGateRoster();
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         modalContainer.innerHTML = `
             <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-2xl rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                <div class="sap-panel w-full max-w-3xl rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
                     </button>
@@ -962,8 +970,8 @@ class ManagerController {
                             ${icon('settings', 'w-5 h-5')}
                         </div>
                         <div>
-                            <h3 class="text-base font-black text-[#002b66]">${lang === 'ar' ? 'إعدادات النظام وإدارة البوابات' : 'System & Gate Settings'}</h3>
-                            <p class="text-xs text-[#556b82] font-semibold">${lang === 'ar' ? 'تخصيص البوابات، الوجهات الداخلية، وإدارة البيانات' : 'Configure gates, internal destinations, and system parameters'}</p>
+                            <h3 class="text-base font-black text-[#002b66]">${lang === 'ar' ? 'إعدادات النظام وجدول توزيع البوابات والمناوبات' : 'System Settings & Gate Shift Roster'}</h3>
+                            <p class="text-xs text-[#556b82] font-semibold">${lang === 'ar' ? 'تخصيص البوابات، تعيين ضباط النهار والليل (Back-to-Back)، وإدارة البيانات' : 'Configure gates, assign day/night shift officers, and manage roster'}</p>
                         </div>
                     </div>
 
@@ -975,7 +983,7 @@ class ManagerController {
                         </button>
                         <button type="button" onclick="Manager.openSettingsModal('gates')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'gates' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('shield', 'w-3.5 h-3.5')}
-                            <span>${lang === 'ar' ? `البوابات (${gates.length})` : `Gates (${gates.length})`}</span>
+                            <span>${lang === 'ar' ? `المناوبات والبوابات (${gates.length})` : `Gates & Roster (${gates.length})`}</span>
                         </button>
                         <button type="button" onclick="Manager.openSettingsModal('destinations')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'destinations' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('building', 'w-3.5 h-3.5')}
@@ -1016,44 +1024,7 @@ class ManagerController {
                                 </div>
                             </div>
 
-                            <!-- Card 2: Web Push & Live Tracking Notifications -->
-                            <div class="sap-settings-card space-y-3">
-                                <div class="flex items-center justify-between pb-2 border-b border-[#e2e8f0]">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[#0070f2]">${icon('bell', 'w-4 h-4')}</span>
-                                        <div>
-                                            <div class="text-xs font-black text-[#002b66]">${lang === 'ar' ? 'إشعارات الويب السحابية وتنبيهات البوابات' : 'Web Push & Gate Event Alerts'}</div>
-                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'استقبال تنبيهات فورية عند دخول وخروج الشاحنات' : 'Instant alerts for vehicle entries and exits'}</div>
-                                        </div>
-                                    </div>
-                                    <button type="button" onclick="Manager.handleTogglePush()" id="btn-push-toggle" class="px-3.5 py-1.5 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm' : 'bg-[#0070f2] hover:bg-[#005cbd] text-white shadow-sm'}">
-                                        ${icon(localStorage.getItem('gate_push_enabled') === 'true' ? 'check' : 'bell', 'w-3.5 h-3.5')}
-                                        <span>${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات مفعلة' : 'Enabled') : (lang === 'ar' ? 'تفعيل الإشعارات' : 'Enable Push')}</span>
-                                    </button>
-                                </div>
-
-                                <div class="flex items-center justify-between pt-1 text-[11px]">
-                                    <span class="text-[#556b82] text-[10px]">${lang === 'ar' ? 'تصلك الإشعارات حتى عند تصغير المتصفح' : 'Notifications delivered even when tab is backgrounded'}</span>
-                                    <button type="button" onclick="Manager.handleTestPush()" class="text-[#0070f2] hover:underline font-bold text-[10px] flex items-center gap-1">
-                                        ${icon('bell', 'w-3 h-3')}
-                                        <span>${lang === 'ar' ? 'إرسال إشعار تجريبي' : 'Send Test Alert'}</span>
-                                    </button>
-                                </div>
-
-                                <div class="pt-2 border-t border-[#e2e8f0]">
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <span class="text-[11px] font-bold text-[#002b66]">${lang === 'ar' ? 'تتبع إشعارات جميع الشاحنات' : 'Track All Vehicles'}</span>
-                                            <p class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'إشعار فوري عند دخول أو خروج أي مركبة' : 'Alert for all inbound & outbound trucks'}</p>
-                                        </div>
-                                        <button type="button" onclick="Manager.toggleWatchAll()" class="w-10 h-5 rounded-full transition-all relative ${localStorage.getItem('gate_vehicle_watchlist') === '[]' || !localStorage.getItem('gate_vehicle_watchlist') ? 'bg-[#0070f2]' : 'bg-slate-300'}">
-                                            <span class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${(localStorage.getItem('gate_vehicle_watchlist') === '[]' || !localStorage.getItem('gate_vehicle_watchlist')) ? 'right-5' : 'left-0.5'}"></span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Card 3: Unified Data Management & System Maintenance -->
+                            <!-- Card 2: Unified Data Management & System Maintenance -->
                             <div class="sap-settings-card space-y-3">
                                 <div class="flex items-center gap-2 pb-2 border-b border-[#e2e8f0]">
                                     <span class="text-[#556b82]">${icon('activity', 'w-4 h-4')}</span>
@@ -1126,9 +1097,31 @@ class ManagerController {
                         </form>
                     ` : ''}
 
-                    <!-- TAB 2: Gates & Assign Personnel -->
+                    <!-- TAB 2: Gates & Shift Roster Management (Day / Night Shift / Back-to-Back) -->
                     ${activeTab === 'gates' ? `
                         <div class="space-y-3">
+                            <!-- CSV Roster Toolbar -->
+                            <div class="p-3 bg-[#f0f4f8] rounded-2xl border border-[#d7e2ee] flex flex-wrap items-center justify-between gap-2">
+                                <div class="text-xs font-bold text-[#002b66] flex items-center gap-1.5">
+                                    <span>📊</span>
+                                    <span>${lang === 'ar' ? 'إدارة وتعيين ورديات البوابات (كشف CSV):' : 'Gate Shift Roster CSV Operations:'}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" onclick="Manager.downloadRosterCsvTemplate()" class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#0070f2] border border-[#b3d5fa] rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1">
+                                        <span>📄</span>
+                                        <span>${lang === 'ar' ? 'تحميل نموذج CSV' : 'Download Template'}</span>
+                                    </button>
+                                    <button type="button" onclick="Manager.openImportRosterModal()" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1">
+                                        <span>📥</span>
+                                        <span>${lang === 'ar' ? 'استيراد كشف المناوبات (CSV)' : 'Import CSV'}</span>
+                                    </button>
+                                    <button type="button" onclick="Manager.exportRosterCSV()" class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-[#1d2d3e] border border-[#d7e2ee] rounded-xl text-[11px] font-bold shadow-xs flex items-center gap-1">
+                                        <span>📤</span>
+                                        <span>${lang === 'ar' ? 'تصدير الكشف (CSV)' : 'Export CSV'}</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- Add Gate Form -->
                             <form onsubmit="Manager.handleAddGate(event)" class="flex gap-2 bg-[#f8fafc] p-3 rounded-2xl border border-[#d7e2ee]">
                                 <input type="text" id="new-gate-name" required placeholder="${lang === 'ar' ? 'اسم البوابة الجديدة (مثال: بوابة 5 الشاحنات والجمارك)...' : 'New Gate Name...'}" class="flex-1 bg-white border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
@@ -1138,42 +1131,52 @@ class ManagerController {
                                 </button>
                             </form>
 
-                            <!-- Gates List with Assigned Officers -->
-                            <div class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-                                ${gates.map((gate, idx) => {
-                                    const assignedOfficers = officers.filter(o => o.gate_assigned === gate);
-                                    return `
-                                        <div class="p-3.5 rounded-2xl bg-white border border-[#d7e2ee] hover:border-[#b0cfee] transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
-                                            <div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="w-6 h-6 rounded-lg bg-[#f0f4f8] text-[#002b66] flex items-center justify-center font-bold text-xs">
-                                                        ${idx + 1}
-                                                    </span>
-                                                    <span class="font-black text-sm text-[#002b66]">${gate}</span>
+                            <!-- Gates & Shift Roster List -->
+                            <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                                ${roster.map((r, idx) => `
+                                    <div class="p-3.5 rounded-2xl bg-white border border-[#d7e2ee] hover:border-[#b0cfee] transition-all space-y-2.5 shadow-sm">
+                                        <div class="flex items-center justify-between border-b border-[#e7eff7] pb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-6 h-6 rounded-lg bg-[#f0f4f8] text-[#002b66] flex items-center justify-center font-bold text-xs">
+                                                    ${idx + 1}
+                                                </span>
+                                                <span class="font-black text-sm text-[#002b66]">${r.gate_name}</span>
+                                            </div>
+                                            ${gates.length > 1 ? `
+                                                <button type="button" onclick="Manager.handleDeleteGate(${idx})" title="حذف البوابة" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors">
+                                                    ${icon('trash', 'w-3.5 h-3.5')}
+                                                </button>
+                                            ` : ''}
+                                        </div>
+
+                                        <!-- Shift Assignments: Day and Night (Back-to-Back) -->
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                                            <!-- Day Shift Assignment -->
+                                            <div class="p-2.5 bg-[#fefce8] rounded-xl border border-amber-200">
+                                                <div class="font-bold text-amber-900 mb-1 flex items-center justify-between">
+                                                    <span>☀️ وردية النهار (Day Shift)</span>
+                                                    <span class="text-[10px] font-mono text-amber-700">${r.day_officer_badge || '--'}</span>
                                                 </div>
-                                                <div class="text-[11px] text-[#556b82] mt-1 flex items-center gap-1.5">
-                                                    <span>${lang === 'ar' ? '👮 الحارس المعين:' : 'Assigned Officer:'}</span>
-                                                    <span class="font-bold text-[#107e3e]">
-                                                        ${assignedOfficers.length > 0 ? assignedOfficers.map(o => o.name_ar).join(', ') : (lang === 'ar' ? 'لا يوجد حارس معين حالياً' : 'None')}
-                                                    </span>
-                                                </div>
+                                                <select onchange="Manager.handleAssignShiftOfficer('${r.gate_name}', 'day', this.value)" class="w-full bg-white border border-amber-300 rounded-lg p-1.5 text-xs font-bold text-[#1d2d3e]">
+                                                    <option value="">${lang === 'ar' ? '-- بدون تعيين --' : '-- Unassigned --'}</option>
+                                                    ${officers.map(o => `<option value="${o.id}" ${r.day_officer_id === o.id ? 'selected' : ''}>${o.name_ar} (${o.badge_id})</option>`).join('')}
+                                                </select>
                                             </div>
 
-                                            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-                                                <!-- Assign Officer Dropdown -->
-                                                <select onchange="Manager.handleAssignOfficerToGate(this.value, '${gate}')" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-1.5 text-xs font-bold text-[#1d2d3e]">
-                                                    <option value="">${lang === 'ar' ? '➕ تعيين حارس...' : '➕ Assign Officer...'}</option>
-                                                    ${officers.map(o => `<option value="${o.id}">${o.name_ar} (${o.badge_id})</option>`).join('')}
+                                            <!-- Night Shift / Back-to-Back Assignment -->
+                                            <div class="p-2.5 bg-[#f0fdf4] rounded-xl border border-emerald-200">
+                                                <div class="font-bold text-emerald-900 mb-1 flex items-center justify-between">
+                                                    <span>🌙 وردية الليل / المناوب البديل (Night Shift)</span>
+                                                    <span class="text-[10px] font-mono text-emerald-700">${r.night_officer_badge || '--'}</span>
+                                                </div>
+                                                <select onchange="Manager.handleAssignShiftOfficer('${r.gate_name}', 'night', this.value)" class="w-full bg-white border border-emerald-300 rounded-lg p-1.5 text-xs font-bold text-[#1d2d3e]">
+                                                    <option value="">${lang === 'ar' ? '-- بدون تعيين --' : '-- Unassigned --'}</option>
+                                                    ${officers.map(o => `<option value="${o.id}" ${r.night_officer_id === o.id ? 'selected' : ''}>${o.name_ar} (${o.badge_id})</option>`).join('')}
                                                 </select>
-                                                ${gates.length > 1 ? `
-                                                    <button type="button" onclick="Manager.handleDeleteGate(${idx})" title="حذف البوابة" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors">
-                                                        ${icon('trash', 'w-3.5 h-3.5')}
-                                                    </button>
-                                                ` : ''}
                                             </div>
                                         </div>
-                                    `;
-                                }).join('')}
+                                    </div>
+                                `).join('')}
                             </div>
                         </div>
                     ` : ''}
@@ -1283,6 +1286,385 @@ class ManagerController {
         if (!officerId) return;
         window.DB.assignOfficerToGate(parseInt(officerId), gateName);
         this.openSettingsModal('gates');
+    }
+
+    handleAssignShiftOfficer(gateName, shift, officerId) {
+        const roster = window.DB.getGateRoster();
+        let entry = roster.find(r => r.gate_name === gateName);
+        if (!entry) {
+            entry = { gate_name: gateName, day_officer_id: null, night_officer_id: null, notes: '' };
+            roster.push(entry);
+        }
+
+        const idNum = officerId ? parseInt(officerId) : null;
+        if (shift === 'day') {
+            entry.day_officer_id = idNum;
+        } else if (shift === 'night') {
+            entry.night_officer_id = idNum;
+        }
+
+        window.DB.saveGateRoster(roster);
+        this.openSettingsModal('gates');
+    }
+
+    downloadRosterCsvTemplate() {
+        const csvContent = "\uFEFF" + window.DB.getRosterCsvTemplate();
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DOTRA_Gate_Shift_Roster_Template.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    exportRosterCSV() {
+        const csvContent = "\uFEFF" + window.DB.exportRosterToCSV();
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DOTRA_Gate_Shift_Roster_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    openImportRosterModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-xl w-full p-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2">
+                            <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+                                ${icon('file', 'w-5 h-5')}
+                            </span>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'استيراد جدول ورديات وتوزيع البوابات (CSV)' : 'Import Gate Shift Roster (CSV)'}
+                                </h3>
+                                <p class="text-xs text-[#556b82]">
+                                    ${lang === 'ar' ? 'رفع ملف CSV يحتوي على تعيين ضباط ورديات النهار والليل لكل بوابة' : 'Upload CSV assigning day and night officers per gate'}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="Manager.submitImportRoster(event)" class="py-4 space-y-4">
+                        <div class="border-2 border-dashed border-[#b0cfee] hover:border-[#0070f2] rounded-2xl p-4 text-center bg-[#f8fafc] transition-all">
+                            <label class="cursor-pointer flex flex-col items-center justify-center gap-2">
+                                <span class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200 shadow-sm">
+                                    ${icon('file', 'w-5 h-5')}
+                                </span>
+                                <span class="text-xs font-bold text-[#002b66]">
+                                    ${lang === 'ar' ? 'اختر ملف CSV من جهازك' : 'Choose CSV file'}
+                                </span>
+                                <input type="file" accept=".csv, .txt" onchange="Manager.handleRosterCsvUpload(event)" class="hidden" />
+                            </label>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-[#1d2d3e] mb-1">
+                                ${lang === 'ar' ? 'أو الصق بيانات الكشف هنا مباشرة:' : 'Or paste CSV roster data directly:'}
+                            </label>
+                            <textarea id="roster-import-textarea" rows="5" placeholder="${window.DB.getRosterCsvTemplate()}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl p-3 text-xs font-mono text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none"></textarea>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                                ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs flex items-center gap-1.5 shadow-md font-bold rounded-xl active:scale-95 transition-all">
+                                ${icon('save', 'w-4 h-4')}
+                                <span>${lang === 'ar' ? 'اعتماد وتطبيق جدول المناوبات' : 'Apply Shift Roster'}</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    handleRosterCsvUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const textarea = document.getElementById('roster-import-textarea');
+            if (textarea) textarea.value = e.target.result;
+        };
+        reader.readAsText(file, 'utf-8');
+    }
+
+    submitImportRoster(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        const textarea = document.getElementById('roster-import-textarea');
+        const csvContent = textarea ? textarea.value.trim() : '';
+        if (!csvContent) {
+            alert(window.i18n.getLang() === 'ar' ? 'يرجى إدخال أو رفع بيانات كشف الـ CSV أولاً' : 'Please provide CSV content first.');
+            return;
+        }
+
+        const result = window.DB.importRosterFromCSV(csvContent);
+        if (result.success) {
+            document.getElementById('modal-container').innerHTML = '';
+            this.openSettingsModal('gates');
+            if (window.App && typeof window.App.showToast === 'function') {
+                window.App.showToast('📊 جدول المناوبات', result.message, 'success');
+            } else {
+                alert(result.message);
+            }
+        } else {
+            alert(result.message || 'حدث خطأ أثناء معالجة ملف الـ CSV');
+        }
+    }
+
+    // =========================================================================
+    // MANAGER INSPECTION & ENTRY REQUEST REVIEW HUB (DUAL PHOTO VIEW)
+    // =========================================================================
+
+    openPendingRequestsModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+        const requests = window.DB.getInspectionRequests();
+        const pending = requests.filter(r => r.status === 'pending');
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-lg border border-amber-300">
+                                🚨
+                            </span>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'طلبات الاستئذان والفحص الواردة من ضباط البوابات' : 'Gate Officer Inspection & Pass Requests'}
+                                </h3>
+                                <p class="text-xs text-[#556b82]">
+                                    ${lang === 'ar' ? `يوجد (${pending.length}) طلبات بانتظار قرار المدير` : `${pending.length} requests awaiting manager decision`}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <div class="py-4 space-y-3">
+                        ${requests.length === 0 ? `
+                            <div class="text-center py-10 bg-[#f8fafc] rounded-2xl border border-dashed border-[#d7e2ee]">
+                                <div class="text-3xl mb-2">🛡️</div>
+                                <div class="text-xs font-bold text-[#556b82]">لا توجد طلبات استئذان مسجلة حالياً</div>
+                            </div>
+                        ` : `
+                            <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                                ${requests.map(req => {
+                                    const isPending = req.status === 'pending';
+                                    const isApproved = req.status === 'approved';
+                                    const statusBadge = isPending 
+                                        ? '<span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-black animate-pulse">⏳ بانتظار القرار</span>'
+                                        : (isApproved ? '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full text-xs font-black">✅ معتمد</span>' : '<span class="px-2.5 py-1 bg-rose-100 text-rose-900 border border-rose-300 rounded-full text-xs font-black">⛔ مرفوض</span>');
+
+                                    return `
+                                        <div class="p-4 rounded-2xl bg-white border-2 ${isPending ? 'border-amber-300 bg-amber-50/20' : 'border-[#d7e2ee]'} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm hover:border-[#0070f2] transition-all">
+                                            <div class="space-y-1.5 flex-1">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="font-black text-sm text-[#002b66]">${req.plate_ar}</span>
+                                                    ${statusBadge}
+                                                    <span class="text-[11px] text-[#556b82] font-mono">📍 ${req.gate_name}</span>
+                                                </div>
+                                                <div class="text-xs text-[#1d2d3e] font-bold">
+                                                    <span>👤 السائق: ${req.driver_name}</span>
+                                                    ${req.driver_phone ? `<span class="text-[#0070f2] font-mono"> (${req.driver_phone})</span>` : ''}
+                                                    <span class="text-[#556b82]"> • 🏢 ${req.company}</span>
+                                                </div>
+                                                <div class="text-[11px] text-[#556b82]">
+                                                    <span>📦 الحمولة: <b>${req.cargo_details}</b></span> • <span>📍 الوجهة: <b>${req.destination}</b></span>
+                                                </div>
+                                                <div class="text-[11px] text-amber-900 bg-amber-50 p-1.5 rounded-lg border border-amber-200">
+                                                    📝 ملاحظات الحارس: <b>${req.notes}</b> (👮 ${req.officer_name})
+                                                </div>
+                                                <div class="flex items-center gap-2 pt-1">
+                                                    ${req.plate_photo_url ? '<span class="text-[10px] bg-blue-50 text-[#0070f2] px-2 py-0.5 rounded border border-blue-200 font-bold">📸 صورة اللوحة مرفقة</span>' : ''}
+                                                    ${req.carriage_photo_url ? '<span class="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200 font-bold">📸 صورة الصندوق مرفقة</span>' : ''}
+                                                </div>
+                                            </div>
+                                            <button type="button" onclick="Manager.showRequestReviewModal('${req.id}')" class="px-4 py-2.5 ${isPending ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-black' : 'sap-btn-secondary text-xs font-bold'} rounded-xl shadow-sm flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-center active:scale-95 transition-all">
+                                                <span>🔍</span>
+                                                <span>${isPending ? 'فحص الصور واتخاذ القرار' : 'عرض التفاصيل'}</span>
+                                            </button>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `}
+                    </div>
+
+                    <div class="flex justify-end pt-3 border-t border-[#d7e2ee]">
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    showRequestReviewModal(requestId) {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+        const requests = window.DB.getInspectionRequests();
+        const req = requests.find(r => r.id === requestId);
+        if (!req) return;
+
+        const isPending = req.status === 'pending';
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-3xl w-full p-6 max-h-[92vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2">
+                            <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-lg border border-amber-300">
+                                🔍
+                            </span>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    معاينة وفحص طلب استئذان المركبة (${req.plate_ar})
+                                </h3>
+                                <p class="text-xs text-[#556b82]">
+                                    مرسل من: 👮 ${req.officer_name} عند 📍 ${req.gate_name}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="Manager.openPendingRequestsModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <div class="py-4 space-y-4 text-xs">
+                        
+                        <!-- Egyptian Plate Preview -->
+                        <div class="flex justify-center">
+                            ${window.ArabicPlate ? window.ArabicPlate.renderEgyptianPlate(req.plate_ar, 'normal', req.vehicle_type) : `<div class="font-black text-xl text-[#002b66]">${req.plate_ar}</div>`}
+                        </div>
+
+                        <!-- Summary Details Table -->
+                        <div class="bg-[#f8fafc] rounded-2xl p-4 border border-[#d7e2ee] space-y-2">
+                            <div class="grid grid-cols-2 gap-2 border-b border-[#e7eff7] pb-1.5">
+                                <div><span class="text-[#556b82] font-bold">اسم السائق:</span> <strong class="text-[#1d2d3e]">${req.driver_name}</strong></div>
+                                <div><span class="text-[#556b82] font-bold">هاتف السائق:</span> <strong class="text-[#0070f2] font-mono">${req.driver_phone || 'غير مسجل'}</strong></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 border-b border-[#e7eff7] pb-1.5">
+                                <div><span class="text-[#556b82] font-bold">الشركة / المورد:</span> <strong class="text-[#1d2d3e]">${req.company}</strong></div>
+                                <div><span class="text-[#556b82] font-bold">الوجهة داخل المصنع:</span> <strong class="text-[#002b66]">${req.destination}</strong></div>
+                            </div>
+                            <div class="border-b border-[#e7eff7] pb-1.5">
+                                <span class="text-[#556b82] font-bold">تفاصيل الحمولة:</span> <strong class="text-[#1d2d3e]">${req.cargo_details}</strong>
+                            </div>
+                            <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-amber-900">
+                                <span class="font-bold">📝 سبب الاستئذان من الحارس:</span> ${req.notes}
+                            </div>
+                        </div>
+
+                        <!-- DUAL PHOTO HIGH-RES GALLERY (PLATE + CARRIAGE) -->
+                        <div class="space-y-2">
+                            <div class="font-black text-xs text-[#002b66]">
+                                📸 الصور المرفقة من ضابط البوابة للمعاينة والتحقق:
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                
+                                <!-- PHOTO 1: CAR PLATE -->
+                                <div class="bg-[#f8fafc] p-3 rounded-2xl border border-[#d7e2ee] text-center">
+                                    <div class="font-bold text-[11px] text-[#002b66] mb-1.5">1️⃣ صورة لوحة السيارة (License Plate)</div>
+                                    ${req.plate_photo_url ? `
+                                        <a href="${req.plate_photo_url}" target="_blank" title="انقر لتكبير الصورة">
+                                            <img src="${req.plate_photo_url}" alt="لوحة السيارة" class="w-full h-44 object-cover rounded-xl border border-[#b0cfee] shadow-sm hover:opacity-95 transition-all" />
+                                        </a>
+                                    ` : `
+                                        <div class="h-44 rounded-xl border border-dashed border-[#d7e2ee] flex items-center justify-center text-[#8fa4b8] font-bold">
+                                            لم يتم إرفاق صورة لوحة
+                                        </div>
+                                    `}
+                                </div>
+
+                                <!-- PHOTO 2: CARRIAGE / CARGO -->
+                                <div class="bg-[#f8fafc] p-3 rounded-2xl border border-[#d7e2ee] text-center">
+                                    <div class="font-bold text-[11px] text-[#002b66] mb-1.5">2️⃣ صورة صندوق / حمولة الشاحنة (Carriage)</div>
+                                    ${req.carriage_photo_url ? `
+                                        <a href="${req.carriage_photo_url}" target="_blank" title="انقر لتكبير الصورة">
+                                            <img src="${req.carriage_photo_url}" alt="صندوق الشاحنة" class="w-full h-44 object-cover rounded-xl border border-[#b0cfee] shadow-sm hover:opacity-95 transition-all" />
+                                        </a>
+                                    ` : `
+                                        <div class="h-44 rounded-xl border border-dashed border-[#d7e2ee] flex items-center justify-center text-[#8fa4b8] font-bold">
+                                            لم يتم إرفاق صورة صندوق
+                                        </div>
+                                    `}
+                                </div>
+
+                            </div>
+                        </div>
+
+                        ${isPending ? `
+                            <!-- Decision Actions -->
+                            <div class="pt-3 border-t border-[#d7e2ee] flex flex-col sm:flex-row gap-2.5">
+                                <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'reject')" class="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-black rounded-xl text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                                    <span>⛔</span>
+                                    <span>رفض ومنع دخول الشاحنة</span>
+                                </button>
+                                <button type="button" onclick="Manager.handleDecideRequest('${req.id}', 'approve')" class="flex-1 py-3 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+                                    <span>✅</span>
+                                    <span>اعتماد فوري وإصدار تصريح دخول</span>
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="p-3 rounded-xl ${req.status === 'approved' ? 'bg-emerald-50 text-emerald-900 border border-emerald-300' : 'bg-rose-50 text-rose-900 border border-rose-300'} font-bold text-center">
+                                ${req.status === 'approved' ? `✅ تم اعتماد الطلب وإصدار التصريح (${req.permit_code || ''})` : `⛔ تم رفض هذا الطلب: ${req.manager_decision_notes || ''}`}
+                            </div>
+                        `}
+
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    handleDecideRequest(requestId, decision) {
+        const lang = window.i18n.getLang();
+        const user = window.Auth ? window.Auth.getCurrentUser() : { id: 1 };
+        let notes = '';
+
+        if (decision === 'reject') {
+            const promptMsg = lang === 'ar' ? 'سبب رفض الدخول (اختياري):' : 'Reason for rejection (optional):';
+            notes = prompt(promptMsg, 'مرفوض من مدير العمليات') || 'مرفوض من مدير العمليات';
+        }
+
+        const res = window.DB.decideInspectionRequest(requestId, decision, notes, user ? user.id : 1);
+        if (res.success) {
+            this.renderDashboard();
+            if (decision === 'approve' && res.permit) {
+                this.showPassModal(res.permit.id);
+                if (window.App && typeof window.App.showToast === 'function') {
+                    window.App.showToast('✅ تم اعتماد الدخول', `تم إصدار التصريح (${res.permit.permit_code}) وإشعار ضابط البوابة فوراً.`, 'success');
+                }
+            } else {
+                this.openPendingRequestsModal();
+                if (window.App && typeof window.App.showToast === 'function') {
+                    window.App.showToast('⛔ تم رفض الطلب', `تم تسجيل الرفض وإشعار ضابط البوابة فوراً.`, 'danger');
+                }
+            }
+        } else {
+            alert(res.message || 'حدث خطأ أثناء معالجة القرار');
+        }
     }
 
     handleAddDestination(e) {
