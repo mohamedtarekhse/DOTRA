@@ -452,7 +452,7 @@ class ManagerController {
                 logs.some(l => l.permit_id === permit.id) ||
                 (!!insideLog && (insideLog.permit_id === permit.id || (permit.created_at && window.DB.parseTimestamp(insideLog.timestamp).getTime() >= window.DB.parseTimestamp(permit.created_at).getTime() - 60000)))
             ) : false;
-            const hasVehicleEntered = isEnteredOnThisPermit || !!insideLog;
+            const hasVehicleEntered = isEnteredOnThisPermit;
             
             const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : '--';
             const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : null;
@@ -474,7 +474,7 @@ class ManagerController {
             } else if (permit && permit.status === 'revoked') {
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> <span>⛔ تصريح ملغي</span></span>`;
             } else if (permit && permit.status === 'active' && !hasVehicleEntered) {
-                statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>🟢 تصريح ساري</span></span>`;
+                statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>🟢 تصريح ساري بانتظار الدخول</span></span>`;
             } else {
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-exited flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : 'Exited'}</span></span>`;
                 if (lastExitLog) {
@@ -697,7 +697,7 @@ class ManagerController {
                 logs.some(l => l.permit_id === permit.id) ||
                 (!!insideLog && (insideLog.permit_id === permit.id || (permit.created_at && window.DB.parseTimestamp(insideLog.timestamp).getTime() >= window.DB.parseTimestamp(permit.created_at).getTime() - 60000)))
             ) : false;
-            const hasVehicleEntered = isEnteredOnThisPermit || !!insideLog;
+            const hasVehicleEntered = isEnteredOnThisPermit;
             
             const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : (insideLog ? insideLog.gate_name : '--');
             const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : (insideLog ? users.find(u => u.id === insideLog.officer_id) : null);
