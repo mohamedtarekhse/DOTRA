@@ -1115,27 +1115,37 @@ class DatabaseService {
         let isInside = !!insideLog;
         let minutesInside = 0;
 
+        let isOverstay = false;
+        let overstayMinutes = 0;
+        let isExpired = false;
+
         if (insideLog) {
             const entryTime = this.parseTimestamp(insideLog.timestamp).getTime();
             minutesInside = Math.max(0, Math.round((Date.now() - entryTime) / 60000));
+            
+            // Check overstay: duration > 120 mins or permit valid_until exceeded
+            if (minutesInside > 120 || (permit && permit.valid_until && new Date() > this.parseTimestamp(permit.valid_until))) {
+                isOverstay = true;
+                overstayMinutes = Math.max(0, minutesInside - 120);
+            }
 
             const cargoState = vehicle.cargo_state || 'loaded_incoming';
             if (cargoState === 'reloading_secondary') {
                 stage = 'INSIDE_RELOADING';
-                stageLabelAr = 'داخل المصنع - جاري تحميل شحنة أخرى';
-                stageColor = 'purple';
+                stageLabelAr = isOverstay ? 'داخل المصنع (متجاوزة المدة) - جاري تحميل شحنة أخرى' : 'داخل المصنع - جاري تحميل شحنة أخرى';
+                stageColor = isOverstay ? 'amber' : 'purple';
             } else if (cargoState === 'unloaded_empty') {
                 stage = 'INSIDE_UNLOADED';
-                stageLabelAr = 'داخل المصنع - تم تفريغ الحمولة بالكامل';
-                stageColor = 'blue';
+                stageLabelAr = isOverstay ? 'داخل المصنع (متجاوزة المدة) - تم تفريغ الحمولة بالكامل' : 'داخل المصنع - تم تفريغ الحمولة بالكامل';
+                stageColor = isOverstay ? 'amber' : 'blue';
             } else if (cargoState === 'ready_exit' || (permit && permit.permit_type === 'exit')) {
                 stage = 'READY_EXIT';
-                stageLabelAr = 'أنهت العمليات داخل المصنع - جاهزة للخروج النهائي';
-                stageColor = 'emerald';
+                stageLabelAr = isOverstay ? 'أنهت العمليات (متجاوزة المدة) - جاهزة للخروج النهائي' : 'أنهت العمليات داخل المصنع - جاهزة للخروج النهائي';
+                stageColor = isOverstay ? 'amber' : 'emerald';
             } else {
-                stage = 'INSIDE_PROCESSING';
-                stageLabelAr = 'داخل المنشأة - قيد العمليات والتفريغ';
-                stageColor = 'blue';
+                stage = isOverstay ? 'INSIDE_OVERSTAY' : 'INSIDE_PROCESSING';
+                stageLabelAr = isOverstay ? 'داخل المنشأة (متجاوزة المدة المسموحة) - قيد العمليات' : 'داخل المنشأة - قيد العمليات والتفريغ';
+                stageColor = isOverstay ? 'red' : 'blue';
             }
         } else {
             if (vehicle.status === 'blacklist') {
@@ -1150,6 +1160,11 @@ class DatabaseService {
                 stage = 'PERMIT_HOLD';
                 stageLabelAr = 'تصريح معلق بقرار الإدارة';
                 stageColor = 'amber';
+            } else if (permit && permit.valid_until && new Date() > this.parseTimestamp(permit.valid_until)) {
+                isExpired = true;
+                stage = 'PERMIT_EXPIRED';
+                stageLabelAr = 'خارج المنشأة - تصريح منتهي الصلاحية / وصول متأخر';
+                stageColor = 'red';
             } else {
                 stage = 'AWAITING_ENTRY';
                 stageLabelAr = 'خارج المنشأة - تصريح معتمد وجاهز للدخول';
@@ -1163,6 +1178,9 @@ class DatabaseService {
             insideLog,
             isInside,
             minutesInside,
+            isOverstay,
+            overstayMinutes,
+            isExpired,
             stage,
             stageLabelAr,
             stageColor,

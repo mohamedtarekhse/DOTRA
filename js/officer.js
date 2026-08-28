@@ -418,12 +418,32 @@ class OfficerController {
                 cargoStatusBadgeColor = 'bg-emerald-100 text-emerald-950 border-emerald-300';
             }
 
+            const isOverstay = lifecycle && lifecycle.isOverstay;
+            const overstayMins = lifecycle ? lifecycle.overstayMinutes : Math.max(0, durationMinutes - 120);
+
             // Visual Pipeline for in-factory journey
             pipelineHtml = `
+                ${isOverstay ? `
+                    <div class="mb-3 p-3 bg-red-950 text-white rounded-2xl border-2 border-red-600 shadow-md text-xs">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl animate-bounce">⚠️</span>
+                                <div>
+                                    <div class="text-xs font-black text-red-300">تنبيه: الشاحنة متجاوزة للمدة القصوى داخل المنشأة!</div>
+                                    <div class="text-[11px] text-white">متواجدة منذ <b class="font-mono text-amber-300">${durationMinutes} دقيقة</b> (تجاوزت الحد بـ <b class="font-mono text-amber-300">${overstayMins} دقيقة</b>)</div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="Officer.sendOverstayAlert('${vehicle.id}')" class="px-2.5 py-1.5 bg-red-700 hover:bg-red-600 text-white text-[10px] font-bold rounded-lg border border-red-400 active:scale-95 shadow-sm">
+                                🚨 إشعار تجاوز
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
+
                 <div class="mb-3 p-3 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-sm text-xs">
                     <div class="text-[11px] font-bold text-slate-400 mb-2 flex justify-between items-center">
                         <span>🗺️ خط سير الشاحنة داخل المنشأة:</span>
-                        <span class="text-amber-400 font-mono font-bold">⏱️ المدة: ${durationMinutes === 0 ? 'الآن' : `${durationMinutes} دقيقة`}</span>
+                        <span class="${isOverstay ? 'text-red-400 animate-pulse' : 'text-amber-400'} font-mono font-bold">⏱️ المدة: ${durationMinutes === 0 ? 'الآن' : `${durationMinutes} دقيقة`} ${isOverstay ? '(متجاوزة)' : ''}</span>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5 text-center font-bold text-[10px]">
                         <div class="p-1.5 rounded-lg ${cargoState === 'loaded_incoming' || cargoState === 'inside_processing' ? 'bg-[#0070f2] text-white shadow-xs' : 'bg-slate-800 text-slate-400'}">
@@ -440,11 +460,11 @@ class OfficerController {
             `;
 
             decisionBadge = `
-                <div class="p-4 bg-[#ebf3fb] text-[#002b66] rounded-2xl border-2 border-[#b3d5fa] mb-3">
-                    <div class="flex items-center justify-between border-b border-[#b3d5fa] pb-2 mb-2">
-                        <div class="text-sm font-black flex items-center gap-1.5 text-[#107e3e]">
-                            <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e] animate-pulse"></span>
-                            <span>🟢 الشاحنة متواجدة داخل المصنع حالياً</span>
+                <div class="p-4 ${isOverstay ? 'bg-[#fff5f5] text-[#991b1b] border-2 border-red-300' : 'bg-[#ebf3fb] text-[#002b66] border-2 border-[#b3d5fa]'} rounded-2xl mb-3">
+                    <div class="flex items-center justify-between border-b ${isOverstay ? 'border-red-200' : 'border-[#b3d5fa]'} pb-2 mb-2">
+                        <div class="text-sm font-black flex items-center gap-1.5 ${isOverstay ? 'text-red-700' : 'text-[#107e3e]'}">
+                            <span class="w-2.5 h-2.5 rounded-full ${isOverstay ? 'bg-red-600 animate-ping' : 'bg-[#107e3e] animate-pulse'}"></span>
+                            <span>${isOverstay ? '⚠️ الشاحنة متواجدة داخل المصنع (متجاوزة)' : '🟢 الشاحنة متواجدة داخل المصنع حالياً'}</span>
                         </div>
                         <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold border ${cargoStatusBadgeColor}">
                             ${cargoStatusLabel}
@@ -461,10 +481,17 @@ class OfficerController {
             actionButtons = `
                 <div class="space-y-2">
                     <!-- Primary Exit Action -->
-                    <button type="button" onclick="Officer.recordAction('exit')" class="w-full py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
-                        ${icon('logout', 'w-5 h-5')}
-                        <span>${lang === 'ar' ? '📤 اعتماد الخروج النهائي وتأكيد المغادرة' : 'Authorize Final Exit'}</span>
-                    </button>
+                    ${isOverstay ? `
+                        <button type="button" onclick="Officer.openOverstayExitModal('${vehicle.id}')" class="w-full py-3.5 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
+                            ${icon('logout', 'w-5 h-5')}
+                            <span>${lang === 'ar' ? '📤 اعتماد خروج مع توثيق سبب التأخير' : 'Authorize Exit with Delay Reason'}</span>
+                        </button>
+                    ` : `
+                        <button type="button" onclick="Officer.recordAction('exit')" class="w-full py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
+                            ${icon('logout', 'w-5 h-5')}
+                            <span>${lang === 'ar' ? '📤 اعتماد الخروج النهائي وتأكيد المغادرة' : 'Authorize Final Exit'}</span>
+                        </button>
+                    `}
 
                     <!-- Cargo Status & Reload Options -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -547,6 +574,43 @@ class OfficerController {
                     <span>⚠️</span>
                     <span>طلب سحب أو إفادة بشأن التصريح من المدير</span>
                 </button>
+            `;
+        } else if (permit && (permit.status === 'expired' || (lifecycle && lifecycle.isExpired))) {
+            decisionBadge = `
+                <div class="p-4 bg-[#3b0d0c] text-white rounded-2xl border-2 border-red-800 mb-3 shadow-md">
+                    <div class="flex items-center justify-between border-b border-red-800/60 pb-2 mb-2">
+                        <div class="text-sm font-black flex items-center gap-1.5 text-red-300">
+                            <span>⏱️ تصريح منتهي الصلاحية / وصول متأخر</span>
+                        </div>
+                        <span class="px-2 py-0.5 bg-red-950 text-red-200 border border-red-700 rounded text-xs font-mono font-bold">
+                            ${permit.permit_code}
+                        </span>
+                    </div>
+                    <p class="text-xs text-red-200 font-semibold mb-2">
+                        انتهت فترة صلاحية هذا التصريح قبل الدخول. غير مصرح بالدخول المباشر إلا بعد تمديد التصريح أو الاستئذان من المدير.
+                    </p>
+                    <div class="text-[11px] text-amber-200">
+                        تاريخ انتهاء الصلاحية: <b class="font-mono">${new Date(permit.valid_until).toLocaleString('ar-EG')}</b>
+                    </div>
+                </div>
+            `;
+            actionButtons = `
+                <div class="space-y-2">
+                    <button type="button" onclick="Officer.openInspectionRequestModal('${OfficerController.escHtml(vehicle.plate_ar)}')" class="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
+                        <span>🚨</span>
+                        <span>طلب تمديد واستئذان فوري من مدير العمليات</span>
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="Officer.openWalkinWithPlate('${OfficerController.escHtml(vehicle.plate_ar)}')" class="py-2.5 sap-btn-primary font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95">
+                            <span>⚡</span>
+                            <span>دخول استثنائي (Walk-in)</span>
+                        </button>
+                        <button type="button" onclick="Officer.recordAction('denied', 'تصريح منتهي الصلاحية')" class="py-2.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95">
+                            <span>⛔</span>
+                            <span>منع الدخول وتوثيق انتهاء الصلاحية</span>
+                        </button>
+                    </div>
+                </div>
             `;
         } else if (permit && permit.status === 'active') {
             const isExit = permit.permit_type === 'exit';
@@ -1301,6 +1365,111 @@ class OfficerController {
         this.renderTerminal();
     }
 
+    openOverstayExitModal(vehicleId) {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const vehicle = window.DB.getVehicles().find(v => v.id === parseInt(vehicleId));
+        if (!vehicle) return;
+        const lifecycle = window.DB.getVehicleOperationalLifecycle(vehicle.id);
+        const duration = lifecycle ? lifecycle.minutesInside : 120;
+        const overstay = lifecycle ? lifecycle.overstayMinutes : Math.max(0, duration - 120);
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border-2 border-red-400" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee] mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-red-100 text-red-700 flex items-center justify-center font-black text-lg border border-red-300">
+                                ⚠️
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'توثيق سبب التأخير واعتماد خروج الشاحنة' : 'Document Delay Reason & Authorize Exit'}
+                                </h3>
+                                <p class="text-[11px] text-red-600 font-bold">
+                                    ${lang === 'ar' ? `مركبة: ${vehicle.plate_ar} • المدة: ${duration} دقيقة (تجاوزت بـ ${overstay} دقيقة)` : `Vehicle: ${vehicle.plate_ar}`}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="Officer.submitOverstayExit(event, '${vehicle.id}')" class="space-y-3.5 text-xs">
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">سبب تجاوز الشاحنة للمدة المسموحة بالمصنع:</label>
+                            <select id="overstay-reason-select" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2.5 font-bold text-[#1d2d3e] focus:border-red-600 focus:bg-white focus:outline-none">
+                                <option value="تأخر في عمليات التحميل والتفريغ بالمستودع">تأخر في عمليات التحميل والتفريغ بالمستودع</option>
+                                <option value="انتظار استخراج الفواتير وأذونات الصرف الإدارية">انتظار استخراج الفواتير وأذونات الصرف الإدارية</option>
+                                <option value="عطل ميكانيكي أو صيانة وإصلاح للشاحنة">عطل ميكانيكي أو صيانة وإصلاح للشاحنة</option>
+                                <option value="ازدحام في ساحة الانتظار الداخلية">ازدحام في ساحة الانتظار الداخلية</option>
+                                <option value="فحص جودة وتفتيش إضافي للشحنة">فحص جودة وتفتيش إضافي للشحنة</option>
+                                <option value="أخرى">أخرى (موضحة في الملاحظات)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">📝 ملاحظات الضابط عند الخروج:</label>
+                            <input type="text" id="overstay-notes-input" placeholder="${lang === 'ar' ? 'تم الفحص والتأكد من استكمال الإجراءات وسلامة الحمولة' : 'Inspection complete'}" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2 text-[#1d2d3e] focus:border-red-600 focus:bg-white focus:outline-none" />
+                        </div>
+
+                        <div class="pt-2 flex gap-2">
+                            <button type="submit" class="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs shadow-md active:scale-95 transition-all">
+                                📤 ${lang === 'ar' ? 'اعتماد الخروج وتوثيق سبب التأخير' : 'Authorize Exit'}
+                            </button>
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+                                إلغاء
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    submitOverstayExit(event, vehicleId) {
+        if (event) event.preventDefault();
+        const reason = document.getElementById('overstay-reason-select')?.value || 'تأخر في التحميل والتفريغ';
+        const notes = document.getElementById('overstay-notes-input')?.value.trim() || '';
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'حارس البوابة', gate_assigned: 'Gate 1' };
+        const fullRemarks = `خروج مع تجاوز مدة (${reason})${notes ? ` - ${notes}` : ''}`;
+
+        window.DB.recordExit(parseInt(vehicleId), user.id, user.gate_assigned, fullRemarks, this.currentCapturedPhoto);
+
+        document.getElementById('modal-container').innerHTML = '';
+        const lang = window.i18n.getLang();
+        if (window.App) {
+            window.App.showToast(
+                lang === 'ar' ? '📤 تم تسجيل خروج الشاحنة المتأخرة' : 'Overstay Exit Recorded',
+                lang === 'ar' ? `سبب التأخير: ${reason}` : `Delay Reason: ${reason}`,
+                'warning',
+                'logout'
+            );
+        }
+
+        this.clearSearch();
+        this.renderTerminal();
+    }
+
+    sendOverstayAlert(vehicleId) {
+        const vehicle = window.DB.getVehicles().find(v => v.id === parseInt(vehicleId));
+        if (!vehicle) return;
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'حارس البوابة', gate_assigned: 'Gate 1' };
+        const lifecycle = window.DB.getVehicleOperationalLifecycle(vehicle.id);
+        const duration = lifecycle ? lifecycle.minutesInside : 120;
+
+        window.DB.notifyVehicleEvent('overstay_alert', vehicle.id, vehicle.plate_ar, user.gate_assigned);
+
+        if (window.App) {
+            window.App.showToast(
+                '🚨 تم إرسال إشعار تجاوز',
+                `تم إرسال تنبيه أمني لمدير العمليات بشأن تجاوز الشاحنة (${vehicle.plate_ar}) للمدة المسموحة (${duration} دقيقة).`,
+                'error',
+                'bell'
+            );
+        }
+    }
+
     // Pre-Arrival Manifest & Expected Arrivals Modal
     openExpectedArrivalsModal() {
         const modalContainer = document.getElementById('modal-container');
@@ -1870,6 +2039,11 @@ window.openRequestHoldModal = function(permitId) {
 window.openReloadCargoModal = function(vehicleId, permitId) {
     if (window.Officer && typeof window.Officer.openReloadCargoModal === 'function') {
         window.Officer.openReloadCargoModal(vehicleId, permitId);
+    }
+};
+window.openOverstayExitModal = function(vehicleId) {
+    if (window.Officer && typeof window.Officer.openOverstayExitModal === 'function') {
+        window.Officer.openOverstayExitModal(vehicleId);
     }
 };
 
