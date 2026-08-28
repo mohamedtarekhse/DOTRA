@@ -1032,67 +1032,6 @@ class ManagerController {
                                 </div>
                             </div>
 
-                            <!-- Card 2: Unified Data Management & System Maintenance -->
-                            <div class="sap-settings-card space-y-3">
-                                <div class="flex items-center gap-2 pb-2 border-b border-[#e2e8f0]">
-                                    <span class="text-[#556b82]">${icon('activity', 'w-4 h-4')}</span>
-                                    <div>
-                                        <div class="text-xs font-black text-[#002b66]">${lang === 'ar' ? 'صيانة وإدارة البيانات وقاعدة D1 السحابية' : 'Data Maintenance & Database Tools'}</div>
-                                        <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'أدوات التحكم بالبيانات المخزنة محلياً وعلى السحابة' : 'Manage local storage and cloud synchronized records'}</div>
-                                    </div>
-                                </div>
-
-                                <div class="divide-y divide-[#f0f4f8] text-xs">
-                                    <!-- Demo Data -->
-                                    <div class="py-2.5 flex items-center justify-between gap-3">
-                                        <div>
-                                            <div class="font-bold text-[#1d2d3e]">${lang === 'ar' ? 'استعادة البيانات النموذجية' : 'Restore Demo Data'}</div>
-                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'تحميل تصاريح وشاحنات وسجلات تجريبية' : 'Populate sample trucks, passes and logs'}</div>
-                                        </div>
-                                        <button type="button" onclick="Manager.restoreDemoData()" class="px-3 py-1.5 sap-btn-secondary text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0">
-                                            ${icon('bolt', 'w-3.5 h-3.5 text-amber-500')}
-                                            <span>${lang === 'ar' ? 'استعادة' : 'Restore'}</span>
-                                        </button>
-                                    </div>
-
-                                    <!-- Reset Permits -->
-                                    <div class="py-2.5 flex items-center justify-between gap-3">
-                                        <div>
-                                            <div class="font-bold text-[#1d2d3e]">${lang === 'ar' ? 'مسح التصاريح فقط' : 'Clear Permits Only'}</div>
-                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'حذف كافة التصاريح مع الإبقاء على المركبات' : 'Delete all permits while keeping vehicles'}</div>
-                                        </div>
-                                        <button type="button" onclick="Manager.resetPermitsOnly()" class="px-3 py-1.5 bg-[#f8fafc] hover:bg-slate-100 text-[#556b82] hover:text-slate-900 border border-[#d7e2ee] text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-colors">
-                                            ${icon('trash', 'w-3.5 h-3.5')}
-                                            <span>${lang === 'ar' ? 'مسح التصاريح' : 'Clear Passes'}</span>
-                                        </button>
-                                    </div>
-
-                                    <!-- Reset Logs -->
-                                    <div class="py-2.5 flex items-center justify-between gap-3">
-                                        <div>
-                                            <div class="font-bold text-[#1d2d3e]">${lang === 'ar' ? 'مسح سجلات الحركة فقط' : 'Clear Logs Only'}</div>
-                                            <div class="text-[10px] text-[#556b82]">${lang === 'ar' ? 'تصفير سجلات الدخول والخروج اليومية' : 'Delete entry & exit movement logs'}</div>
-                                        </div>
-                                        <button type="button" onclick="Manager.resetLogsOnly()" class="px-3 py-1.5 bg-[#f8fafc] hover:bg-slate-100 text-[#556b82] hover:text-slate-900 border border-[#d7e2ee] text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-colors">
-                                            ${icon('trash', 'w-3.5 h-3.5')}
-                                            <span>${lang === 'ar' ? 'مسح السجلات' : 'Clear Logs'}</span>
-                                        </button>
-                                    </div>
-
-                                    <!-- Factory Reset -->
-                                    <div class="py-2.5 flex items-center justify-between gap-3">
-                                        <div>
-                                            <div class="font-bold text-rose-700">${lang === 'ar' ? 'تصفير وتهيئة كافة البيانات' : 'Factory Reset All Data'}</div>
-                                            <div class="text-[10px] text-rose-500">${lang === 'ar' ? 'حذف شامل لكافة التصاريح والمركبات والسجلات' : 'Completely purge all database records'}</div>
-                                        </div>
-                                        <button type="button" onclick="Manager.resetAllData()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-xs font-bold rounded-lg flex items-center gap-1.5 flex-shrink-0 transition-all">
-                                            ${icon('trash', 'w-3.5 h-3.5')}
-                                            <span>${lang === 'ar' ? 'تصفير شامل' : 'Purge All'}</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
                             <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
                                 <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
                                     ${lang === 'ar' ? 'إلغاء' : 'Cancel'}
