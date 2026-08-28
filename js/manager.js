@@ -41,26 +41,13 @@ class ManagerController {
     }
 
     renderTableHeader(lang) {
-        if (this.activeFilter === 'permits') {
-            return `
-                <tr>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'كود التصريح ورمز PIN' : 'Permit Code & PIN'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'لوحة الشاحنة' : 'Plate Number'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'الموقع والوجهة بالمصنع' : 'Factory Destination'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة وتوقيت الدخول' : 'Last Entry Gate & Timing'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'السائق والجهة / الواتساب' : 'Driver / WhatsApp'}</th>
-                    <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التصريح والتواجد' : 'Permit & Gate Status'}</th>
-                    <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
-                </tr>
-            `;
-        }
         return `
             <tr>
                 <th class="py-3.5 px-4">${window.i18n.t('plateNumber')}</th>
-                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر موقع ووجهة داخل المصنع' : 'Last Place in Factory'}</th>
-                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة دخول للمصنع' : 'Last Entry Gate'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'الوجهة وبيانات التصريح' : 'Destination & Pass Details'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'آخر بوابة دخول' : 'Last Entry Gate'}</th>
                 <th class="py-3.5 px-4">${lang === 'ar' ? 'توقيت وتاريخ الدخول والمدة' : 'Entry Time & Duration'}</th>
-                <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التواجد' : 'Current Status'}</th>
+                <th class="py-3.5 px-4">${lang === 'ar' ? 'حالة التواجد والتصريح' : 'Current Status'}</th>
                 <th class="py-3.5 px-4">${window.i18n.t('driverName')} / ${window.i18n.t('company')}</th>
                 <th class="py-3.5 px-4 text-center">${window.i18n.t('actions')}</th>
             </tr>
@@ -345,13 +332,10 @@ class ManagerController {
                         ` : ''}
                     </div>
 
-                    <!-- Filter Tabs including Permits List and Exited List -->
+                    <!-- Filter Tabs (Vehicles Flow, Inside, Exited, Overstay) -->
                     <div class="flex items-center gap-1 bg-[#ffffff] p-1 rounded-xl border border-[#d7e2ee] text-xs flex-shrink-0 flex-wrap">
-                        <button type="button" data-manager-filter="all" onclick="Manager.setFilter('all')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'all' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            🚛 ${lang === 'ar' ? 'حركة المركبات' : 'Vehicles'}
-                        </button>
-                        <button type="button" data-manager-filter="permits" onclick="Manager.setFilter('permits')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'permits' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            🎫 ${lang === 'ar' ? 'جدول التصاريح' : 'Permits'} <span id="tab-count-permits">(${permits.length})</span>
+                        <button type="button" data-manager-filter="all" onclick="Manager.setFilter('all')" class="px-3.5 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'all' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
+                            🚛 ${lang === 'ar' ? 'حركة المركبات والتصاريح' : 'All Vehicles & Passes'}
                         </button>
                         <button type="button" data-manager-filter="inside" onclick="Manager.setFilter('inside')" class="px-3 py-1.5 rounded-lg font-bold transition-all ${this.activeFilter === 'inside' ? 'bg-[#107e3e] text-white shadow-sm' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
                             🟢 ${lang === 'ar' ? 'بالداخل' : 'Inside'} <span id="tab-count-inside">(${insideCount})</span>
@@ -386,7 +370,6 @@ class ManagerController {
     }
 
     renderMobileCards(lang) {
-
         const vehicles = window.DB.getVehicles();
         const permits = window.DB.getPermits();
         const logs = window.DB.getLogs();
@@ -399,157 +382,6 @@ class ManagerController {
         const qNorm = norm(this.searchQuery);
         const qPlate = normPlate(this.searchQuery);
 
-        // 1. Relational Permits Mobile Cards
-        if (this.activeFilter === 'permits') {
-            const enrichedPermits = window.DB.getEnrichedPermits();
-            let filteredPermits = enrichedPermits.filter(p => {
-                if (!qNorm) return true;
-                const pAr = norm(p.vehicle?.plate_ar);
-                const pEn = norm(p.vehicle?.plate_en);
-                const pArCompact = normPlate(p.vehicle?.plate_ar);
-                const pEnCompact = normPlate(p.vehicle?.plate_en);
-
-                const matchPlate = pAr.includes(qNorm) || pEn.includes(qNorm) || (qPlate && (pArCompact.includes(qPlate) || pEnCompact.includes(qPlate)));
-                const matchCode = norm(p.permit_code).includes(qNorm);
-                const matchPin = norm(p.pin_code).includes(qNorm);
-                const matchDriver = norm(p.vehicle?.driver_name_ar).includes(qNorm) || norm(p.vehicle?.driver_name_en).includes(qNorm);
-                const matchPhone = norm(p.vehicle?.driver_phone).includes(qNorm);
-                const matchDest = norm(`${p.destination_ar || ''} ${p.destination_en || ''}`).includes(qNorm);
-                const matchInvoice = norm(p.invoice_no).includes(qNorm);
-                const matchCargo = norm(p.cargo_details).includes(qNorm);
-                const matchCompany = norm(`${p.vehicle?.company_ar || ''} ${p.vehicle?.company_en || ''}`).includes(qNorm);
-
-                return matchPlate || matchCode || matchPin || matchDriver || matchPhone || matchDest || matchInvoice || matchCargo || matchCompany;
-            });
-
-            if (filteredPermits.length === 0) {
-                return `
-                    <div class="sap-card p-6 text-center text-[#556b82] bg-white border border-[#d7e2ee] shadow-sm">
-                        <div class="w-14 h-14 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 border border-[#b3d5fa] shadow-sm">
-                            ${icon('shield', 'w-7 h-7')}
-                        </div>
-                        <p class="font-black text-sm text-[#1d2d3e]">
-                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على تصاريح تطابق: "${this.searchQuery}"` : `No matching permits for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد تصاريح مصدرة حالياً' : 'No passes issued yet')}
-                        </p>
-                        ${!this.searchQuery ? `
-                            <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 w-full py-2.5 sap-btn-primary text-xs font-bold shadow-md flex items-center justify-center gap-2">
-                                ${icon('bolt', 'w-4 h-4 text-amber-300')}
-                                <span>${lang === 'ar' ? 'إصدار أول تصريح الآن' : 'Issue First Pass Now'}</span>
-                            </button>
-                        ` : ''}
-                    </div>
-                `;
-            }
-
-            return filteredPermits.map(p => {
-                const isEntry = p.permit_type === 'entry';
-                const isExit = p.permit_type === 'exit';
-                const typeTag = isEntry 
-                    ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] font-bold">📥 دخول</span>`
-                    : (isExit ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 خروج</span>` : `<span class="px-2 py-0.5 rounded-full text-[10px] bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
-                
-                const hasVehicleEntered = !!p.entryLog || !!window.DB.isVehicleInside(p.vehicle_id) || p.status === 'used';
-                let statusTag = '';
-                let permitActionBtns = '';
-                if (p.status === 'active') {
-                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">🟢 ساري</span>`;
-                    permitActionBtns = `
-                        <button type="button" onclick="Manager.openHoldPermitModal(${p.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-300 text-[11px] font-bold">⏸️ تعليق</button>
-                        ${!hasVehicleEntered ? `
-                            <button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold" title="حذف التصريح نهائياً في حالة إنشائه بالخطأ">🗑️ حذف</button>
-                        ` : `
-                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مسجلة</span>
-                        `}
-                    `;
-                } else if (p.status === 'hold') {
-                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-900 font-bold border border-amber-300">⏸️ معلق بقرار الإدارة</span>`;
-                    permitActionBtns = `
-                        <button type="button" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold">▶️ تفعيل</button>
-                        ${!hasVehicleEntered ? `
-                            <button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold" title="حذف التصريح نهائياً">🗑️ حذف</button>
-                        ` : `
-                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مسجلة</span>
-                        `}
-                    `;
-                } else if (p.status === 'revoked') {
-                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-rose-100 text-rose-900 font-bold border border-rose-300">⛔ مسحوب وملغي</span>`;
-                    permitActionBtns = `
-                        <button type="button" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold">▶️ إعادة تفعيل</button>
-                        <button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold">🗑️ حذف</button>
-                    `;
-                } else if (p.status === 'used') {
-                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold border border-blue-300">🔵 تم الاستخدام</span>`;
-                    permitActionBtns = `<span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مكتملة</span>`;
-                } else {
-                    statusTag = `<span class="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-bold border border-slate-300">⏳ ملغي</span>`;
-                    permitActionBtns = `<button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold">🗑️ حذف</button>`;
-                }
-
-                return `
-                    <div class="sap-card p-4 bg-white border ${p.status === 'hold' ? 'border-amber-300 bg-amber-50/20' : (p.status === 'revoked' ? 'border-rose-300 bg-rose-50/20' : 'border-[#d7e2ee]')} rounded-2xl shadow-sm space-y-3">
-                        <div class="flex items-center justify-between border-b border-[#e7eff7] pb-2">
-                            <div>
-                                <div class="font-mono font-black text-xs text-[#0070f2]">${p.permit_code}</div>
-                                <div class="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-md bg-[#001940] text-amber-300 font-mono font-black text-[11px]">
-                                    <span>PIN:</span>
-                                    <span>${p.pin_code}</span>
-                                </div>
-                            </div>
-                            <div class="flex flex-col items-end gap-1">
-                                ${statusTag}
-                                ${typeTag}
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between">
-                            ${window.ArabicPlate.renderEgyptianPlate(p.vehicle.plate_ar, 'compact', p.vehicle.vehicle_type)}
-                            <button type="button" onclick="Manager.showPassModal(${p.id})" class="px-3 py-1.5 bg-[#ebf3fb] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold flex items-center gap-1 shadow-sm">
-                                ${icon('qrcode', 'w-3.5 h-3.5')}
-                                <span>الكارت A4</span>
-                            </button>
-                        </div>
-
-                        <div class="bg-[#f8fafc] p-2.5 rounded-xl border border-[#e7eff7] text-xs space-y-1">
-                            <div class="flex justify-between items-center">
-                                <span class="text-[#556b82] font-bold">السائق:</span>
-                                <span class="font-bold text-[#1d2d3e]">${p.vehicle.driver_name_ar}</span>
-                            </div>
-                            ${p.vehicle.driver_phone ? `
-                                <div class="flex justify-between items-center">
-                                    <span class="text-[#556b82] font-bold">واتساب:</span>
-                                    <a href="https://wa.me/2${p.vehicle.driver_phone.replace(/\D/g, '')}" target="_blank" class="text-[#107e3e] font-mono font-bold hover:underline">
-                                        📱 ${p.vehicle.driver_phone}
-                                    </a>
-                                </div>
-                            ` : ''}
-                            <div class="flex justify-between items-center">
-                                <span class="text-[#556b82] font-bold">الوجهة:</span>
-                                <span class="font-bold text-[#002b66]">📍 ${p.destination_ar}</span>
-                            </div>
-                            ${p.hold_reason ? `
-                                <div class="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-bold text-[11px]">
-                                    ⚠️ السبب: ${p.hold_reason}
-                                </div>
-                            ` : ''}
-                            ${p.invoice_no ? `
-                                <div class="flex justify-between items-center">
-                                    <span class="text-[#556b82] font-bold">إذن الصرف:</span>
-                                    <span class="font-mono font-bold text-[#107e3e]">📄 ${p.invoice_no}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-
-                        ${permitActionBtns ? `
-                            <div class="pt-2 border-t border-[#e7eff7] flex justify-end gap-1.5">
-                                ${permitActionBtns}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // 2. Vehicles Activity Mobile Cards
         let filteredVehicles = vehicles.filter(vehicle => {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
             const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
@@ -615,6 +447,7 @@ class ManagerController {
             const sortedLogs = vehicleLogs.slice().sort((a, b) => window.DB.parseTimestamp(b.timestamp).getTime() - window.DB.parseTimestamp(a.timestamp).getTime() || (b.id || 0) - (a.id || 0));
             const lastEntryLog = sortedLogs.find(l => l.action_type === 'entry') || null;
             const lastExitLog = sortedLogs.find(l => l.action_type === 'exit' || l.exit_timestamp) || null;
+            const hasVehicleEntered = !!insideLog || !!lastEntryLog || (permit && permit.status === 'used');
             
             const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : '--';
             const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : null;
@@ -631,6 +464,12 @@ class ManagerController {
                 const diffMinutes = Math.max(0, Math.round((Date.now() - entryTime.getTime()) / 60000));
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-inside flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-[#107e3e] animate-pulse"></span> <span>${window.i18n.t('statusInside')}</span></span>`;
                 timeInfoHtml = `<div class="text-xs text-[#107e3e] font-bold">📥 دخلت: ${entryTimeStr} (${diffMinutes} دقيقة بالداخل)</div>`;
+            } else if (permit && permit.status === 'hold') {
+                statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs bg-amber-100 text-amber-900 font-bold border border-amber-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> <span>⏸️ تصريح معلق</span></span>`;
+            } else if (permit && permit.status === 'revoked') {
+                statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> <span>⛔ تصريح ملغي</span></span>`;
+            } else if (permit && permit.status === 'active' && !hasVehicleEntered) {
+                statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>🟢 تصريح ساري</span></span>`;
             } else {
                 statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs badge-exited flex items-center gap-1 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : 'Exited'}</span></span>`;
                 if (lastExitLog) {
@@ -643,6 +482,56 @@ class ManagerController {
             const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
             const companyName = (lang === 'ar' ? vehicle.company_ar : vehicle.company_en) || 'عام';
             const destination = permit ? (lang === 'ar' ? (permit.destination_ar || permit.destination_en) : (permit.destination_en || permit.destination_ar)) : (lastEntryLog?.remarks || 'المستودع الرئيسي');
+
+            let cardPermitActions = '';
+            if (permit) {
+                if (!hasVehicleEntered) {
+                    if (permit.status === 'active') {
+                        cardPermitActions = `
+                            <button type="button" onclick="Manager.openHoldPermitModal(${permit.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-300 text-[11px] font-bold inline-flex items-center gap-1">
+                                <span>⏸️ تعليق</span>
+                            </button>
+                            <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold inline-flex items-center gap-1" title="حذف وإلغاء التصريح قبل وصول المركبة">
+                                <span>🗑️ حذف</span>
+                            </button>
+                        `;
+                    } else if (permit.status === 'hold') {
+                        cardPermitActions = `
+                            <button type="button" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold inline-flex items-center gap-1">
+                                <span>▶️ تفعيل</span>
+                            </button>
+                            <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold inline-flex items-center gap-1">
+                                <span>🗑️ حذف</span>
+                            </button>
+                        `;
+                    } else if (permit.status === 'revoked') {
+                        cardPermitActions = `
+                            <button type="button" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold inline-flex items-center gap-1">
+                                <span>▶️ تفعيل</span>
+                            </button>
+                            <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold inline-flex items-center gap-1">
+                                <span>🗑️ حذف</span>
+                            </button>
+                        `;
+                    }
+                } else {
+                    if (permit.status === 'active') {
+                        cardPermitActions = `
+                            <button type="button" onclick="Manager.openHoldPermitModal(${permit.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-300 text-[11px] font-bold inline-flex items-center gap-1">
+                                <span>⏸️ تعليق</span>
+                            </button>
+                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مسجلة</span>
+                        `;
+                    } else if (permit.status === 'hold') {
+                        cardPermitActions = `
+                            <button type="button" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold inline-flex items-center gap-1">
+                                <span>▶️ تفعيل</span>
+                            </button>
+                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-0.5 rounded border border-[#d7e2ee]">🔒 حركة مسجلة</span>
+                        `;
+                    }
+                }
+            }
 
             return `
                 <div class="sap-card p-4 bg-white border border-[#b0cfee] shadow-sm animate-fadeIn text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
@@ -680,22 +569,42 @@ class ManagerController {
                         ${vehicle.driver_phone ? `
                             <div class="flex justify-between items-center">
                                 <span class="text-[#556b82] font-bold">الهاتف:</span>
-                                <a href="https://wa.me/${vehicle.driver_phone.replace(/[^0-9]/g, '')}" target="_blank" class="font-mono font-bold text-[#107e3e] flex items-center gap-1">
+                                <a href="https://wa.me/2${vehicle.driver_phone.replace(/\D/g, '')}" target="_blank" class="font-mono font-bold text-[#107e3e] flex items-center gap-1">
                                     ${icon('whatsapp', 'w-3 h-3 text-[#107e3e]')}
                                     <span>${vehicle.driver_phone}</span>
                                 </a>
                             </div>
                         ` : ''}
                         <div class="flex justify-between items-center">
-                            <span class="text-[#556b82] font-bold">📍 الموقع والوجهة:</span>
+                            <span class="text-[#556b82] font-bold">📍 الوجهة:</span>
                             <span class="font-bold text-[#002b66]">📍 ${destination}</span>
                         </div>
+                        ${permit ? `
+                            <div class="flex justify-between items-center bg-white p-1.5 rounded-lg border border-[#e2edf8]">
+                                <span class="text-[#556b82] font-bold">كود وPIN التصريح:</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="font-mono font-black text-[#0070f2]">${permit.permit_code}</span>
+                                    <span class="font-mono font-bold bg-[#001940] text-amber-300 px-1.5 py-0.5 rounded text-[10px]">PIN: ${permit.pin_code}</span>
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${permit?.hold_reason ? `
+                            <div class="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-bold text-[11px]">
+                                ⚠️ سبب التعليق: ${permit.hold_reason}
+                            </div>
+                        ` : ''}
                         <div class="flex justify-between items-center">
-                            <span class="text-[#556b82] font-bold">🚪 آخر بوابة دخلت منها:</span>
+                            <span class="text-[#556b82] font-bold">🚪 آخر بوابة:</span>
                             <span class="font-mono font-bold text-[#002b66]">🚪 ${entryGateName} ${entryOfficerName !== '--' ? `(👮 ${entryOfficerName})` : ''}</span>
                         </div>
                         ${timeInfoHtml ? `<div class="pt-1 border-t border-[#e7eff7]">${timeInfoHtml}</div>` : ''}
                     </div>
+
+                    ${cardPermitActions ? `
+                        <div class="pt-2 border-t border-[#e7eff7] flex justify-end gap-1.5">
+                            ${cardPermitActions}
+                        </div>
+                    ` : ''}
                 </div>
             `;
         }).join('');
@@ -714,158 +623,6 @@ class ManagerController {
         const qNorm = norm(this.searchQuery);
         const qPlate = normPlate(this.searchQuery);
 
-        // 1. Relational Permits View
-        if (this.activeFilter === 'permits') {
-            const enrichedPermits = window.DB.getEnrichedPermits();
-            let filteredPermits = enrichedPermits.filter(p => {
-                if (!qNorm) return true;
-                const pAr = norm(p.vehicle?.plate_ar);
-                const pEn = norm(p.vehicle?.plate_en);
-                const pArCompact = normPlate(p.vehicle?.plate_ar);
-                const pEnCompact = normPlate(p.vehicle?.plate_en);
-
-                const matchPlate = pAr.includes(qNorm) || pEn.includes(qNorm) || (qPlate && (pArCompact.includes(qPlate) || pEnCompact.includes(qPlate)));
-                const matchCode = norm(p.permit_code).includes(qNorm);
-                const matchPin = norm(p.pin_code).includes(qNorm);
-                const matchDriver = norm(p.vehicle?.driver_name_ar).includes(qNorm) || norm(p.vehicle?.driver_name_en).includes(qNorm);
-                const matchPhone = norm(p.vehicle?.driver_phone).includes(qNorm);
-                const matchDest = norm(`${p.destination_ar || ''} ${p.destination_en || ''}`).includes(qNorm);
-                const matchInvoice = norm(p.invoice_no).includes(qNorm);
-                const matchCargo = norm(p.cargo_details).includes(qNorm);
-                const matchCompany = norm(`${p.vehicle?.company_ar || ''} ${p.vehicle?.company_en || ''}`).includes(qNorm);
-
-                return matchPlate || matchCode || matchPin || matchDriver || matchPhone || matchDest || matchInvoice || matchCargo || matchCompany;
-            });
-
-            if (filteredPermits.length === 0) {
-                return `
-                    <tr>
-                        <td colspan="7" class="text-center py-12 text-[#556b82]">
-                            <div class="w-14 h-14 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 border border-[#b3d5fa] shadow-sm">
-                                ${icon('shield', 'w-7 h-7')}
-                            </div>
-                            <p class="font-black text-base text-[#1d2d3e]">
-                                ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على تصاريح تطابق: "${this.searchQuery}"` : `No matching permits for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد تصاريح مصدرة حالياً' : 'No passes issued yet')}
-                            </p>
-                            ${!this.searchQuery ? `
-                                <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 inline-flex items-center gap-2 px-5 py-2.5 sap-btn-primary text-xs font-bold shadow-md">
-                                    ${icon('bolt', 'w-4 h-4 text-amber-300')}
-                                    <span>${lang === 'ar' ? 'إصدار أول تصريح الآن' : 'Issue First Pass Now'}</span>
-                                </button>
-                            ` : ''}
-                        </td>
-                    </tr>
-                `;
-            }
-
-            return filteredPermits.map(p => {
-                const isEntry = p.permit_type === 'entry';
-                const isExit = p.permit_type === 'exit';
-                const typeTag = isEntry 
-                    ? `<span class="px-2.5 py-1 rounded-full text-xs bg-[#e5f6eb] text-[#107e3e] border border-[#b4e3c4] font-bold">📥 تصريح دخول</span>`
-                    : (isExit ? `<span class="px-2.5 py-1 rounded-full text-xs bg-[#ebf3fb] text-[#0070f2] border border-[#b3d5fa] font-bold">📤 تصريح خروج</span>` : `<span class="px-2.5 py-1 rounded-full text-xs bg-[#fff1e5] text-[#b85500] border border-[#ffd8b3] font-bold">🔄 دخول وخروج</span>`);
-                
-                const hasVehicleEntered = !!p.entryLog || !!window.DB.isVehicleInside(p.vehicle_id) || p.status === 'used';
-                let statusTag = '';
-                let holdActionBtn = '';
-                if (p.status === 'active') {
-                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>ساري وصالح</span></span>`;
-                    holdActionBtn = `
-                        <button type="button" title="تعليق وتجميد الصلاحية مؤقتاً" onclick="Manager.openHoldPermitModal(${p.id})" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>⏸️ تعليق</span></button>
-                        ${!hasVehicleEntered ? `
-                            <button type="button" title="حذف التصريح نهائياً من النظام (تم إنشاؤه بالخطأ قبل الدخول)" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>
-                        ` : `
-                            <span class="text-[11px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]" title="لا يمكن حذف التصريح نظراً لتسجيل حركة دخول فعلية بالمصنع">🔒 حركة مسجلة</span>
-                        `}
-                    `;
-                } else if (p.status === 'hold') {
-                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-amber-100 text-amber-900 font-bold border border-amber-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> <span>⏸️ معلق بقرار الإدارة</span></span>`;
-                    holdActionBtn = `
-                        <button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ تفعيل</span></button>
-                        ${!hasVehicleEntered ? `
-                            <button type="button" title="حذف التصريح نهائياً من النظام" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>
-                        ` : `
-                            <span class="text-[11px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]">🔒 حركة مسجلة</span>
-                        `}
-                    `;
-                } else if (p.status === 'revoked') {
-                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> <span>⛔ مسحوب وملغي</span></span>`;
-                    holdActionBtn = `
-                        <button type="button" title="إعادة تفعيل التصريح" onclick="Manager.handleActivatePermit(${p.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>▶️ إعادة تفعيل</span></button>
-                        <button type="button" title="حذف التصريح نهائياً من النظام" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>
-                    `;
-                } else if (p.status === 'used') {
-                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-blue-100 text-blue-800 font-bold border border-blue-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> <span>تم الاستخدام</span></span>`;
-                    holdActionBtn = `<span class="text-[11px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]">🔒 حركة مكتملة</span>`;
-                } else {
-                    statusTag = `<span class="px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-700 font-bold border border-slate-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>ملغي / مستبدل</span></span>`;
-                    holdActionBtn = `<button type="button" onclick="Manager.handleDeletePermit(${p.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95"><span>🗑️ حذف</span></button>`;
-                }
-
-                const createdDate = new Date(p.valid_from || p.id).toLocaleDateString();
-                const createdTime = new Date(p.valid_from || p.id).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                return `
-                    <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors ${p.status === 'hold' ? 'bg-amber-50/40' : ''}">
-                        <td class="py-3.5 px-4">
-                            <div class="font-mono font-black text-sm text-[#0070f2]">${p.permit_code}</div>
-                            <div class="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-lg bg-[#001940] text-amber-300 font-mono font-black text-xs shadow-inner">
-                                <span>PIN:</span>
-                                <span class="tracking-widest">${p.pin_code}</span>
-                            </div>
-                        </td>
-                        <td class="py-3.5 px-4">
-                            ${window.ArabicPlate.renderEgyptianPlate(p.vehicle.plate_ar, 'compact', p.vehicle.vehicle_type)}
-                        </td>
-                        <td class="py-3.5 px-4">
-                            <div class="flex flex-col gap-1">
-                                ${typeTag}
-                                <span class="text-xs font-black text-[#002b66] mt-0.5">📍 ${p.destination_ar || 'المستودع الرئيسي'}</span>
-                                ${p.cargo_details ? `<span class="text-[11px] text-[#556b82] font-semibold">📦 ${p.cargo_details}</span>` : ''}
-                                ${p.invoice_no ? `<span class="text-[11px] text-[#107e3e] font-mono font-bold">📄 إذن: ${p.invoice_no}</span>` : ''}
-                            </div>
-                        </td>
-                        <td class="py-3.5 px-4 text-xs font-mono">
-                            ${p.entryLog ? `
-                                <div class="inline-flex items-center gap-1 font-bold text-xs text-[#002b66] bg-[#ebf3fb] px-2 py-0.5 rounded-lg border border-[#b3d5fa] mb-1">
-                                    <span>🚪</span>
-                                    <span>${p.entryLog.gate_name}</span>
-                                </div>
-                                <div class="text-[#107e3e] font-bold text-[11px]">📥 ${new Date(window.DB.parseTimestamp(p.entryLog.timestamp)).toLocaleDateString()} • ${new Date(window.DB.parseTimestamp(p.entryLog.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                ${p.officer ? `<div class="text-[10px] text-[#556b82]">👮 ${lang === 'ar' ? p.officer.name_ar : p.officer.name_en}</div>` : ''}
-                            ` : `
-                                <div class="text-[#556b82] font-sans font-semibold text-xs">⏳ لم تسجل دخول بعد</div>
-                                <div class="text-[10px] text-[#8898aa]">📅 إصدار: ${createdDate}</div>
-                            `}
-                        </td>
-                        <td class="py-3.5 px-4">
-                            <div class="font-bold text-[#1d2d3e] text-xs">${p.vehicle.driver_name_ar}</div>
-                            <div class="text-[11px] text-[#556b82] font-semibold">${p.vehicle.company_ar}</div>
-                            ${p.vehicle.driver_phone ? `
-                                <a href="https://wa.me/2${p.vehicle.driver_phone.replace(/\D/g, '')}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-[#107e3e] hover:underline font-mono font-bold mt-1">
-                                    <span>📱 ${p.vehicle.driver_phone}</span>
-                                </a>
-                            ` : ''}
-                        </td>
-                        <td class="py-3.5 px-4">
-                            ${statusTag}
-                            ${p.hold_reason ? `<div class="text-[10px] text-amber-800 font-semibold mt-1">⚠️ سبب التعليق: ${p.hold_reason}</div>` : ''}
-                        </td>
-                        <td class="py-3.5 px-4 text-center">
-                            <div class="flex items-center justify-center gap-1.5 flex-wrap">
-                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${p.id})" class="px-3 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold inline-flex items-center gap-1 shadow-sm">
-                                    ${icon('qrcode', 'w-3.5 h-3.5')}
-                                    <span>عرض الكارت</span>
-                                </button>
-                                ${holdActionBtn}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // 2. Vehicles Activity View
         let filteredVehicles = vehicles.filter(vehicle => {
             const insideLog = window.DB.isVehicleInside(vehicle.id);
             const vehicleLogs = logs.filter(l => l.vehicle_id === vehicle.id);
@@ -910,7 +667,7 @@ class ManagerController {
                             ${icon('truck', 'w-7 h-7')}
                         </div>
                         <p class="font-black text-base text-[#1d2d3e]">
-                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching records for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد حركات مسجلة حالياً' : 'No records yet')}
+                            ${this.searchQuery ? (lang === 'ar' ? `لم يتم العثور على نتائج تطابق: "${this.searchQuery}"` : `No matching records for "${this.searchQuery}"`) : (lang === 'ar' ? 'لا توجد حركات أو تصاريح مسجلة حالياً' : 'No records yet')}
                         </p>
                         ${!this.searchQuery ? `
                             <button type="button" onclick="Manager.openQuickPermitModal()" class="mt-4 inline-flex items-center gap-2 px-5 py-2.5 sap-btn-primary text-xs font-bold shadow-md">
@@ -930,6 +687,7 @@ class ManagerController {
             const sortedLogs = vehicleLogs.slice().sort((a, b) => window.DB.parseTimestamp(b.timestamp).getTime() - window.DB.parseTimestamp(a.timestamp).getTime() || (b.id || 0) - (a.id || 0));
             const lastEntryLog = sortedLogs.find(l => l.action_type === 'entry') || null;
             const lastExitLog = sortedLogs.find(l => l.action_type === 'exit' || l.exit_timestamp) || null;
+            const hasVehicleEntered = !!insideLog || !!lastEntryLog || (permit && permit.status === 'used');
             
             const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : (insideLog ? insideLog.gate_name : '--');
             const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : (insideLog ? users.find(u => u.id === insideLog.officer_id) : null);
@@ -944,7 +702,7 @@ class ManagerController {
             let entryTimeText = '--';
 
             if (vehicle.status === 'blacklist') {
-                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-blacklisted flex items-center gap-1 w-fit">${icon('ban', 'w-3 h-3 text-red-300')} <span>${window.i18n.t('statusBanned')}</span></span>`;
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-blacklisted flex items-center gap-1 w-fit font-bold">${icon('ban', 'w-3 h-3 text-red-300')} <span>${window.i18n.t('statusBanned')}</span></span>`;
             } else if (insideLog) {
                 const entryTime = window.DB.parseTimestamp(insideLog.timestamp);
                 entryTimeText = entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -952,16 +710,20 @@ class ManagerController {
                 const diffHours = (diffMinutes / 60).toFixed(1);
                 
                 if (diffMinutes >= ((settings.overstay_hours_threshold || 3) * 60)) {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-overstay flex items-center gap-1 w-fit">${icon('alert', 'w-3 h-3 text-red-600')} <span>${window.i18n.t('statusOverstay')}</span></span>`;
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-overstay flex items-center gap-1 w-fit font-bold">${icon('alert', 'w-3 h-3 text-red-600')} <span>${window.i18n.t('statusOverstay')}</span></span>`;
                     durationText = `<span class="text-[#bb0000] font-bold font-mono">${diffHours} ${lang === 'ar' ? 'ساعة' : 'hrs'}</span>`;
                 } else {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-inside flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-[#107e3e] animate-pulse"></span> <span>${window.i18n.t('statusInside')}</span></span>`;
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-inside flex items-center gap-1 w-fit font-bold"><span class="w-1.5 h-1.5 rounded-full bg-[#107e3e] animate-pulse"></span> <span>${window.i18n.t('statusInside')}</span></span>`;
                     durationText = `<span class="text-[#107e3e] font-bold font-mono">${diffMinutes < 60 ? `${diffMinutes} ${lang === 'ar' ? 'دقيقة' : 'min'}` : `${diffHours} ${lang === 'ar' ? 'ساعة' : 'hrs'}`}</span>`;
                 }
-            } else if (permit && permit.status === 'active') {
-                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-active flex items-center gap-1 w-fit">${icon('shield', 'w-3 h-3 text-[#0070f2]')} <span>${window.i18n.t('statusAuthorized')}</span></span>`;
+            } else if (permit && permit.status === 'hold') {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs bg-amber-100 text-amber-900 font-bold border border-amber-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> <span>⏸️ تصريح معلق</span></span>`;
+            } else if (permit && permit.status === 'revoked') {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs bg-rose-100 text-rose-900 font-bold border border-rose-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> <span>⛔ تصريح ملغي</span></span>`;
+            } else if (permit && permit.status === 'active' && !hasVehicleEntered) {
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> <span>🟢 تصريح ساري بانتظار الدخول</span></span>`;
             } else {
-                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-exited flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : window.i18n.t('statusExited')}</span></span>`;
+                statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs badge-exited flex items-center gap-1 w-fit font-bold"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> <span>${lang === 'ar' ? 'غادرت المصنع' : window.i18n.t('statusExited')}</span></span>`;
             }
 
             const driverName = (lang === 'ar' ? vehicle.driver_name_ar : vehicle.driver_name_en) || 'سائق مصرح';
@@ -1000,11 +762,62 @@ class ManagerController {
                     </div>
                 `;
             } else {
-                timeCellHtml = `<span class="text-[#556b82] font-mono">--</span>`;
+                timeCellHtml = `<span class="text-[#556b82] font-mono text-xs">⏳ بانتظار الدخول</span>`;
+            }
+
+            // Action Buttons for this row (Pass Card, Hold, Delete for unentered, Blacklist)
+            let tablePermitActions = '';
+            if (permit) {
+                if (!hasVehicleEntered) {
+                    if (permit.status === 'active') {
+                        tablePermitActions = `
+                            <button type="button" title="تعليق وتجميد التصريح مؤقتاً" onclick="Manager.openHoldPermitModal(${permit.id})" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>⏸️ تعليق</span>
+                            </button>
+                            <button type="button" title="حذف وإلغاء التصريح نهائياً قبل وصول ودخول الشاحنة" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>🗑️ حذف</span>
+                            </button>
+                        `;
+                    } else if (permit.status === 'hold') {
+                        tablePermitActions = `
+                            <button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl border border-emerald-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>▶️ تفعيل</span>
+                            </button>
+                            <button type="button" title="حذف التصريح نهائياً من النظام" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>🗑️ حذف</span>
+                            </button>
+                        `;
+                    } else if (permit.status === 'revoked') {
+                        tablePermitActions = `
+                            <button type="button" title="إعادة تفعيل التصريح" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl border border-emerald-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>▶️ تفعيل</span>
+                            </button>
+                            <button type="button" title="حذف التصريح نهائياً" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>🗑️ حذف</span>
+                            </button>
+                        `;
+                    }
+                } else {
+                    if (permit.status === 'active') {
+                        tablePermitActions = `
+                            <button type="button" title="تعليق وتجميد التصريح مؤقتاً" onclick="Manager.openHoldPermitModal(${permit.id})" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>⏸️ تعليق</span>
+                            </button>
+                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]" title="لا يمكن حذف التصريح نظراً لتسجيل حركة دخول فعلية بالمصنع">🔒 حركة مسجلة</span>
+                        `;
+                    } else if (permit.status === 'hold') {
+                        tablePermitActions = `
+                            <button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl border border-emerald-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
+                                <span>▶️ تفعيل</span>
+                            </button>
+                            <span class="text-[10px] text-[#556b82] font-semibold bg-[#f0f4f8] px-2 py-1 rounded-lg border border-[#d7e2ee]">🔒 حركة مسجلة</span>
+                        `;
+                    }
+                }
             }
 
             return `
-                <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors">
+                <tr class="sap-table-row hover:bg-[#f5f8fc] transition-colors ${permit?.status === 'hold' ? 'bg-amber-50/30' : ''}">
                     <td class="py-3.5 px-4">
                         ${window.ArabicPlate.renderEgyptianPlate(vehicle.plate_ar, 'compact', vehicle.vehicle_type)}
                     </td>
@@ -1016,7 +829,13 @@ class ManagerController {
                             </span>
                             ${permit?.cargo_details ? `<span class="text-[11px] text-[#556b82] font-semibold">📦 ${permit.cargo_details}</span>` : ''}
                             ${permit?.invoice_no ? `<span class="text-[11px] text-[#107e3e] font-mono font-bold">📄 إذن: ${permit.invoice_no}</span>` : ''}
-                            ${permit?.pin_code ? `<span class="text-[10px] text-[#0070f2] font-mono font-black">🎫 PIN: ${permit.pin_code}</span>` : ''}
+                            ${permit?.permit_code ? `
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <span class="text-[11px] text-[#0070f2] font-mono font-black">🎫 ${permit.permit_code}</span>
+                                    <span class="text-[10px] text-amber-300 font-mono font-black bg-[#001940] px-1.5 py-0.5 rounded">PIN: ${permit.pin_code}</span>
+                                </div>
+                            ` : ''}
+                            ${permit?.hold_reason ? `<span class="text-[10px] text-amber-900 font-bold bg-amber-50 p-1 rounded border border-amber-200">⚠️ السبب: ${permit.hold_reason}</span>` : ''}
                         </div>
                     </td>
                     <td class="py-3.5 px-4">
@@ -1052,19 +871,20 @@ class ManagerController {
                         ` : ''}
                     </td>
                     <td class="py-3.5 px-4 text-center">
-                        <div class="flex items-center justify-center gap-1.5">
+                        <div class="flex items-center justify-center gap-1.5 flex-wrap">
                             ${permit ? `
-                                <button type="button" title="عرض وطباعة التصريح" onclick="Manager.showPassModal(${permit.id})" class="px-2 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-lg border border-[#b3d5fa] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                <button type="button" title="عرض وطباعة كارت التصريح A4" onclick="Manager.showPassModal(${permit.id})" class="px-2.5 py-1.5 bg-[#ebf3fb] hover:bg-[#d5e7fa] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
                                     ${icon('qrcode', 'w-3.5 h-3.5')}
                                     <span>كارت</span>
                                 </button>
                             ` : `
-                                <button type="button" title="إصدار تصريح" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="px-2 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-lg border border-[#b4e3c4] text-xs font-bold flex items-center gap-1 shadow-sm">
+                                <button type="button" title="إصدار تصريح دخول" onclick="Manager.openQuickPermitModal(${vehicle.id})" class="px-2.5 py-1.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
                                     ${icon('bolt', 'w-3.5 h-3.5')}
                                     <span>تصريح</span>
                                 </button>
                             `}
-                            <button type="button" title="${vehicle.status === 'blacklist' ? 'إلغاء الحظر' : 'حظر المركبة'}" onclick="Manager.toggleBlacklist(${vehicle.id})" class="p-1.5 ${vehicle.status === 'blacklist' ? 'bg-[#e5f6eb] text-[#107e3e] border-[#b4e3c4]' : 'bg-[#ffebeb] text-[#bb0000] border-[#f6b3b3]'} hover:opacity-80 rounded-lg border text-xs shadow-sm">
+                            ${tablePermitActions}
+                            <button type="button" title="${vehicle.status === 'blacklist' ? 'إلغاء الحظر' : 'حظر المركبة'}" onclick="Manager.toggleBlacklist(${vehicle.id})" class="p-1.5 ${vehicle.status === 'blacklist' ? 'bg-[#e5f6eb] text-[#107e3e] border-[#b4e3c4]' : 'bg-[#ffebeb] text-[#bb0000] border-[#f6b3b3]'} hover:opacity-80 rounded-xl border text-xs shadow-sm transition-all active:scale-95">
                                 ${vehicle.status === 'blacklist' ? icon('unlock', 'w-3.5 h-3.5') : icon('ban', 'w-3.5 h-3.5')}
                             </button>
                         </div>
