@@ -546,3 +546,22 @@ body {
         border-top: 2px dashed #94a3b8 !important;
     }
 }
+
+/* QR Camera Scanner Viewport */
+#qr-reader {
+    border: none !important;
+    background: #000000 !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+}
+
+#qr-reader video {
+    border-radius: 14px !important;
+    object-fit: cover !important;
+}
+
+#qr-reader img[alt="Info icon"] {
+    display: none !important;
+}
+
+
