@@ -371,12 +371,14 @@ class OfficerController {
         const resultContainer = document.getElementById('vehicle-verification-result');
         if (!resultContainer) return;
 
-        const insideLog = window.DB.isVehicleInside(vehicle.id);
+        const lifecycle = window.DB.getVehicleOperationalLifecycle(vehicle.id, permit ? permit.id : null);
+        const insideLog = lifecycle ? lifecycle.insideLog : window.DB.isVehicleInside(vehicle.id);
         const isBlacklisted = vehicle.status === 'blacklist';
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         let decisionBadge = '';
         let actionButtons = '';
+        let pipelineHtml = '';
 
         if (isBlacklisted) {
             decisionBadge = `
@@ -399,33 +401,92 @@ class OfficerController {
             const entryTime = entryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const durationMinutes = Math.max(0, Math.round((Date.now() - entryDate.getTime()) / 60000));
             const entryGate = insideLog.gate_name || 'البوابة الرئيسية';
+            const cargoState = vehicle.cargo_state || 'loaded_incoming';
 
-            decisionBadge = `
-                <div class="p-3.5 bg-[#ebf3fb] text-[#002b66] rounded-2xl border-2 border-[#b3d5fa] mb-3 text-center">
-                    <div class="text-sm font-black flex items-center justify-center gap-1.5 text-[#107e3e]">
-                        <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e] animate-pulse"></span>
-                        <span>🟢 المركبة داخل المنشأة حالياً (إجراء تلقائي: خروج)</span>
+            let cargoStatusLabel = '📦 محملة - قيد التفريغ والعمليات';
+            let cargoStatusBadgeColor = 'bg-blue-100 text-blue-900 border-blue-300';
+            
+            if (cargoState === 'unloaded_empty') {
+                cargoStatusLabel = '📭 تم تفريغ الحمولة بالكامل (فارغة)';
+                cargoStatusBadgeColor = 'bg-amber-100 text-amber-950 border-amber-300';
+            } else if (cargoState === 'reloading_secondary') {
+                cargoStatusLabel = `🔄 انتهى من التفريغ • جاري تحميل: ${vehicle.secondary_cargo || 'شحنة أخرى'}`;
+                cargoStatusBadgeColor = 'bg-purple-100 text-purple-950 border-purple-300';
+            } else if (cargoState === 'ready_exit') {
+                cargoStatusLabel = '✅ أنهت كافة العمليات ومحملة • جاهزة للمغادرة والخروج';
+                cargoStatusBadgeColor = 'bg-emerald-100 text-emerald-950 border-emerald-300';
+            }
+
+            // Visual Pipeline for in-factory journey
+            pipelineHtml = `
+                <div class="mb-3 p-3 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-sm text-xs">
+                    <div class="text-[11px] font-bold text-slate-400 mb-2 flex justify-between items-center">
+                        <span>🗺️ خط سير الشاحنة داخل المنشأة:</span>
+                        <span class="text-amber-400 font-mono font-bold">⏱️ المدة: ${durationMinutes === 0 ? 'الآن' : `${durationMinutes} دقيقة`}</span>
                     </div>
-                    <div class="text-xs text-[#556b82] font-semibold mt-1">
-                        دخلت عبر: <b class="text-[#002b66]">${entryGate}</b> الساعة <b class="font-mono text-[#0070f2]">${entryTime}</b> (${durationMinutes === 0 ? 'الآن' : `المدة: ${durationMinutes} دقيقة`})
-                    </div>
-                    ${permit && permit.pin_code ? `
-                        <div class="mt-1.5 inline-block bg-white px-3 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-xs text-[#002b66]">
-                            🔑 كود PIN: ${permit.pin_code}
+                    <div class="grid grid-cols-3 gap-1.5 text-center font-bold text-[10px]">
+                        <div class="p-1.5 rounded-lg ${cargoState === 'loaded_incoming' || cargoState === 'inside_processing' ? 'bg-[#0070f2] text-white shadow-xs' : 'bg-slate-800 text-slate-400'}">
+                            1. تفريغ / شحن
                         </div>
-                    ` : ''}
+                        <div class="p-1.5 rounded-lg ${cargoState === 'reloading_secondary' || cargoState === 'unloaded_empty' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-800 text-slate-400'}">
+                            2. تحميل شحنة ثانية
+                        </div>
+                        <div class="p-1.5 rounded-lg ${cargoState === 'ready_exit' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-800 text-slate-400'}">
+                            3. جاهز للمغادرة
+                        </div>
+                    </div>
                 </div>
             `;
+
+            decisionBadge = `
+                <div class="p-4 bg-[#ebf3fb] text-[#002b66] rounded-2xl border-2 border-[#b3d5fa] mb-3">
+                    <div class="flex items-center justify-between border-b border-[#b3d5fa] pb-2 mb-2">
+                        <div class="text-sm font-black flex items-center gap-1.5 text-[#107e3e]">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#107e3e] animate-pulse"></span>
+                            <span>🟢 الشاحنة متواجدة داخل المصنع حالياً</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold border ${cargoStatusBadgeColor}">
+                            ${cargoStatusLabel}
+                        </span>
+                    </div>
+
+                    <div class="text-xs text-[#556b82] font-semibold space-y-1">
+                        <div>📍 دخلت عبر: <b class="text-[#002b66]">${entryGate}</b> الساعة <b class="font-mono text-[#0070f2]">${entryTime}</b></div>
+                        ${permit && permit.pin_code ? `<div>🔑 كود التحقق السريع: <b class="font-mono text-[#002b66] bg-white px-2 py-0.5 rounded border border-[#b3d5fa]">${permit.pin_code}</b></div>` : ''}
+                    </div>
+                </div>
+            `;
+
             actionButtons = `
-                <div class="grid grid-cols-3 gap-2">
-                    <button type="button" onclick="Officer.recordAction('exit')" class="col-span-2 py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
+                <div class="space-y-2">
+                    <!-- Primary Exit Action -->
+                    <button type="button" onclick="Officer.recordAction('exit')" class="w-full py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
                         ${icon('logout', 'w-5 h-5')}
-                        <span>${lang === 'ar' ? '📤 تأكيد تسجيل الخروج' : 'Record Exit'}</span>
+                        <span>${lang === 'ar' ? '📤 اعتماد الخروج النهائي وتأكيد المغادرة' : 'Authorize Final Exit'}</span>
                     </button>
-                    <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3] active:scale-95">
-                        ${icon('ban', 'w-4 h-4')}
-                        <span>منع / تفتيش</span>
-                    </button>
+
+                    <!-- Cargo Status & Reload Options -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button type="button" onclick="Officer.openReloadCargoModal('${vehicle.id}', '${permit ? permit.id : ''}')" class="py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-950 border border-purple-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
+                            <span>🔄</span>
+                            <span>${lang === 'ar' ? 'تم التفريغ وسيقوم بتحميل شحنة أخرى' : 'Finished & Reloading Cargo'}</span>
+                        </button>
+                        <button type="button" onclick="Officer.quickUpdateCargoState('${vehicle.id}', 'ready_exit', 'جاهزة للمغادرة')" class="py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
+                            <span>✅</span>
+                            <span>${lang === 'ar' ? 'تأكيد اكتمال التحميل والجاهزية للخروج' : 'Mark Ready for Exit'}</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="Officer.quickUpdateCargoState('${vehicle.id}', 'unloaded_empty', 'شاحنة فارغة')" class="py-2 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] rounded-xl text-xs font-bold flex items-center justify-center gap-1 active:scale-95">
+                            <span>📭</span>
+                            <span>تفريغ فقط (فارغة)</span>
+                        </button>
+                        <button type="button" onclick="Officer.promptDenial()" class="py-2 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3] active:scale-95">
+                            ${icon('ban', 'w-3.5 h-3.5')}
+                            <span>إيقاف للتفتيش / مراجعة</span>
+                        </button>
+                    </div>
                 </div>
             `;
         } else if (permit && permit.status === 'revoked') {
@@ -490,63 +551,52 @@ class OfficerController {
             const isExit = permit.permit_type === 'exit';
             const isBoth = permit.permit_type === 'both';
             
-            if (isExit) {
-                decisionBadge = `
-                    <div class="p-3 bg-[#ebf3fb] text-[#0070f2] rounded-xl border-2 border-[#b3d5fa] mb-3 text-center">
-                        <div class="text-sm font-black flex items-center justify-center gap-1.5">
-                            <span>📤 تصريح خروج بضائع معتمد (${permit.permit_code})</span>
-                        </div>
-                        <div class="mt-1 flex items-center justify-center gap-2">
-                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b3d5fa] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '—'}</span>
-                        </div>
-                        ${permit.invoice_no ? `<div class="text-xs text-[#1d2d3e] font-mono font-bold mt-1.5">رقم إذن الصرف: <b class="text-[#0070f2]">${permit.invoice_no}</b> • الحمولة: ${permit.cargo_details}</div>` : ''}
+            pipelineHtml = `
+                <div class="mb-3 p-3 bg-emerald-950 text-white rounded-2xl border border-emerald-800 shadow-sm text-xs">
+                    <div class="text-[11px] font-bold text-emerald-300 mb-1 flex justify-between items-center">
+                        <span>🟢 الموقف التشغيلي: الشاحنة خارج المصنع وجاهزة للدخول</span>
+                        <span class="font-mono font-bold bg-emerald-800 px-2 py-0.5 rounded text-white">تصريح معتمد</span>
                     </div>
-                `;
-                actionButtons = `
+                </div>
+            `;
+
+            decisionBadge = `
+                <div class="p-4 ${isExit ? 'bg-[#ebf3fb] border-[#b3d5fa] text-[#0070f2]' : 'bg-[#e5f6eb] border-[#b4e3c4] text-[#107e3e]'} rounded-2xl border-2 mb-3">
+                    <div class="flex items-center justify-between border-b ${isExit ? 'border-[#b3d5fa]' : 'border-[#b4e3c4]'} pb-2 mb-2">
+                        <div class="text-sm font-black flex items-center gap-1.5">
+                            ${icon('check', 'w-4 h-4')}
+                            <span>${isExit ? '📤 تصريح خروج بضائع معتمد' : (isBoth ? '🔄 تصريح دخول وخروج معتمد' : '🟢 تصريح دخول معتمد')} (${permit.permit_code})</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 bg-white rounded-lg border font-mono font-black text-xs text-[#002b66]">
+                            🔑 PIN: ${permit.pin_code || '—'}
+                        </span>
+                    </div>
+                    <div class="text-xs text-[#1d2d3e] font-semibold flex flex-wrap gap-x-4 gap-y-1">
+                        <span>📍 الوجهة: <b class="text-[#002b66]">${permit.destination_ar || 'المستودع الرئيسي'}</b></span>
+                        ${permit.cargo_details ? `<span>📦 الحمولة: <b class="text-[#0070f2]">${permit.cargo_details}</b></span>` : ''}
+                        ${permit.invoice_no ? `<span>📑 إذن الصرف: <b class="font-mono text-[#002b66]">${permit.invoice_no}</b></span>` : ''}
+                    </div>
+                </div>
+            `;
+
+            actionButtons = `
+                <div class="space-y-2">
+                    <button type="button" onclick="Officer.recordAction('entry')" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
+                        ${icon('check', 'w-5 h-5')}
+                        <span>${lang === 'ar' ? '📥 اعتماد الدخول وبدء التفريغ / التحميل' : 'Authorize Entry'}</span>
+                    </button>
                     <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="Officer.recordAction('exit', 'خروج بضائع مصرحة')" class="py-3.5 bg-[#0070f2] hover:bg-[#005cbd] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
-                            ${icon('logout', 'w-4 h-4')}
-                            <span>تسجيل خروج البضائع</span>
+                        <button type="button" onclick="Officer.openInspectionRequestModal('${vehicle.plate_ar}')" class="py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95">
+                            <span>🚨</span>
+                            <span>طلب استئذان / فحص</span>
                         </button>
-                        <button type="button" onclick="Officer.promptDenial()" class="py-3.5 bg-[#ffebeb] hover:bg-[#ffd5d5] text-[#bb0000] font-bold rounded-xl text-xs border border-[#f6b3b3] active:scale-95">
-                            ${icon('ban', 'w-3.5 h-3.5')}
-                            <span>منع وتفتيش</span>
-                        </button>
-                    </div>
-                    <button type="button" onclick="Officer.openRequestHoldModal('${permit.id}')" class="w-full mt-2 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
-                        <span>⚠️</span>
-                        <span>طلب تعليق / سحب التصريح من المدير</span>
-                    </button>
-                `;
-            } else {
-                decisionBadge = `
-                    <div class="p-3 bg-[#e5f6eb] text-[#107e3e] rounded-xl border border-[#b4e3c4] mb-3 text-center">
-                        <div class="text-sm font-black flex items-center justify-center gap-1.5">
-                            ${icon('check', 'w-4 h-4 text-[#107e3e]')}
-                            <span>🟢 ${isBoth ? 'تصريح دخول وخروج معتمد' : window.i18n.t('statusAuthorized')} (${permit.permit_code})</span>
-                        </div>
-                        <div class="mt-1 flex items-center justify-center gap-2">
-                            <span class="text-[11px] bg-white px-2.5 py-0.5 rounded-lg border border-[#b4e3c4] font-mono font-black text-[#002b66]">🔑 كود PIN: ${permit.pin_code || '—'}</span>
-                        </div>
-                    </div>
-                `;
-                actionButtons = `
-                    <div class="grid grid-cols-3 gap-2">
-                        <button type="button" onclick="Officer.recordAction('entry')" class="col-span-2 py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
-                            ${icon('check', 'w-5 h-5')}
-                            <span>${window.i18n.t('authorizeEntryBtn')}</span>
-                        </button>
-                        <button type="button" onclick="Officer.recordAction('exit', 'خروج مباشر')" class="py-3.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] border border-[#b0cfee] font-bold rounded-xl text-xs flex items-center justify-center gap-1 active:scale-95">
-                            ${icon('logout', 'w-3.5 h-3.5')}
-                            <span>تسجيل خروج</span>
+                        <button type="button" onclick="Officer.openRequestHoldModal('${permit.id}')" class="py-2.5 bg-red-50 hover:bg-red-100 text-red-900 border border-red-200 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95">
+                            <span>⚠️</span>
+                            <span>طلب تعليق التصريح</span>
                         </button>
                     </div>
-                    <button type="button" onclick="Officer.openRequestHoldModal('${permit.id}')" class="w-full mt-2 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all">
-                        <span>⚠️</span>
-                        <span>طلب تعليق / سحب التصريح من المدير</span>
-                    </button>
-                `;
-            }
+                </div>
+            `;
         } else {
             decisionBadge = `
                 <div class="p-3 bg-[#fff1e5] text-[#b85500] rounded-xl border border-[#ffd8b3] mb-3 text-center">
@@ -573,6 +623,8 @@ class OfficerController {
 
         resultContainer.innerHTML = `
             <div class="sap-panel p-5 border-2 border-[#b0cfee] shadow-lg animate-scaleUp bg-white rounded-2xl">
+                
+                ${pipelineHtml}
                 ${decisionBadge}
 
                 <!-- Egyptian License Plate Badge -->
@@ -1092,9 +1144,35 @@ class OfficerController {
         }
     }
 
+    // Audio chime & vibration for successful QR scan
+    playScanSuccessSound() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                navigator.vibrate([60, 40, 60]);
+            }
+        } catch (e) {}
+    }
+
     // Multi-format QR payload parsing (PIN, permit code, plate JSON, or raw string)
     handleScannedCode(decodedText) {
         if (!decodedText) return;
+        this.playScanSuccessSound();
         let queryToSearch = decodedText.trim();
 
         try {
@@ -1108,7 +1186,118 @@ class OfficerController {
         if (input) {
             input.value = queryToSearch;
         }
+
+        this.stopScanner();
         this.handlePlateSearch(queryToSearch);
+
+        // Smooth scroll so the officer immediately sees the decision and cargo lifecycle card
+        setTimeout(() => {
+            const resultContainer = document.getElementById('vehicle-verification-result');
+            if (resultContainer) {
+                resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 120);
+    }
+
+    quickUpdateCargoState(vehicleId, cargoState, notes = '') {
+        const vehicle = window.DB.updateVehicleCargoState(parseInt(vehicleId), cargoState, notes);
+        const lang = window.i18n.getLang();
+        if (window.App) {
+            window.App.showToast(
+                lang === 'ar' ? '📦 تم تحديث حالة الحمولة' : 'Cargo State Updated',
+                lang === 'ar' ? `المركبة: ${vehicle ? vehicle.plate_ar : ''} • الحالة: ${notes || cargoState}` : `Vehicle updated`,
+                'success',
+                'check'
+            );
+        }
+        if (this.selectedVehicle) {
+            this.renderVehicleDecisionCard(this.selectedVehicle, this.selectedPermit, lang);
+        }
+    }
+
+    openReloadCargoModal(vehicleId, permitId = '') {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const vehicle = window.DB.getVehicles().find(v => v.id === parseInt(vehicleId));
+        if (!vehicle) return;
+        const destinations = window.DB.getDestinations() || ['مستودع المنتجات تامة الصنع', 'مصنع الأسمدة والمخصبات', 'المستودع الرئيسي'];
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-purple-200" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee] mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-900 flex items-center justify-center font-black text-lg border border-purple-300">
+                                🔄
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'توثيق انتهاء التفريغ وتحويل لتحميل بضائع أخرى' : 'Secondary Cargo Reload Authorization'}
+                                </h3>
+                                <p class="text-[11px] text-[#556b82] font-semibold">
+                                    ${lang === 'ar' ? `مركبة: ${vehicle.plate_ar} • السائق: ${vehicle.driver_name_ar}` : `Vehicle: ${vehicle.plate_ar}`}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="Officer.submitReloadCargo(event, '${vehicle.id}')" class="space-y-3.5 text-xs">
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">📦 تفاصيل الشحنة الجديدة المراد تحميلها بالمصنع:</label>
+                            <input type="text" id="reload-cargo-input" required placeholder="${lang === 'ar' ? 'مثال: أسمدة مركبة 25 طن - إذن صرف 8841' : 'e.g. Compound Fertilizer 25 Tons'}" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2.5 text-sm font-bold text-[#1d2d3e] focus:border-purple-600 focus:bg-white focus:outline-none" />
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">📍 المستودع / القسم الداخلي التالي:</label>
+                            <select id="reload-destination-select" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2.5 font-bold text-[#1d2d3e] focus:border-purple-600 focus:bg-white focus:outline-none">
+                                ${destinations.map(d => `<option value="${d}">${d}</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">📝 ملاحظات الحارس:</label>
+                            <input type="text" id="reload-notes-input" placeholder="${lang === 'ar' ? 'تم إنزال وتفريغ الحمولة السابقة بالكامل بنجاح' : 'Unloaded successfully'}" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2 text-[#1d2d3e] focus:border-purple-600 focus:bg-white focus:outline-none" />
+                        </div>
+
+                        <div class="pt-2 flex gap-2">
+                            <button type="submit" class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-xs shadow-md active:scale-95 transition-all">
+                                🔄 ${lang === 'ar' ? 'اعتماد التحويل للتحميل الداخلي' : 'Authorize Reload'}
+                            </button>
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+                                إلغاء
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    submitReloadCargo(event, vehicleId) {
+        if (event) event.preventDefault();
+        const cargo = document.getElementById('reload-cargo-input')?.value.trim() || 'شحنة بضائع جديدة';
+        const dest = document.getElementById('reload-destination-select')?.value.trim() || 'المستودع';
+        const notes = document.getElementById('reload-notes-input')?.value.trim() || 'تم إنزال الحمولة السابقة';
+
+        window.DB.updateVehicleCargoState(parseInt(vehicleId), 'reloading_secondary', `تحويل إلى ${dest}: ${notes}`, cargo);
+
+        document.getElementById('modal-container').innerHTML = '';
+        const lang = window.i18n.getLang();
+        if (window.App) {
+            window.App.showToast(
+                lang === 'ar' ? '🔄 تم اعتماد التحويل للتحميل' : 'Reload Authorized',
+                lang === 'ar' ? `جاري تحميل: ${cargo}` : `Loading: ${cargo}`,
+                'success',
+                'sync'
+            );
+        }
+
+        if (this.selectedVehicle) {
+            this.renderVehicleDecisionCard(this.selectedVehicle, this.selectedPermit, lang);
+        }
+        this.renderTerminal();
     }
 
     // Pre-Arrival Manifest & Expected Arrivals Modal
@@ -1675,6 +1864,11 @@ window.openInspectionRequestModal = function(plate) {
 window.openRequestHoldModal = function(permitId) {
     if (window.Officer && typeof window.Officer.openRequestHoldModal === 'function') {
         window.Officer.openRequestHoldModal(permitId);
+    }
+};
+window.openReloadCargoModal = function(vehicleId, permitId) {
+    if (window.Officer && typeof window.Officer.openReloadCargoModal === 'function') {
+        window.Officer.openReloadCargoModal(vehicleId, permitId);
     }
 };
 

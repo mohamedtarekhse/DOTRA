@@ -1041,6 +1041,111 @@ class DatabaseService {
         }
     }
 
+    // --- Operational Cargo & Lifecycle Management ---
+    updateVehicleCargoState(vehicleId, cargoState, details = '', secondaryCargo = '') {
+        const vehicles = this.getVehicles();
+        const vehicle = vehicles.find(v => v.id === vehicleId);
+        if (!vehicle) return null;
+
+        vehicle.cargo_state = cargoState; // 'loaded_incoming', 'unloaded_empty', 'reloading_secondary', 'loaded_outgoing', 'ready_exit'
+        vehicle.cargo_notes = details;
+        if (secondaryCargo) {
+            vehicle.secondary_cargo = secondaryCargo;
+        }
+        localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
+
+        // Update current inside log remarks if truck is inside
+        const logs = this.getLogs();
+        const activeEntryLog = logs.slice().reverse().find(l => l.vehicle_id === vehicleId && l.action_type === 'entry' && !l.exit_timestamp);
+        if (activeEntryLog) {
+            activeEntryLog.cargo_state = cargoState;
+            activeEntryLog.remarks = (activeEntryLog.remarks || '') + ` [حالة الحمولة: ${cargoState}${details ? ' - ' + details : ''}]`;
+            localStorage.setItem('gate_logs', JSON.stringify(logs));
+        }
+
+        this.announce('CARGO_STATE_UPDATED', {
+            vehicle_id: vehicleId,
+            plate: vehicle.plate_ar,
+            cargo_state: cargoState,
+            details: details,
+            secondary_cargo: secondaryCargo
+        });
+
+        this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
+        return vehicle;
+    }
+
+    getVehicleOperationalLifecycle(vehicleId, permitId = null) {
+        const vehicles = this.getVehicles();
+        const vehicle = vehicles.find(v => v.id === vehicleId);
+        if (!vehicle) return null;
+
+        const permits = this.getPermits();
+        const permit = permitId ? permits.find(p => p.id === permitId) : (this.findActivePermitByPlate(vehicle.plate_ar) || permits.filter(p => p.vehicle_id === vehicle.id).pop());
+        const insideLog = this.isVehicleInside(vehicle.id);
+
+        let stage = 'AWAITING_ENTRY'; // Default: outside factory
+        let stageLabelAr = 'خارج المصنع - بانتظار فحص الدخول';
+        let stageColor = 'amber';
+        let isInside = !!insideLog;
+        let minutesInside = 0;
+
+        if (insideLog) {
+            const entryTime = this.parseTimestamp(insideLog.timestamp).getTime();
+            minutesInside = Math.max(0, Math.round((Date.now() - entryTime) / 60000));
+
+            const cargoState = vehicle.cargo_state || 'loaded_incoming';
+            if (cargoState === 'reloading_secondary') {
+                stage = 'INSIDE_RELOADING';
+                stageLabelAr = 'داخل المصنع - جاري تحميل شحنة أخرى';
+                stageColor = 'purple';
+            } else if (cargoState === 'unloaded_empty') {
+                stage = 'INSIDE_UNLOADED';
+                stageLabelAr = 'داخل المصنع - تم تفريغ الحمولة بالكامل';
+                stageColor = 'blue';
+            } else if (cargoState === 'ready_exit' || (permit && permit.permit_type === 'exit')) {
+                stage = 'READY_EXIT';
+                stageLabelAr = 'أنهت العمليات داخل المصنع - جاهزة للخروج النهائي';
+                stageColor = 'emerald';
+            } else {
+                stage = 'INSIDE_PROCESSING';
+                stageLabelAr = 'داخل المنشأة - قيد العمليات والتفريغ';
+                stageColor = 'blue';
+            }
+        } else {
+            if (vehicle.status === 'blacklist') {
+                stage = 'BLACKLISTED';
+                stageLabelAr = 'محظورة أمنياً من الدخول';
+                stageColor = 'red';
+            } else if (permit && permit.status === 'revoked') {
+                stage = 'PERMIT_REVOKED';
+                stageLabelAr = 'تصريح ملغي ومسحوب';
+                stageColor = 'red';
+            } else if (permit && permit.status === 'hold') {
+                stage = 'PERMIT_HOLD';
+                stageLabelAr = 'تصريح معلق بقرار الإدارة';
+                stageColor = 'amber';
+            } else {
+                stage = 'AWAITING_ENTRY';
+                stageLabelAr = 'خارج المنشأة - تصريح معتمد وجاهز للدخول';
+                stageColor = 'emerald';
+            }
+        }
+
+        return {
+            vehicle,
+            permit,
+            insideLog,
+            isInside,
+            minutesInside,
+            stage,
+            stageLabelAr,
+            stageColor,
+            cargoState: vehicle.cargo_state || (insideLog ? 'inside_processing' : 'awaiting_entry'),
+            secondaryCargo: vehicle.secondary_cargo || ''
+        };
+    }
+
     recordDenied(vehicleId, officerId, gateName, reason) {
         const logs = this.getLogs();
         const vehicle = this.getVehicles().find(v => v.id === vehicleId);
