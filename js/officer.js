@@ -16,6 +16,10 @@ class OfficerController {
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
+    escHtml(str) {
+        return OfficerController.escHtml(str);
+    }
+
     renderTerminal() {
         if (this.isScanning) return;
         const container = document.getElementById('main-content');
@@ -64,7 +68,7 @@ class OfficerController {
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button type="button" onclick="Officer.openInspectionRequestModal()" class="px-2.5 sm:px-3 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl border border-amber-400 text-xs font-black flex items-center gap-1.5 shadow-md active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
+                        <button type="button" onclick="Officer.openInspectionRequestModal()" class="px-2.5 sm:px-3 py-2.5 bg-[#fff8eb] hover:bg-[#ffeed6] text-[#b85500] rounded-xl border-2 border-[#ffc966] text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
                             <span>🚨</span>
                             <span>${lang === 'ar' ? 'طلب استئذان وتفتيش' : 'Request Pass'}</span>
                         </button>
@@ -1009,7 +1013,7 @@ class OfficerController {
                                     <span>لوحة المفاتيح المصرية</span>
                                 </button>
                             </div>
-                            <input type="text" id="req-plate-input" required value="${Officer.escHtml(currentPlateInput)}" placeholder="مثال: ط ر ق ٩ ٨ ٢ ١" class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-3.5 py-2.5 text-base font-black text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            <input type="text" id="req-plate-input" required value="${OfficerController.escHtml(currentPlateInput)}" placeholder="مثال: ط ر ق ٩ ٨ ٢ ١" class="w-full bg-[#f8fafc] border-2 border-[#b0cfee] rounded-xl px-3.5 py-2.5 text-base font-black text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
                             <div id="req-arabic-keypad" class="hidden mt-2">
                                 ${window.ArabicPlate ? window.ArabicPlate.renderArabicKeypad('req-plate-input') : ''}
                             </div>
@@ -1103,10 +1107,10 @@ class OfficerController {
 
                         <!-- Footer Actions -->
                         <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
-                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2.5 sap-btn-secondary text-xs">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2.5 sap-btn-secondary text-xs font-bold">
                                 إلغاء
                             </button>
-                            <button type="submit" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
+                            <button type="submit" class="px-6 py-2.5 sap-btn-primary text-xs font-black flex items-center gap-1.5 shadow-md active:scale-95 transition-all">
                                 <span>🚀</span>
                                 <span>إرسال الطلب والصور للمدير فورا</span>
                             </button>
