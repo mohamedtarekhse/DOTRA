@@ -41,8 +41,29 @@ class OfficerController {
             return;
         }
 
+        const lockdown = window.DB.getEmergencyLockdownStatus();
+
         container.innerHTML = `
             <div class="max-w-xl mx-auto pb-12 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                
+                <!-- Emergency Plant Lockdown Alert Banner (if active) -->
+                ${lockdown.active ? `
+                    <div class="mb-4 p-4 bg-red-950 border-2 border-red-500 text-white rounded-2xl shadow-xl animate-pulse">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <span class="text-2xl">🚨</span>
+                                <div>
+                                    <h3 class="text-sm font-black text-red-200">حالة طوارئ قصوى وإغلاق عام للمنشأة (LOCKDOWN)</h3>
+                                    <p class="text-xs text-white">${lockdown.reason || 'إغلاق البوابات لإجراءات السلامة'}</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="Officer.openEmergencyEvacuationModal()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-md border border-red-400">
+                                📋 كشف الإخلاء
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
+
                 <!-- Officer & Gate Header Banner (Clean Unified SAP Theme) -->
                 <div class="sap-panel p-4 mb-4 bg-white border border-[#d7e2ee] shadow-sm rounded-2xl">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
@@ -75,14 +96,18 @@ class OfficerController {
 
                         <!-- Unified Action Toolbar (Desktop & Mobile) -->
                         <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap pt-2 sm:pt-0 border-t sm:border-t-0 border-[#edf2f7]">
-                            <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 sm:flex-initial px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl border border-amber-400 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان أمر مرور مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
+                            <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 sm:flex-initial px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl border border-amber-400 flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان أمر مرور مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
                                 <span>🚨</span>
-                                <span>${lang === 'ar' ? 'طلب أمر مرور / استئذان' : 'Pass Request'}</span>
+                                <span>${lang === 'ar' ? 'أمر مرور' : 'Pass Req'}</span>
                             </button>
-                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3.5 py-2.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
+                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3 py-2.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
                                 ${icon('file', 'w-3.5 h-3.5 text-[#0070f2]')}
-                                <span>${lang === 'ar' ? 'كشف المتوقع' : 'Manifest'}</span>
+                                <span>${lang === 'ar' ? 'المتوقع' : 'Manifest'}</span>
                                 <span class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold leading-none">${window.DB.getExpectedArrivals().length}</span>
+                            </button>
+                            <button type="button" onclick="Officer.openShiftHandoverModal()" class="flex-1 sm:flex-initial px-3 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl border border-purple-200 text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="محضر تسليم واستلام الوردية">
+                                <span>📄</span>
+                                <span>${lang === 'ar' ? 'تسليم وردية' : 'Handover'}</span>
                             </button>
                         </div>
 
@@ -382,6 +407,7 @@ class OfficerController {
         let pipelineHtml = '';
 
         if (isBlacklisted) {
+            this.playBlacklistAlarmSiren();
             decisionBadge = `
                 <div class="p-3.5 bg-[#3b0d0c] text-white rounded-2xl border-2 border-red-800 mb-3 text-center shadow-md">
                     <div class="text-base font-black flex items-center justify-center gap-1.5 text-red-300">
@@ -1209,6 +1235,32 @@ class OfficerController {
         }
     }
 
+    // Urgent dual-tone siren for blacklisted vehicles or security alerts
+    playBlacklistAlarmSiren() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(950, now);
+            osc.frequency.linearRampToValueAtTime(450, now + 0.15);
+            osc.frequency.linearRampToValueAtTime(950, now + 0.3);
+            osc.frequency.linearRampToValueAtTime(450, now + 0.45);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.6);
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 300]);
+            }
+        } catch (e) {}
+    }
+
     // Audio chime & vibration for successful QR scan
     playScanSuccessSound() {
         try {
@@ -1468,6 +1520,301 @@ class OfficerController {
                 'bell'
             );
         }
+    }
+
+    // =========================================================================
+    // WEIGHBRIDGE & WEIGHING PROTOCOL (GROSS / TARE / NET)
+    // =========================================================================
+
+    openWeighbridgeEntryModal(vehicleId, permitId = null) {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const vehicle = window.DB.getVehicles().find(v => v.id === parseInt(vehicleId));
+        if (!vehicle) return;
+        const permit = permitId ? window.DB.getPermits().find(p => p.id === permitId) : this.selectedPermit;
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-emerald-500" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee] mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-lg border border-emerald-300">
+                                ⚖️
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'تسجيل ميزان البسكول عند الدخول' : 'Weighbridge Gross Weight Recording'}
+                                </h3>
+                                <p class="text-[11px] text-[#556b82] font-semibold">
+                                    ${lang === 'ar' ? `مركبة: ${vehicle.plate_ar} • السائق: ${vehicle.driver_name_ar}` : `Vehicle: ${vehicle.plate_ar}`}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="Officer.submitWeighbridgeEntry(event, '${vehicle.id}', '${permit ? permit.id : ''}')" class="space-y-3.5 text-xs">
+                        <div class="bg-[#f0fdf4] p-3 rounded-2xl border border-emerald-200 text-emerald-950 font-bold space-y-1">
+                            <div>📦 الشحنة المصرحة: <b>${permit ? permit.cargo_details : 'بضائع ومواد مصرحة'}</b></div>
+                            <div>📍 الوجهة: <b>${permit ? permit.destination_ar : 'المستودع الرئيسي'}</b></div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">⚖️ الوزن الإجمالي / القائم على ميزان البسكول (بالطن):</label>
+                            <input type="number" step="0.01" id="weighbridge-gross-input" required placeholder="مثال: 38.50" class="w-full bg-[#f8fafc] border-2 border-emerald-400 rounded-xl px-3.5 py-2.5 text-base font-black text-[#1d2d3e] focus:border-emerald-600 focus:bg-white focus:outline-none" />
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">🅿️ رصيف التحميل / ساحة الانتظار الداخلية المخصصة:</label>
+                            <input type="text" id="weighbridge-dock-input" placeholder="مثال: رصيف تحميل 3 - قطاع أ" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2 text-[#1d2d3e] focus:border-emerald-600 focus:outline-none" />
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">📝 ملاحظات فحص الوزن:</label>
+                            <input type="text" id="weighbridge-notes-input" placeholder="مطابق لبيان الشحنة" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2 text-[#1d2d3e] focus:border-emerald-600 focus:outline-none" />
+                        </div>
+
+                        <div class="pt-2 flex gap-2">
+                            <button type="submit" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs shadow-md active:scale-95 transition-all">
+                                📥 اعتماد الدخول مع توثيق الوزن
+                            </button>
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+                                إلغاء
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    submitWeighbridgeEntry(event, vehicleId, permitId) {
+        if (event) event.preventDefault();
+        const grossWeight = document.getElementById('weighbridge-gross-input')?.value.trim();
+        const dockBay = document.getElementById('weighbridge-dock-input')?.value.trim() || 'ساحة الانتظار';
+        const notes = document.getElementById('weighbridge-notes-input')?.value.trim() || 'دخول مع وزن بسكول';
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'حارس البوابة', gate_assigned: 'Gate 1' };
+        const fullRemarks = `${notes} (رصيف: ${dockBay})`;
+
+        window.DB.recordEntry(parseInt(vehicleId), permitId || null, user.id, user.gate_assigned, fullRemarks, this.currentCapturedPhoto, grossWeight, dockBay);
+
+        document.getElementById('modal-container').innerHTML = '';
+        const lang = window.i18n.getLang();
+        if (window.App) {
+            window.App.showToast(
+                lang === 'ar' ? '📥 تم تسجيل الدخول وتوثيق الوزن' : 'Entry & Weight Recorded',
+                lang === 'ar' ? `الوزن القائم: ${grossWeight} طن • الرصيف: ${dockBay}` : `Gross: ${grossWeight}t`,
+                'success',
+                'check'
+            );
+        }
+
+        this.clearSearch();
+        this.renderTerminal();
+    }
+
+    // =========================================================================
+    // SHIFT HANDOVER DIGEST & PROTOCOL
+    // =========================================================================
+
+    openShiftHandoverModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'ضابط البوابة' };
+        const handoverData = window.DB.getShiftHandoverData(user.id);
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div id="printable-handover-report" class="sap-modal-content bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border-2 border-purple-300 max-h-[92vh] overflow-y-auto text-right" dir="rtl">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee] mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-900 flex items-center justify-center font-black text-lg border border-purple-300">
+                                📄
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    محضر تسليم واستلام الوردية الرسمي
+                                </h3>
+                                <p class="text-[11px] text-[#556b82] font-semibold">
+                                    التاريخ: <b>${handoverData.date}</b> • الساعة: <b>${handoverData.time}</b>
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <!-- Station Info Banner -->
+                    <div class="p-3 bg-[#f8fafc] rounded-2xl border border-[#d7e2ee] grid grid-cols-2 gap-2 text-xs mb-4">
+                        <div>👮 الضابط المسلّم: <b class="text-[#002b66]">${handoverData.officer_name}</b> <span class="font-mono text-[#0070f2]">(${handoverData.badge_id})</span></div>
+                        <div>🚪 محطة الخدمة: <b class="text-[#002b66]">${handoverData.gate_name}</b></div>
+                        <div>⏰ الوردية: <b class="text-purple-700">${handoverData.shift_name}</b></div>
+                        <div>🤝 المناوب المستلم: <b class="text-[#107e3e]">${handoverData.partner_name}</b> <span class="font-mono">(${handoverData.partner_badge})</span></div>
+                    </div>
+
+                    <!-- Shift Traffic Stats -->
+                    <div class="grid grid-cols-4 gap-2 mb-4 text-center">
+                        <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                            <div class="text-lg font-black text-emerald-800">${handoverData.entries_count}</div>
+                            <div class="text-[10px] text-emerald-700 font-bold">شاحنات دخلت</div>
+                        </div>
+                        <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+                            <div class="text-lg font-black text-blue-800">${handoverData.exits_count}</div>
+                            <div class="text-[10px] text-blue-700 font-bold">شاحنات خرجت</div>
+                        </div>
+                        <div class="p-2.5 bg-red-50 border border-red-200 rounded-xl">
+                            <div class="text-lg font-black text-red-800">${handoverData.denied_count}</div>
+                            <div class="text-[10px] text-red-700 font-bold">حالات منع</div>
+                        </div>
+                        <div class="p-2.5 bg-purple-50 border border-purple-200 rounded-xl">
+                            <div class="text-lg font-black text-purple-900">${handoverData.inside_count}</div>
+                            <div class="text-[10px] text-purple-800 font-bold">أمانات بالداخل</div>
+                        </div>
+                    </div>
+
+                    <!-- In-Factory Custody List -->
+                    <div class="mb-4">
+                        <h4 class="text-xs font-black text-[#002b66] mb-2 flex items-center gap-1.5">
+                            <span>🚚</span>
+                            <span>كشف الشاحنات المتواجدة داخل المصنع (في عهدة الوردية المستلمة):</span>
+                        </h4>
+                        ${handoverData.inside_vehicles.length === 0 ? `
+                            <div class="p-3 bg-slate-50 text-center text-xs text-slate-500 rounded-xl border border-dashed">
+                                لا توجد شاحنات متواجدة داخل المصنع حالياً (الساحة خالية).
+                            </div>
+                        ` : `
+                            <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1 text-xs">
+                                ${handoverData.inside_vehicles.map((v, i) => `
+                                    <div class="p-2 bg-[#f8fafc] rounded-xl border border-[#d7e2ee] flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-5 h-5 rounded-full bg-[#002b66] text-white flex items-center justify-center text-[10px] font-bold">${i + 1}</span>
+                                            <span class="font-black text-[#002b66]">${v.plate_ar}</span>
+                                            <span class="text-[10px] text-[#556b82]">(${v.driver_name})</span>
+                                        </div>
+                                        <div class="text-[10px] text-purple-800 font-bold font-mono">
+                                            ⏱️ ${v.minutes_inside} دقيقة
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+
+                    <form onsubmit="Officer.submitShiftHandover(event)" class="space-y-3 pt-3 border-t border-[#d7e2ee]">
+                        <div>
+                            <label class="block font-bold text-xs text-[#1d2d3e] mb-1">📝 ملاحظات التسليم للوردية التالية والإدارة:</label>
+                            <input type="text" id="handover-notes-input" placeholder="الوضع الأمني مستقر، تم تسليم الأختام والعهد والمفاتيح" class="w-full bg-[#f8fafc] border border-[#b0cfee] rounded-xl px-3.5 py-2 text-xs text-[#1d2d3e] focus:border-purple-600 focus:outline-none" />
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button type="submit" class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl text-xs shadow-md active:scale-95 transition-all">
+                                ✍️ اعتماد وتوثيق تسليم الوردية
+                            </button>
+                            <button type="button" onclick="window.print()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
+                                🖨️ طباعة
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    submitShiftHandover(event) {
+        if (event) event.preventDefault();
+        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'ضابط البوابة' };
+        const notes = document.getElementById('handover-notes-input')?.value.trim() || 'تم تسليم الوردية بنجاح';
+        const handoverData = window.DB.getShiftHandoverData(user.id);
+        handoverData.notes = notes;
+
+        window.DB.recordShiftHandover(handoverData);
+
+        document.getElementById('modal-container').innerHTML = '';
+        if (window.App) {
+            window.App.showToast(
+                '📄 تم توثيق تسليم الوردية',
+                `تم حفظ واعتماد محضر تسليم الوردية (${handoverData.shift_name}) بنجاح.`,
+                'success',
+                'check'
+            );
+        }
+    }
+
+    // =========================================================================
+    // EMERGENCY EVACUATION LIVE ROSTER MODAL
+    // =========================================================================
+
+    openEmergencyEvacuationModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const roster = window.DB.getEmergencyEvacuationRoster();
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-red-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border-4 border-red-600 max-h-[92vh] overflow-y-auto text-right" dir="rtl">
+                    <div class="flex justify-between items-center pb-3 border-b border-red-200 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-2xl animate-pulse">
+                                🚨
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-red-900">
+                                    كشف حصر الأفراد والشاحنات لحالات الإخلاء والطوارئ
+                                </h3>
+                                <p class="text-xs text-red-700 font-bold">
+                                    مخصص لفرق الحماية المدنية، الإطفاء، والإسعاف • التحديث: لحظي
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <div class="bg-red-50 p-4 rounded-2xl border border-red-200 mb-4 flex items-center justify-between text-xs">
+                        <div class="text-red-950 font-black text-sm">
+                            إجمالي الشاحنات المتواجدة داخل المنشأة حالياً: <b class="font-mono text-xl text-red-700">${roster.length}</b> شاحنة
+                        </div>
+                        <button type="button" onclick="window.print()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl text-xs shadow-md">
+                            🖨️ طباعة فورية للإسعاف والإطفاء
+                        </button>
+                    </div>
+
+                    <div class="space-y-2 max-h-96 overflow-y-auto pr-1">
+                        ${roster.length === 0 ? `
+                            <div class="p-6 bg-emerald-50 text-center text-emerald-800 font-bold text-xs rounded-2xl border border-emerald-200">
+                                🟢 تم إخلاء المنشأة بالكامل - لا توجد أي شاحنات متبقية داخل المصنع.
+                            </div>
+                        ` : roster.map((item, idx) => `
+                            <div class="p-3 bg-white rounded-2xl border-2 border-red-200 hover:border-red-500 transition-all flex items-center justify-between text-xs">
+                                <div class="space-y-0.5">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-5 h-5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">${idx + 1}</span>
+                                        <span class="font-black text-base text-[#002b66]">${item.plate_ar}</span>
+                                        <span class="text-[#556b82] font-bold">(${item.company})</span>
+                                    </div>
+                                    <div class="text-[#1d2d3e] font-semibold">
+                                        👤 السائق: <b>${item.driver_name}</b> • 📞 هاتف: <a href="tel:${item.driver_phone}" class="text-[#0070f2] font-mono font-bold">${item.driver_phone || 'غير مسجل'}</a>
+                                    </div>
+                                    <div class="text-[11px] text-[#556b82]">
+                                        📍 الموقع الداخلي: <b>${item.destination}</b> • البوابة: <b>${item.gate_name}</b>
+                                    </div>
+                                </div>
+                                <div class="text-left font-mono">
+                                    <div class="text-red-700 font-black text-xs">⏱️ منذ ${item.minutes_inside} دقيقة</div>
+                                    <div class="text-[10px] text-slate-500">دخول: ${item.entry_time}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="pt-4 mt-4 border-t border-slate-200 flex justify-end">
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-5 py-2.5 bg-slate-800 text-white font-bold rounded-xl text-xs">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     // Pre-Arrival Manifest & Expected Arrivals Modal
@@ -2044,6 +2391,16 @@ window.openReloadCargoModal = function(vehicleId, permitId) {
 window.openOverstayExitModal = function(vehicleId) {
     if (window.Officer && typeof window.Officer.openOverstayExitModal === 'function') {
         window.Officer.openOverstayExitModal(vehicleId);
+    }
+};
+window.openShiftHandoverModal = function() {
+    if (window.Officer && typeof window.Officer.openShiftHandoverModal === 'function') {
+        window.Officer.openShiftHandoverModal();
+    }
+};
+window.openEmergencyEvacuationModal = function() {
+    if (window.Officer && typeof window.Officer.openEmergencyEvacuationModal === 'function') {
+        window.Officer.openEmergencyEvacuationModal();
     }
 };
 

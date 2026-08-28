@@ -942,8 +942,10 @@ class DatabaseService {
         }
     }
 
-    recordEntry(vehicleId, permitId, officerId, gateName, remarks = '', photoUrl = null) {
+    recordEntry(vehicleId, permitId, officerId, gateName, remarks = '', photoUrl = null, grossWeight = null, dockBay = null) {
         const logs = this.getLogs();
+        const parsedGross = grossWeight !== null && !isNaN(parseFloat(grossWeight)) ? parseFloat(grossWeight) : null;
+
         const newLog = {
             id: this.generateId(),
             vehicle_id: vehicleId,
@@ -955,7 +957,11 @@ class DatabaseService {
             exit_timestamp: null,
             duration_minutes: null,
             remarks: remarks,
-            photo_url: photoUrl || null
+            photo_url: photoUrl || null,
+            gross_weight: parsedGross,
+            tare_weight: null,
+            net_weight: null,
+            dock_bay: dockBay || null
         };
         logs.push(newLog);
         localStorage.setItem('gate_logs', JSON.stringify(logs));
@@ -970,7 +976,9 @@ class DatabaseService {
         this.announce('VEHICLE_ENTRY', {
             plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
             gate: gateName,
-            officer: officer ? officer.name_ar : 'حارس البوابة'
+            officer: officer ? officer.name_ar : 'حارس البوابة',
+            gross_weight: parsedGross,
+            dock_bay: dockBay
         });
 
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
@@ -979,11 +987,12 @@ class DatabaseService {
         return newLog;
     }
 
-    recordExit(vehicleId, officerId, gateName, remarks = '', photoUrl = null) {
+    recordExit(vehicleId, officerId, gateName, remarks = '', photoUrl = null, tareWeight = null) {
         const logs = this.getLogs();
         const activeEntryIndex = logs.slice().reverse().findIndex(l => l.vehicle_id === vehicleId && l.action_type === 'entry' && !l.exit_timestamp);
         const vehicles = this.getVehicles();
         const vehicle = vehicles.find(v => v.id === vehicleId);
+        const parsedTare = tareWeight !== null && !isNaN(parseFloat(tareWeight)) ? parseFloat(tareWeight) : null;
 
         // Update vehicle state to exited
         if (vehicle) {
@@ -1022,6 +1031,13 @@ class DatabaseService {
                 entryLog.exit_photo_url = photoUrl;
             }
 
+            if (parsedTare !== null) {
+                entryLog.tare_weight = parsedTare;
+                if (entryLog.gross_weight !== null && !isNaN(entryLog.gross_weight)) {
+                    entryLog.net_weight = Math.max(0, parseFloat((entryLog.gross_weight - parsedTare).toFixed(2)));
+                }
+            }
+
             localStorage.setItem('gate_logs', JSON.stringify(logs));
 
             this.announce('VEHICLE_EXIT', {
@@ -1029,7 +1045,9 @@ class DatabaseService {
                 plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
                 gate: gateName,
                 duration: durationMin,
-                timestamp: exitTime.toISOString()
+                timestamp: exitTime.toISOString(),
+                tare_weight: parsedTare,
+                net_weight: entryLog.net_weight
             });
 
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
@@ -1047,7 +1065,10 @@ class DatabaseService {
                 exit_timestamp: new Date().toISOString(),
                 duration_minutes: 0,
                 remarks: remarks || 'تسجيل خروج مباشر',
-                photo_url: photoUrl || null
+                photo_url: photoUrl || null,
+                gross_weight: null,
+                tare_weight: parsedTare,
+                net_weight: null
             };
             logs.push(newExitLog);
             localStorage.setItem('gate_logs', JSON.stringify(logs));
@@ -1057,12 +1078,151 @@ class DatabaseService {
                 plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
                 gate: gateName,
                 duration: 0,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                tare_weight: parsedTare
             });
 
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
             this.notifyVehicleEvent('exit', vehicleId, vehicle ? vehicle.plate_ar : '', gateName);
             return newExitLog;
+        }
+    }
+
+    // =========================================================================
+    // EMERGENCY LOCKDOWN & INDUSTRIAL SAFETY EVACUATION SYSTEM
+    // =========================================================================
+
+    triggerEmergencyLockdown(reason = 'حالة طوارئ عامة بالمصنع', initiatedBy = 1) {
+        const lockdownState = {
+            active: true,
+            reason: reason,
+            initiated_at: new Date().toISOString(),
+            initiated_by: initiatedBy
+        };
+        localStorage.setItem('gate_emergency_lockdown', JSON.stringify(lockdownState));
+        this.announce('EMERGENCY_LOCKDOWN_TRIGGERED', lockdownState);
+        this.pushToCloud('/api/push/notify', {
+            type: 'emergency_lockdown',
+            reason: reason,
+            roles: ['manager', 'officer', 'ceo']
+        });
+        return lockdownState;
+    }
+
+    liftEmergencyLockdown() {
+        const lockdownState = {
+            active: false,
+            lifted_at: new Date().toISOString()
+        };
+        localStorage.setItem('gate_emergency_lockdown', JSON.stringify(lockdownState));
+        this.announce('EMERGENCY_LOCKDOWN_LIFTED', lockdownState);
+        return lockdownState;
+    }
+
+    getEmergencyLockdownStatus() {
+        try {
+            const raw = localStorage.getItem('gate_emergency_lockdown');
+            return raw ? JSON.parse(raw) : { active: false };
+        } catch (e) {
+            return { active: false };
+        }
+    }
+
+    getEmergencyEvacuationRoster() {
+        const logs = this.getLogs();
+        const vehicles = this.getVehicles();
+        const permits = this.getPermits();
+        const activeEntries = logs.filter(l => l.action_type === 'entry' && !l.exit_timestamp);
+
+        return activeEntries.map(log => {
+            const vehicle = vehicles.find(v => v.id === log.vehicle_id) || {};
+            const permit = log.permit_id ? permits.find(p => p.id === log.permit_id) : null;
+            const entryTime = this.parseTimestamp(log.timestamp);
+            const minutesInside = Math.max(0, Math.round((Date.now() - entryTime.getTime()) / 60000));
+
+            return {
+                vehicle_id: vehicle.id,
+                plate_ar: vehicle.plate_ar || 'غير محدد',
+                plate_en: vehicle.plate_en || '',
+                driver_name: vehicle.driver_name_ar || vehicle.driver_name_en || 'سائق مصرح',
+                driver_phone: vehicle.driver_phone || '',
+                driver_national_id: vehicle.driver_national_id || '',
+                company: vehicle.company_ar || vehicle.company_en || 'توريدات',
+                gate_name: log.gate_name || 'بوابة 1 الرئيسية',
+                entry_time: entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                minutes_inside: minutesInside,
+                cargo_state: vehicle.cargo_state || 'inside_processing',
+                gross_weight: log.gross_weight || null,
+                destination: permit ? permit.destination_ar : 'المصنع الرئيسي'
+            };
+        });
+    }
+
+    // =========================================================================
+    // SHIFT HANDOVER DIGEST & PROTOCOL
+    // =========================================================================
+
+    getShiftHandoverData(officerId) {
+        const user = this.getUsers().find(u => u.id === officerId) || { id: officerId, name_ar: 'ضابط البوابة' };
+        const roster = this.getOfficerRoster(officerId);
+        const logs = this.getLogs();
+        const vehicles = this.getVehicles();
+
+        // Find logs for today during this officer shift
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const shiftLogs = logs.filter(l => l.officer_id === officerId && l.timestamp && l.timestamp.startsWith(todayStr));
+
+        const entriesCount = shiftLogs.filter(l => l.action_type === 'entry').length;
+        const exitsCount = shiftLogs.filter(l => l.action_type === 'exit' || (l.exit_officer_id === officerId && l.exit_timestamp && l.exit_timestamp.startsWith(todayStr))).length;
+        const deniedCount = shiftLogs.filter(l => l.action_type === 'denied').length;
+
+        // In-factory accountability (currently inside)
+        const insideRoster = this.getEmergencyEvacuationRoster();
+
+        return {
+            date: todayStr,
+            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            officer_id: officerId,
+            officer_name: user.name_ar || user.name_en,
+            badge_id: user.badge_id || 'GT-01',
+            gate_name: roster.gate_name || user.gate_assigned || 'بوابة 1 الرئيسية',
+            shift: roster.shift || 'day',
+            shift_name: roster.shift === 'day' ? 'وردية النهار (الصباحية)' : 'وردية الليل (المسائية)',
+            partner_name: roster.partner_name_ar || 'المناوب البديل',
+            partner_badge: roster.partner_badge || '',
+            entries_count: entriesCount,
+            exits_count: exitsCount,
+            denied_count: deniedCount,
+            inside_count: insideRoster.length,
+            inside_vehicles: insideRoster
+        };
+    }
+
+    recordShiftHandover(handoverData) {
+        let handovers = [];
+        try {
+            const raw = localStorage.getItem('gate_shift_handovers');
+            handovers = raw ? JSON.parse(raw) : [];
+        } catch (e) { handovers = []; }
+
+        const newRecord = {
+            id: this.generateId(),
+            timestamp: new Date().toISOString(),
+            ...handoverData
+        };
+        handovers.push(newRecord);
+        localStorage.setItem('gate_shift_handovers', JSON.stringify(handovers));
+        this.announce('SHIFT_HANDOVER_RECORDED', newRecord);
+        return newRecord;
+    }
+
+    getShiftHandovers() {
+        try {
+            const raw = localStorage.getItem('gate_shift_handovers');
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            return [];
         }
     }
 
@@ -1410,6 +1570,11 @@ class DatabaseService {
                 exit_officer_name: exitOfficer ? exitOfficer.name_ar : (log.exit_officer_id ? `ضابط #${log.exit_officer_id}` : (log.action_type === 'exit' && entryOfficer ? entryOfficer.name_ar : '--')),
                 duration_minutes: durationMinutes || 0,
                 duration_hours: ((durationMinutes || 0) / 60).toFixed(1),
+                gross_weight: log.gross_weight || null,
+                tare_weight: log.tare_weight || null,
+                net_weight: log.net_weight || null,
+                dock_bay: log.dock_bay || null,
+                driver_national_id: vehicle.driver_national_id || '',
                 status,
                 action_type: log.action_type,
                 remarks: log.remarks || '',
