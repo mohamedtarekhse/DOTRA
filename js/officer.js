@@ -284,8 +284,9 @@ class OfficerController {
         `;
     }
 
-    toggleKeypad() {
-        const keypad = document.getElementById('officer-arabic-keypad');
+    toggleKeypad(targetId = 'officer-arabic-keypad') {
+        const id = (typeof targetId === 'string' && targetId.trim()) ? targetId.trim() : 'officer-arabic-keypad';
+        const keypad = document.getElementById(id);
         if (keypad) keypad.classList.toggle('hidden');
     }
 
@@ -692,8 +693,8 @@ class OfficerController {
         const plate = this.selectedVehicle.plate_ar;
         const lang = window.i18n.getLang();
 
-        if (action === 'entry') {
-            window.DB.recordEntry(this.selectedVehicle.id, this.selectedPermit ? this.selectedPermit.id : null, user.id, user.gate_assigned, 'دخول مصرح', photoUrl);
+        if (action === 'entry' || action === 'admitted') {
+            window.DB.recordEntry(this.selectedVehicle.id, this.selectedPermit ? this.selectedPermit.id : null, user.id, user.gate_assigned, reason || 'دخول مصرح', photoUrl);
             if (window.App) {
                 window.App.showToast(
                     lang === 'ar' ? '📥 تم تسجيل الدخول بنجاح' : 'Entry Recorded',

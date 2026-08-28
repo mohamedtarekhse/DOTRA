@@ -982,7 +982,28 @@ class DatabaseService {
     recordExit(vehicleId, officerId, gateName, remarks = '', photoUrl = null) {
         const logs = this.getLogs();
         const activeEntryIndex = logs.slice().reverse().findIndex(l => l.vehicle_id === vehicleId && l.action_type === 'entry' && !l.exit_timestamp);
-        const vehicle = this.getVehicles().find(v => v.id === vehicleId);
+        const vehicles = this.getVehicles();
+        const vehicle = vehicles.find(v => v.id === vehicleId);
+
+        // Update vehicle state to exited
+        if (vehicle) {
+            vehicle.cargo_state = 'exited';
+            localStorage.setItem('gate_vehicles', JSON.stringify(vehicles));
+        }
+
+        // Expire or mark permit as used
+        const permits = this.getPermits();
+        let permitChanged = false;
+        permits.forEach(p => {
+            if (p.vehicle_id === vehicleId && (p.status === 'active' || p.permit_type === 'exit')) {
+                p.status = 'used';
+                p.used_at = new Date().toISOString();
+                permitChanged = true;
+            }
+        });
+        if (permitChanged) {
+            localStorage.setItem('gate_permits', JSON.stringify(permits));
+        }
 
         let targetLog = null;
         if (activeEntryIndex !== -1) {
@@ -1004,9 +1025,11 @@ class DatabaseService {
             localStorage.setItem('gate_logs', JSON.stringify(logs));
 
             this.announce('VEHICLE_EXIT', {
+                vehicle_id: vehicleId,
                 plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
                 gate: gateName,
-                duration: durationMin
+                duration: durationMin,
+                timestamp: exitTime.toISOString()
             });
 
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
@@ -1030,9 +1053,11 @@ class DatabaseService {
             localStorage.setItem('gate_logs', JSON.stringify(logs));
 
             this.announce('VEHICLE_EXIT', {
+                vehicle_id: vehicleId,
                 plate: vehicle ? vehicle.plate_ar : `مركبة #${vehicleId}`,
                 gate: gateName,
-                duration: 0
+                duration: 0,
+                timestamp: new Date().toISOString()
             });
 
             this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
