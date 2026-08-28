@@ -981,8 +981,8 @@ class OfficerController {
         };
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-2xl w-full p-5 max-h-[92vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-2xl w-full p-5 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2.5">
                             <div class="w-10 h-10 rounded-2xl bg-[#fff8eb] text-[#b85500] flex items-center justify-center font-black text-lg border border-[#ffc966] shadow-xs">
@@ -1285,4 +1285,9 @@ class OfficerController {
 
 // Global Singleton
 window.Officer = new OfficerController();
+window.openInspectionRequestModal = function() {
+    if (window.Officer && typeof window.Officer.openInspectionRequestModal === 'function') {
+        window.Officer.openInspectionRequestModal();
+    }
+};
 

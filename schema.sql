@@ -165,10 +165,12 @@ CREATE INDEX IF NOT EXISTS "idx_watchlist_vehicle" ON "push_vehicle_watchlist" (
 INSERT INTO "gate_users" ("id", "badge_id", "email", "password_hash", "pin_code", "pin_hash", "name_ar", "name_en", "role", "gate_assigned")
 VALUES
     (1, 'MGR-01', 'manager@dotra.com', '5f2338021caf29159b9c5a502d47145b:9ff1522e5f8a0539d6e4171c089555338942faaa7c70789f64a2efa041c8b5e8', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'م. أحمد المنصور', 'Eng. Ahmed Al-Mansoor', 'manager', ''),
-    (2, 'GT-01', 'officer1@dotra.com', '', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية - دوترا')
+    (2, 'GT-01', 'officer1@dotra.com', '', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'أمين الشرطة / طارق مصطفى', 'Officer Tariq Mostafa', 'officer', 'بوابة 1 الرئيسية - دوترا'),
+    (3, 'CEO-01', 'ceo@dotra.com', '5f2338021caf29159b9c5a502d47145b:9ff1522e5f8a0539d6e4171c089555338942faaa7c70789f64a2efa041c8b5e8', '', 'ecdef03ce7f80ff3b36041bed489ca2f:4f8ec7427c805ae9e2fc144062c71206c3396dc98d414460acd338dc62e4edc7', 'الرئيس التنفيذي / الإدارة العليا', 'Chief Executive Officer (CEO)', 'ceo', '')
 ON CONFLICT ("id") DO UPDATE SET
     "password_hash" = EXCLUDED."password_hash",
-    "badge_id" = EXCLUDED."badge_id";
+    "badge_id" = EXCLUDED."badge_id",
+    "role" = EXCLUDED."role";
 
 INSERT INTO "gate_gates" ("name") VALUES ('بوابة 1 الرئيسية - دوترا'), ('بوابة 2 شحن وتفريغ') ON CONFLICT ("name") DO NOTHING;
 INSERT INTO "gate_destinations" ("name") VALUES ('المستودع الرئيسي A'), ('خط الإنتاج 1'), ('إدارة الجودة') ON CONFLICT ("name") DO NOTHING;

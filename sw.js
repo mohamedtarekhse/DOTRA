@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dotra-gate-v2';
+const CACHE_NAME = 'dotra-gate-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -20,10 +20,11 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -33,6 +34,7 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cache => {
           if (cache !== CACHE_NAME) {
+            console.log('🛡️ Purging legacy service worker cache:', cache);
             return caches.delete(cache);
           }
         })
@@ -56,7 +58,21 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static Assets: Cache first, fallback to network
+  // Application Scripts & HTML: Network-First with Cache Fallback (Ensures fresh code on update)
+  if (event.request.url.endsWith('.js') || event.request.url.endsWith('.html') || event.request.url.endsWith('/')) {
+    event.respondWith(
+      fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const resClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
+        }
+        return networkResponse;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Static Assets (Images, Fonts, CSS): Cache first, fallback to network
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) {
@@ -64,14 +80,10 @@ self.addEventListener('fetch', event => {
       }
       return fetch(event.request).then(networkResponse => {
         if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+          const resClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
         }
         return networkResponse;
-      }).catch(() => {
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('./index.html');
-        }
       });
     })
   );
