@@ -803,8 +803,8 @@ class DatabaseService {
     }
 
     deletePermit(permitId) {
-        const user = window.Auth ? window.Auth.getCurrentUser() : null;
-        if (user && user.role !== 'manager' && user.role !== 'admin') {
+        const user = window.Auth && typeof window.Auth.getCurrentUser === 'function' ? window.Auth.getCurrentUser() : null;
+        if (user && user.role && !['manager', 'admin', 'ceo'].includes(user.role)) {
             throw new Error('Unauthorized: Only managers can delete permits.');
         }
 
@@ -816,13 +816,17 @@ class DatabaseService {
 
         const permit = permits[permitIdx];
         const logs = this.getLogs();
-        const hasEntryLog = logs.some(l => l.permit_id === permit.id || (l.vehicle_id === permit.vehicle_id && l.action_type === 'entry'));
-        const isInside = !!this.isVehicleInside(permit.vehicle_id);
+        const permitEntryLog = logs.find(l => l.permit_id === permit.id);
+        const insideLog = this.isVehicleInside(permit.vehicle_id);
+        const isInsideUnderThisPermit = !!insideLog && (
+            insideLog.permit_id === permit.id ||
+            (permit.created_at && this.parseTimestamp(insideLog.timestamp).getTime() >= this.parseTimestamp(permit.created_at).getTime() - 60000)
+        );
 
-        if (hasEntryLog || isInside) {
+        if (permit.status === 'used' || permitEntryLog || isInsideUnderThisPermit) {
             return {
                 success: false,
-                message: 'لا يمكن حذف هذا التصريح نظراً لتسجيل حركة دخول فعلية للشاحنة بالمصنع. يمكنك تعليق أو سحب التصريح بدلاً من الحذف.'
+                message: 'لا يمكن حذف هذا التصريح نظراً لتسجيل حركة دخول فعلية للشاحنة بالمصنع بناءً عليه. يمكنك تعليق أو سحب التصريح بدلاً من الحذف.'
             };
         }
 

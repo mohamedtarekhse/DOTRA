@@ -447,7 +447,12 @@ class ManagerController {
             const sortedLogs = vehicleLogs.slice().sort((a, b) => window.DB.parseTimestamp(b.timestamp).getTime() - window.DB.parseTimestamp(a.timestamp).getTime() || (b.id || 0) - (a.id || 0));
             const lastEntryLog = sortedLogs.find(l => l.action_type === 'entry') || null;
             const lastExitLog = sortedLogs.find(l => l.action_type === 'exit' || l.exit_timestamp) || null;
-            const hasVehicleEntered = !!insideLog || !!lastEntryLog || (permit && permit.status === 'used');
+            const isEnteredOnThisPermit = permit ? (
+                permit.status === 'used' ||
+                logs.some(l => l.permit_id === permit.id) ||
+                (!!insideLog && (insideLog.permit_id === permit.id || (permit.created_at && window.DB.parseTimestamp(insideLog.timestamp).getTime() >= window.DB.parseTimestamp(permit.created_at).getTime() - 60000)))
+            ) : false;
+            const hasVehicleEntered = isEnteredOnThisPermit || !!insideLog;
             
             const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : '--';
             const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : null;
@@ -687,7 +692,12 @@ class ManagerController {
             const sortedLogs = vehicleLogs.slice().sort((a, b) => window.DB.parseTimestamp(b.timestamp).getTime() - window.DB.parseTimestamp(a.timestamp).getTime() || (b.id || 0) - (a.id || 0));
             const lastEntryLog = sortedLogs.find(l => l.action_type === 'entry') || null;
             const lastExitLog = sortedLogs.find(l => l.action_type === 'exit' || l.exit_timestamp) || null;
-            const hasVehicleEntered = !!insideLog || !!lastEntryLog || (permit && permit.status === 'used');
+            const isEnteredOnThisPermit = permit ? (
+                permit.status === 'used' ||
+                logs.some(l => l.permit_id === permit.id) ||
+                (!!insideLog && (insideLog.permit_id === permit.id || (permit.created_at && window.DB.parseTimestamp(insideLog.timestamp).getTime() >= window.DB.parseTimestamp(permit.created_at).getTime() - 60000)))
+            ) : false;
+            const hasVehicleEntered = isEnteredOnThisPermit || !!insideLog;
             
             const entryGateName = lastEntryLog ? (lastEntryLog.gate_name || 'البوابة الرئيسية') : (insideLog ? insideLog.gate_name : '--');
             const entryOfficer = lastEntryLog ? users.find(u => u.id === lastEntryLog.officer_id) : (insideLog ? users.find(u => u.id === insideLog.officer_id) : null);
@@ -2569,7 +2579,8 @@ class ManagerController {
         const typeColor = isExit ? 'bg-[#ebf3fb] text-[#0070f2] border-[#b3d5fa]' : 'bg-[#e5f6eb] text-[#107e3e] border-[#b4e3c4]';
 
         const logs = window.DB.getLogs();
-        const hasVehicleEntered = logs.some(l => l.permit_id === permit.id || (l.vehicle_id === permit.vehicle_id && l.action_type === 'entry')) || !!window.DB.isVehicleInside(permit.vehicle_id) || permit.status === 'used';
+        const insideLog = window.DB.isVehicleInside(permit.vehicle_id);
+        const hasVehicleEntered = permit.status === 'used' || logs.some(l => l.permit_id === permit.id) || (!!insideLog && (insideLog.permit_id === permit.id || (permit.created_at && window.DB.parseTimestamp(insideLog.timestamp).getTime() >= window.DB.parseTimestamp(permit.created_at).getTime() - 60000)));
 
         const qrPayload = JSON.stringify({
             permit: permit.permit_code,
