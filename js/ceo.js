@@ -5,10 +5,17 @@
 
 class CeoController {
     constructor() {
+        this.activeTab = 'movements'; // 'movements' | 'users'
         this.searchQuery = '';
+        this.userSearchQuery = '';
         this.dateFilter = 'all'; // 'today', '7days', '30days', 'all'
         this.gateFilter = 'all';
         this.statusFilter = 'all'; // 'all', 'inside', 'exited', 'overstay', 'denied', 'hold'
+    }
+
+    switchTab(tab) {
+        this.activeTab = tab;
+        this.renderDashboard();
     }
 
     renderDashboard() {
@@ -20,6 +27,7 @@ class CeoController {
         const movements = window.DB.getExecutiveMovementLogs();
         const settings = window.DB.getSettings();
         const gates = window.DB.getGates();
+        const users = window.DB.getUsers();
 
         // 1. Calculate Executive KPIs
         const now = new Date();
@@ -77,6 +85,19 @@ class CeoController {
                     </div>
                 </div>
 
+                <!-- CEO Navigation Tabs: Movement Audit vs. User Management -->
+                <div class="grid grid-cols-2 gap-2 bg-[#f0f4f8] p-1.5 rounded-2xl border border-[#d7e2ee] text-xs font-bold shadow-sm">
+                    <button type="button" onclick="CEO.switchTab('movements')" class="py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 ${this.activeTab === 'movements' ? 'bg-[#002b66] text-white shadow-md font-black' : 'text-[#556b82] hover:text-[#002b66]'}">
+                        <span>📊</span>
+                        <span>${lang === 'ar' ? 'سجل تدقيق حركات وتدفق المركبات (Movement Audit)' : 'Movement Audit & Fleet Analytics'}</span>
+                    </button>
+                    <button type="button" onclick="CEO.switchTab('users')" class="py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 ${this.activeTab === 'users' ? 'bg-[#002b66] text-white shadow-md font-black' : 'text-[#556b82] hover:text-[#002b66]'}">
+                        <span>👥</span>
+                        <span>${lang === 'ar' ? `إدارة المستخدمين والصلاحيات (${users.length})` : `User & Role Management (${users.length})`}</span>
+                    </button>
+                </div>
+
+                ${this.activeTab === 'users' ? this.renderUsersTab(lang, icon) : `
                 <!-- Executive Top 5 KPIs -->
                 <div class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
                     
@@ -224,8 +245,460 @@ class CeoController {
                         </table>
                     </div>
                 </div>
+                `}
             </div>
         `;
+    }
+
+    renderUsersTab(lang, icon) {
+        const users = window.DB.getUsers();
+        const ceoCount = users.filter(u => u.role === 'ceo').length;
+        const managerCount = users.filter(u => u.role === 'manager' || u.role === 'admin').length;
+        const officerCount = users.filter(u => u.role === 'officer').length;
+
+        const norm = (str) => String(str || '').toLowerCase().trim();
+        const q = norm(this.userSearchQuery);
+
+        const filteredUsers = users.filter(u => {
+            if (!q) return true;
+            return norm(u.name_ar).includes(q) ||
+                   norm(u.name_en).includes(q) ||
+                   norm(u.badge_id).includes(q) ||
+                   norm(u.email).includes(q) ||
+                   norm(u.gate_assigned).includes(q);
+        });
+
+        return `
+            <!-- Top Metrics Strip for Users -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div class="sap-card p-4 bg-white rounded-2xl border border-[#b0cfee] shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-[#556b82]">${lang === 'ar' ? 'إجمالي مستخدمي النظام' : 'Total Users'}</span>
+                        <span class="text-xl">👥</span>
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-[#002b66] font-mono">${users.length}</div>
+                    <div class="text-[11px] text-[#556b82] font-semibold">${lang === 'ar' ? 'حسابات مسجلة ومفعلة' : 'Registered accounts'}</div>
+                </div>
+
+                <div class="sap-card p-4 bg-white rounded-2xl border border-[#b0cfee] shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-[#556b82]">${lang === 'ar' ? 'مدراء العمليات واللوجستيات' : 'Operations Managers'}</span>
+                        <span class="text-xl">👔</span>
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-[#0070f2] font-mono">${managerCount}</div>
+                    <div class="text-[11px] text-[#556b82] font-semibold">${lang === 'ar' ? 'صلاحيات إصدار واعتماد التصاريح' : 'Permits & Approvals'}</div>
+                </div>
+
+                <div class="sap-card p-4 bg-white rounded-2xl border border-[#b0cfee] shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-[#556b82]">${lang === 'ar' ? 'ضباط وأمناء البوابات' : 'Gate Officers'}</span>
+                        <span class="text-xl">👮</span>
+                    </div>
+                    <div class="mt-2 text-2xl font-black text-[#107e3e] font-mono">${officerCount}</div>
+                    <div class="text-[11px] text-[#556b82] font-semibold">${lang === 'ar' ? 'تسجيل الدخول والخروج وفحص المركبات' : 'Entry / Exit Inspection'}</div>
+                </div>
+
+                <div class="sap-card p-4 bg-amber-50/60 rounded-2xl border-2 border-amber-300 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black text-amber-950">${lang === 'ar' ? 'حسابات الإدارة العليا المحمية' : 'Protected CEO Accounts'}</span>
+                        <span class="text-xl">👑</span>
+                    </div>
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-amber-950 font-mono">${ceoCount}</span>
+                        <span class="text-xs text-amber-900 font-bold">🔒 غير قابلة للحذف</span>
+                    </div>
+                    <div class="text-[11px] text-amber-900 font-semibold">${lang === 'ar' ? 'محمية برمجياً من الحذف' : 'Protected by system security rule'}</div>
+                </div>
+            </div>
+
+            <!-- Users Toolbar & Table Card -->
+            <div class="sap-card bg-white rounded-3xl border border-[#b0cfee] shadow-md p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-[#d7e2ee]">
+                    <div>
+                        <h3 class="text-base font-black text-[#002b66] flex items-center gap-2">
+                            <span>👥</span>
+                            <span>${lang === 'ar' ? 'إدارة المستخدمين وحسابات الدخول' : 'User & Credential Management'}</span>
+                            <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-xs font-black border border-amber-300">CEO Exclusive</span>
+                        </h3>
+                        <p class="text-xs text-[#556b82]">
+                            ${lang === 'ar' ? 'إضافة وتعديل حسابات مدراء العمليات وضباط البوابات مع الحماية الصارمة لحساب الرئيس التنفيذي' : 'Manage manager and officer credentials with strict CEO account protection'}
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <input type="text" value="${this.userSearchQuery}" oninput="CEO.handleUserSearch(this.value)" placeholder="${lang === 'ar' ? 'بحث بالاسم، الشارة، أو البريد...' : 'Search users...'}" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none flex-1 sm:w-60" />
+                        <button type="button" onclick="CEO.openAddUserModal()" class="px-4 py-2.5 bg-[#0070f2] hover:bg-[#005bb5] text-white rounded-xl font-black text-xs shadow-md flex items-center gap-1.5 flex-shrink-0 active:scale-95 transition-all">
+                            <span>➕</span>
+                            <span>${lang === 'ar' ? 'إضافة مستخدم جديد' : 'Add New User'}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto rounded-2xl border border-[#d7e2ee]">
+                    <table class="w-full text-xs text-right" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                        <thead class="bg-[#f0f4f8] text-[#002b66] font-black border-b border-[#d7e2ee]">
+                            <tr>
+                                <th class="p-3 text-center w-12">#</th>
+                                <th class="p-3">الاسم الكامل</th>
+                                <th class="p-3 text-center">كود الشارة</th>
+                                <th class="p-3">البريد الإلكتروني / اسم الدخول</th>
+                                <th class="p-3 text-center">الدور والصلاحية</th>
+                                <th class="p-3">البوابة المعينة / الوردية</th>
+                                <th class="p-3 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#e7eff7]">
+                            ${filteredUsers.map((u, idx) => {
+                                const isCEO = u.role === 'ceo';
+                                const isManager = u.role === 'manager' || u.role === 'admin';
+                                const roleBadge = isCEO
+                                    ? '<span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full font-black text-xs inline-flex items-center gap-1">👑 رئيس تنفيذي (CEO)</span>'
+                                    : (isManager
+                                        ? '<span class="px-2.5 py-1 bg-blue-100 text-blue-900 border border-blue-300 rounded-full font-black text-xs inline-flex items-center gap-1">👔 مدير عمليات</span>'
+                                        : '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-full font-black text-xs inline-flex items-center gap-1">👮 ضابط بوابة</span>');
+
+                                return `
+                                    <tr class="hover:bg-[#f8fafc] transition-colors ${isCEO ? 'bg-amber-50/30' : ''}">
+                                        <td class="p-3 text-center font-mono font-bold text-[#556b82]">${idx + 1}</td>
+                                        <td class="p-3">
+                                            <div class="font-black text-[#002b66]">${u.name_ar || u.name_en}</div>
+                                            <div class="text-[10px] text-[#556b82] font-sans">${u.name_en || ''}</div>
+                                        </td>
+                                        <td class="p-3 text-center">
+                                            <span class="px-2 py-0.5 rounded-lg bg-[#ebf3fb] text-[#0070f2] font-mono font-black border border-[#b3d5fa] text-xs">
+                                                ${u.badge_id || '--'}
+                                            </span>
+                                        </td>
+                                        <td class="p-3 font-mono font-bold text-[#1d2d3e]">${u.email || '--'}</td>
+                                        <td class="p-3 text-center">${roleBadge}</td>
+                                        <td class="p-3">
+                                            ${u.gate_assigned ? `
+                                                <div class="font-bold text-[#1d2d3e]">🚪 ${u.gate_assigned}</div>
+                                                <div class="text-[10px] text-[#556b82] font-semibold">${u.shift === 'night' ? '🌙 وردية الليل' : '☀️ وردية النهار'}</div>
+                                            ` : '<span class="text-[#8fa4b8] font-bold">-- كافة المنشآت --</span>'}
+                                        </td>
+                                        <td class="p-3 text-center">
+                                            <div class="flex items-center justify-center gap-1.5">
+                                                <button type="button" onclick="CEO.openEditUserModal(${u.id})" class="px-2.5 py-1.5 bg-slate-100 hover:bg-[#0070f2] hover:text-white text-[#002b66] rounded-xl font-bold transition-all shadow-sm flex items-center gap-1">
+                                                    <span>✏️</span>
+                                                    <span>تعديل</span>
+                                                </button>
+                                                ${isCEO ? `
+                                                    <span class="px-2.5 py-1.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-xl font-black text-[11px] shadow-sm flex items-center gap-1 cursor-not-allowed" title="حساب الرئيس التنفيذي محمي برمجياً ولا يمكن حذفه نهائياً">
+                                                        <span>🔒</span>
+                                                        <span>محمي</span>
+                                                    </span>
+                                                ` : `
+                                                    <button type="button" onclick="CEO.handleDeleteUser(${u.id})" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded-xl font-bold transition-all shadow-sm flex items-center gap-1">
+                                                        <span>🗑️</span>
+                                                        <span>حذف</span>
+                                                    </button>
+                                                `}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    handleUserSearch(query) {
+        this.userSearchQuery = query || '';
+        this.renderDashboard();
+    }
+
+    openAddUserModal() {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const gates = window.DB.getGates();
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-lg w-full p-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2">
+                            <span class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0070f2] flex items-center justify-center font-black text-lg border border-blue-200">
+                                👤
+                            </span>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    ${lang === 'ar' ? 'إضافة مستخدم جديد للنظام' : 'Add New User'}
+                                </h3>
+                                <p class="text-xs text-[#556b82]">
+                                    ${lang === 'ar' ? 'إنشاء حساب لمدير عمليات أو ضابط بوابة جديد' : 'Create new manager or gate officer account'}
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="CEO.submitAddUser(event)" class="py-4 space-y-3.5 text-xs">
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">الرتبة والصلاحية (Role) *</label>
+                            <select id="new-user-role" required onchange="const isOff = this.value === 'officer'; document.getElementById('pin-field-group').style.display = isOff ? 'block' : 'none'; document.getElementById('gate-field-group').style.display = isOff ? 'grid' : 'none';" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2.5 font-bold text-[#002b66] focus:border-[#0070f2] focus:bg-white focus:outline-none">
+                                <option value="officer">👮 ضابط بوابة (Gate Officer)</option>
+                                <option value="manager">👔 مدير عمليات (Operations Manager)</option>
+                                <option value="ceo">👑 رئيس تنفيذي (CEO)</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">الاسم بالعربية *</label>
+                                <input type="text" id="new-user-name-ar" required placeholder="مثال: أمين / طارق مصطفى" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">الاسم بالإنجليزية</label>
+                                <input type="text" id="new-user-name-en" placeholder="e.g. Officer Tariq" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">كود الشارة (Badge ID) *</label>
+                                <input type="text" id="new-user-badge" required placeholder="GT-04 أو MGR-02" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">البريد الإلكتروني / تسجيل الدخول *</label>
+                                <input type="email" id="new-user-email" required placeholder="officer@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">كلمة المرور (Password) *</label>
+                            <input type="password" id="new-user-password" required placeholder="••••••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                        </div>
+
+                        <div id="pin-field-group">
+                            <label class="block font-bold text-[#1d2d3e] mb-1">رمز التحقق السريع لضابط البوابة (4 أرقام PIN) *</label>
+                            <input type="password" id="new-user-pin" maxlength="4" placeholder="1234" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono font-bold text-center text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                        </div>
+
+                        <div id="gate-field-group" class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">البوابة المعينة</label>
+                                <select id="new-user-gate" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e]">
+                                    ${gates.map(g => `<option value="${g}">${g}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">الوردية</label>
+                                <select id="new-user-shift" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e]">
+                                    <option value="day">☀️ وردية النهار</option>
+                                    <option value="night">🌙 وردية الليل</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                                إلغاء
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 bg-[#0070f2] hover:bg-[#005bb5] text-white font-bold rounded-xl shadow-md active:scale-95 transition-all">
+                                حفظ وإنشاء الحساب
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    async submitAddUser(event) {
+        if (event && event.preventDefault) event.preventDefault();
+        const role = document.getElementById('new-user-role').value;
+        const name_ar = document.getElementById('new-user-name-ar').value.trim();
+        const name_en = document.getElementById('new-user-name-en').value.trim() || name_ar;
+        const badge_id = document.getElementById('new-user-badge').value.trim();
+        const email = document.getElementById('new-user-email').value.trim();
+        const password = document.getElementById('new-user-password').value;
+        const pin_code = document.getElementById('new-user-pin') ? document.getElementById('new-user-pin').value.trim() : '';
+        const gate_assigned = document.getElementById('new-user-gate') ? document.getElementById('new-user-gate').value : '';
+        const shift = document.getElementById('new-user-shift') ? document.getElementById('new-user-shift').value : 'day';
+
+        await window.DB.addUser({
+            role,
+            name_ar,
+            name_en,
+            badge_id,
+            email,
+            password,
+            pin_code,
+            gate_assigned,
+            shift
+        });
+
+        document.getElementById('modal-container').innerHTML = '';
+        this.renderDashboard();
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast('✅ إضافة مستخدم', `تم إنشاء حساب ${name_ar} بنجاح`, 'success');
+        }
+    }
+
+    openEditUserModal(userId) {
+        const modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) return;
+        const lang = window.i18n.getLang();
+        const gates = window.DB.getGates();
+        const user = window.DB.getUsers().find(u => u.id === userId);
+        if (!user) return;
+
+        const isCEO = user.role === 'ceo';
+
+        modalContainer.innerHTML = `
+            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content max-w-lg w-full p-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+                    <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
+                        <div class="flex items-center gap-2">
+                            <span class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0070f2] flex items-center justify-center font-black text-lg border border-blue-200">
+                                ✏️
+                            </span>
+                            <div>
+                                <h3 class="text-base font-black text-[#002b66]">
+                                    تعديل بيانات المستخدم (${user.name_ar})
+                                </h3>
+                                <p class="text-xs text-[#556b82]">
+                                    كود الشارة: <strong class="font-mono text-[#0070f2]">${user.badge_id}</strong>
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                    </div>
+
+                    <form onsubmit="CEO.submitEditUser(event, ${user.id})" class="py-4 space-y-3.5 text-xs">
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">الرتبة والصلاحية</label>
+                            ${isCEO ? `
+                                <div class="p-2.5 bg-amber-50 border border-amber-300 rounded-xl font-black text-amber-950 flex items-center gap-2">
+                                    <span>👑</span>
+                                    <span>حساب رئيس تنفيذي محمي (لا يمكن تغيير رتبته)</span>
+                                </div>
+                            ` : `
+                                <select id="edit-user-role" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2.5 font-bold text-[#002b66]">
+                                    <option value="officer" ${user.role === 'officer' ? 'selected' : ''}>👮 ضابط بوابة (Gate Officer)</option>
+                                    <option value="manager" ${user.role === 'manager' || user.role === 'admin' ? 'selected' : ''}>👔 مدير عمليات (Operations Manager)</option>
+                                </select>
+                            `}
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">الاسم بالعربية *</label>
+                                <input type="text" id="edit-user-name-ar" value="${user.name_ar || ''}" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">الاسم بالإنجليزية</label>
+                                <input type="text" id="edit-user-name-en" value="${user.name_en || ''}" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">كود الشارة (Badge ID) *</label>
+                                <input type="text" id="edit-user-badge" value="${user.badge_id || ''}" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">البريد الإلكتروني *</label>
+                                <input type="email" id="edit-user-email" value="${user.email || ''}" required class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-[#1d2d3e] mb-1">تعيين كلمة مرور جديدة (اتركه فارغاً للإبقاء على الحالية)</label>
+                            <input type="password" id="edit-user-password" placeholder="••••••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                        </div>
+
+                        ${user.role === 'officer' ? `
+                            <div>
+                                <label class="block font-bold text-[#1d2d3e] mb-1">تعيين رمز PIN جديد (4 أرقام - اتركه فارغاً للحالي)</label>
+                                <input type="password" id="edit-user-pin" maxlength="4" placeholder="••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-mono font-bold text-center text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block font-bold text-[#1d2d3e] mb-1">البوابة المعينة</label>
+                                    <select id="edit-user-gate" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e]">
+                                        ${gates.map(g => `<option value="${g}" ${user.gate_assigned === g ? 'selected' : ''}>${g}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-[#1d2d3e] mb-1">الوردية</label>
+                                    <select id="edit-user-shift" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 font-bold text-[#1d2d3e]">
+                                        <option value="day" ${user.shift === 'day' ? 'selected' : ''}>☀️ وردية النهار</option>
+                                        <option value="night" ${user.shift === 'night' ? 'selected' : ''}>🌙 وردية الليل</option>
+                                    </select>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="flex justify-end gap-2 pt-3 border-t border-[#d7e2ee]">
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-4 py-2 sap-btn-secondary text-xs">
+                                إلغاء
+                            </button>
+                            <button type="submit" class="px-6 py-2.5 bg-[#0070f2] hover:bg-[#005bb5] text-white font-bold rounded-xl shadow-md active:scale-95 transition-all">
+                                حفظ التعديلات
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    async submitEditUser(event, userId) {
+        if (event && event.preventDefault) event.preventDefault();
+        const roleSelect = document.getElementById('edit-user-role');
+        const role = roleSelect ? roleSelect.value : undefined;
+        const name_ar = document.getElementById('edit-user-name-ar').value.trim();
+        const name_en = document.getElementById('edit-user-name-en').value.trim() || name_ar;
+        const badge_id = document.getElementById('edit-user-badge').value.trim();
+        const email = document.getElementById('edit-user-email').value.trim();
+        const password = document.getElementById('edit-user-password').value;
+        const pin_code = document.getElementById('edit-user-pin') ? document.getElementById('edit-user-pin').value.trim() : '';
+        const gate_assigned = document.getElementById('edit-user-gate') ? document.getElementById('edit-user-gate').value : undefined;
+        const shift = document.getElementById('edit-user-shift') ? document.getElementById('edit-user-shift').value : undefined;
+
+        const updateData = { name_ar, name_en, badge_id, email };
+        if (role) updateData.role = role;
+        if (password) updateData.password = password;
+        if (pin_code) updateData.pin_code = pin_code;
+        if (gate_assigned !== undefined) updateData.gate_assigned = gate_assigned;
+        if (shift !== undefined) updateData.shift = shift;
+
+        await window.DB.updateUser(userId, updateData);
+        document.getElementById('modal-container').innerHTML = '';
+        this.renderDashboard();
+        if (window.App && typeof window.App.showToast === 'function') {
+            window.App.showToast('✅ تحديث مستخدم', `تم حفظ تعديلات ${name_ar} بنجاح`, 'success');
+        }
+    }
+
+    handleDeleteUser(userId) {
+        const user = window.DB.getUsers().find(u => u.id === userId);
+        if (!user) return;
+
+        // CRITICAL SECURITY RULE: CEO account CANNOT be deleted
+        if (user.role === 'ceo') {
+            alert('حساب الرئيس التنفيذي محمي برمجياً ولا يمكن حذفه نهائياً.');
+            return;
+        }
+
+        if (confirm(`هل أنت متأكد من رغبتك في حذف حساب "${user.name_ar}" (${user.badge_id})؟`)) {
+            try {
+                window.DB.deleteUser(userId);
+                this.renderDashboard();
+                if (window.App && typeof window.App.showToast === 'function') {
+                    window.App.showToast('🗑️ حذف مستخدم', `تم حذف حساب ${user.name_ar} بنجاح`, 'danger');
+                }
+            } catch (err) {
+                alert(err.message || 'حدث خطأ أثناء الحذف');
+            }
+        }
     }
 
     renderAuditRows(lang) {

@@ -4,7 +4,7 @@
 class AppController {
     constructor() {
         this.currentView = 'login';
-        this.loginRoleTab = 'manager';
+        this.loginRoleTab = 'management'; // 'management' | 'gates'
     }
 
     async init() {
@@ -479,68 +479,48 @@ class AppController {
                         <p class="text-xs text-[#556b82] mt-0.5 font-bold">${window.i18n.t('appSubtitle')}</p>
                     </div>
 
-                    <!-- Role Switcher Tabs (3 Distinct Roles) -->
-                    <div class="grid grid-cols-3 gap-1.5 bg-[#f5f8fc] p-1.5 rounded-2xl border border-[#d7e2ee] mb-6">
-                        <button type="button" onclick="App.switchLoginTab('ceo')" class="py-2.5 rounded-xl font-bold text-xs flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${this.loginRoleTab === 'ceo' ? 'bg-amber-400 text-slate-950 font-black shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            <span>🏛️</span>
-                            <span>${lang === 'ar' ? 'الرئيس التنفيذي' : 'CEO'}</span>
+                    <!-- Role Switcher Tabs (2 Clear Categories: Management vs Gates) -->
+                    <div class="grid grid-cols-2 gap-2 bg-[#f5f8fc] p-1.5 rounded-2xl border border-[#d7e2ee] mb-6 shadow-inner">
+                        <button type="button" onclick="App.switchLoginTab('management')" class="py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${this.loginRoleTab !== 'gates' ? 'bg-[#002b66] text-white font-black shadow-md' : 'text-[#556b82] hover:text-[#002b66]'}">
+                            <span class="text-base">🏢</span>
+                            <span>${lang === 'ar' ? 'الإدارة والعمليات' : 'Management'}</span>
                         </button>
-                        <button type="button" onclick="App.switchLoginTab('manager')" class="py-2.5 rounded-xl font-bold text-xs flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${this.loginRoleTab === 'manager' ? 'bg-[#0070f2] text-white shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            <span>🏢</span>
-                            <span>${lang === 'ar' ? 'العمليات' : 'Manager'}</span>
-                        </button>
-                        <button type="button" onclick="App.switchLoginTab('officer')" class="py-2.5 rounded-xl font-bold text-xs flex flex-col sm:flex-row items-center justify-center gap-1 transition-all ${this.loginRoleTab === 'officer' ? 'bg-[#107e3e] text-white shadow-md' : 'text-[#556b82] hover:text-[#1d2d3e]'}">
-                            <span>👮</span>
-                            <span>${lang === 'ar' ? 'البوابة' : 'Officer'}</span>
+                        <button type="button" onclick="App.switchLoginTab('gates')" class="py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${this.loginRoleTab === 'gates' ? 'bg-[#107e3e] text-white font-black shadow-md' : 'text-[#556b82] hover:text-[#107e3e]'}">
+                            <span class="text-base">👮</span>
+                            <span>${lang === 'ar' ? 'بوابات المصنع' : 'Factory Gates'}</span>
                         </button>
                     </div>
 
-                    <!-- CEO Login Form -->
-                    ${this.loginRoleTab === 'ceo' ? `
+                    <!-- 1. MANAGEMENT & EXECUTIVE LOGIN FORM (CEO / Operations Manager) -->
+                    ${this.loginRoleTab !== 'gates' ? `
                         <form onsubmit="App.handleManagerLogin(event)" class="space-y-4">
-                            <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-[11px] text-amber-900 font-bold flex items-center gap-2">
-                                <span>🏛️</span>
-                                <span>تسجيل دخول خاص بالإدارة العليا والمدير التنفيذي</span>
+                            <div class="bg-blue-50/80 p-3 rounded-2xl border border-[#b0cfee] text-xs text-[#002b66] font-bold flex items-center gap-2.5">
+                                <span class="text-lg">🏛️</span>
+                                <div class="leading-tight">
+                                    ${lang === 'ar' ? 'تسجيل الدخول الموحد للقيادة التنفيذية (الرئيس التنفيذي) وإدارة العمليات' : 'Unified sign-in for CEO Executive Leadership & Operations Management'}
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('emailLabel')}</label>
-                                <input type="email" id="login-email" required placeholder="ceo@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-amber-500 focus:bg-white focus:outline-none font-mono font-bold" />
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('passwordLabel')}</label>
-                                <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-amber-500 focus:bg-white focus:outline-none font-mono" />
-                            </div>
-                            <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black rounded-xl text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-transform hover:-translate-y-0.5">
-                                <span>🏛️</span>
-                                <span>دخول لوحة الرقابة التنفيذية (CEO)</span>
-                            </button>
-                        </form>
-                    ` : (this.loginRoleTab === 'manager' ? `
-                        <!-- Manager Login Form -->
-                        <form onsubmit="App.handleManagerLogin(event)" class="space-y-4">
-                            <div class="bg-blue-50 p-2.5 rounded-xl border border-blue-200 text-[11px] text-[#002b66] font-bold flex items-center gap-2">
-                                <span>🏢</span>
-                                <span>تسجيل دخول خاص بمدير العمليات والتصاريح المصنعية</span>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('emailLabel')}</label>
-                                <input type="email" id="login-email" required placeholder="manager@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
+                                <input type="email" id="login-email" required placeholder="ceo@dotra.com / manager@dotra.com" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono font-bold" />
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('passwordLabel')}</label>
                                 <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-sm focus:border-[#0070f2] focus:bg-white focus:outline-none font-mono" />
                             </div>
-                            <button type="submit" class="w-full py-3.5 sap-btn-primary text-sm shadow-md flex items-center justify-center gap-2 mt-2">
+                            <button type="submit" class="w-full py-3.5 bg-[#002b66] hover:bg-[#001b40] text-white font-black rounded-xl text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-transform hover:-translate-y-0.5 active:scale-95">
                                 <span>🏢</span>
-                                <span>${window.i18n.t('signInBtn')}</span>
+                                <span>${lang === 'ar' ? 'دخول لوحة الإدارة والتحكم' : 'Sign In to Management Portal'}</span>
                             </button>
                         </form>
                     ` : `
-                        <!-- Officer Quick Login Form -->
+                        <!-- 2. FACTORY GATE OFFICERS & SECURITY TERMINAL LOGIN FORM -->
                         <form onsubmit="App.handleOfficerLogin(event)" class="space-y-4">
-                            <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 text-[11px] text-[#107e3e] font-bold flex items-center gap-2">
-                                <span>👮</span>
-                                <span>تسجيل دخول خاص بضابط أمن بوابة المصنع</span>
+                            <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-xs text-[#107e3e] font-bold flex items-center gap-2.5">
+                                <span class="text-lg">👮</span>
+                                <div class="leading-tight">
+                                    ${lang === 'ar' ? 'تسجيل الدخول السريع لمحطات أمن بوابات المصنع والورديات' : 'Station terminal login for factory gate security officers'}
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('badgeLabel')}</label>
@@ -550,12 +530,12 @@ class AppController {
                                 <label class="block text-xs font-bold text-[#1d2d3e] mb-1.5">${window.i18n.t('pinLabel')}</label>
                                 <input type="password" id="login-pin" required maxlength="4" placeholder="••••" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-4 py-3 text-[#1d2d3e] text-center text-xl tracking-widest font-mono font-bold focus:border-[#107e3e] focus:bg-white focus:outline-none" />
                             </div>
-                            <button type="submit" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-bold rounded-xl text-sm shadow-md flex items-center justify-center gap-2 mt-2">
+                            <button type="submit" class="w-full py-3.5 bg-[#107e3e] hover:bg-[#0c6b33] text-white font-black rounded-xl text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-transform hover:-translate-y-0.5 active:scale-95">
                                 <span>👮</span>
-                                <span>${window.i18n.t('openGateBtn')}</span>
+                                <span>${lang === 'ar' ? 'فتح محطة أمن البوابة' : 'Open Gate Security Terminal'}</span>
                             </button>
                         </form>
-                    `)}
+                    `}
                 </div>
             </div>
         `;

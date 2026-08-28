@@ -976,7 +976,7 @@ class ManagerController {
                     </div>
 
                     <!-- Unified Navigation Tabs -->
-                    <div class="grid grid-cols-4 gap-1.5 bg-[#f0f4f8] p-1.5 rounded-2xl border border-[#d7e2ee] mb-4 text-xs font-bold">
+                    <div class="grid grid-cols-3 gap-1.5 bg-[#f0f4f8] p-1.5 rounded-2xl border border-[#d7e2ee] mb-4 text-xs font-bold">
                         <button type="button" onclick="Manager.openSettingsModal('general')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'general' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('settings', 'w-3.5 h-3.5')}
                             <span>${lang === 'ar' ? 'عام والنظام' : 'General'}</span>
@@ -988,10 +988,6 @@ class ManagerController {
                         <button type="button" onclick="Manager.openSettingsModal('destinations')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'destinations' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
                             ${icon('building', 'w-3.5 h-3.5')}
                             <span>${lang === 'ar' ? `الوجهات (${destinations.length})` : `Docks (${destinations.length})`}</span>
-                        </button>
-                        <button type="button" onclick="Manager.openSettingsModal('officers')" class="py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${activeTab === 'officers' ? 'bg-[#0070f2] text-white shadow-sm' : 'text-[#556b82] hover:text-[#002b66]'}">
-                            ${icon('user', 'w-3.5 h-3.5')}
-                            <span>${lang === 'ar' ? `فريق الأمن (${officers.length})` : `Officers (${officers.length})`}</span>
                         </button>
                     </div>
 
@@ -1205,53 +1201,6 @@ class ManagerController {
                                         </div>
                                         ${destinations.length > 1 ? `
                                             <button type="button" onclick="Manager.handleDeleteDestination(${idx})" title="حذف" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
-                                                ${icon('trash', 'w-3.5 h-3.5')}
-                                            </button>
-                                        ` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    <!-- TAB 4: Security Officers / Personnel Management -->
-                    ${activeTab === 'officers' ? `
-                        <div class="space-y-3">
-                            <!-- Add Officer Form -->
-                            <form onsubmit="Manager.handleAddOfficer(event)" class="sap-settings-card space-y-2.5">
-                                <div class="font-bold text-xs text-[#002b66]">${lang === 'ar' ? '➕ إضافة فرد أمن / أمين شرطة جديد' : 'Add New Security Officer'}</div>
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                    <input type="text" id="officer-name-input" required placeholder="${lang === 'ar' ? 'اسم فرد الأمن' : 'Officer Name'}" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
-                                    <input type="text" id="officer-badge-input" required placeholder="${lang === 'ar' ? 'كود الشارة (GT-03)' : 'Badge ID (GT-03)'}" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
-                                    <input type="password" id="officer-pin-input" required maxlength="4" placeholder="${lang === 'ar' ? 'الـ PIN (4 أرقام)' : 'PIN (4 digits)'}" class="bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-mono font-bold text-center text-[#1d2d3e] focus:border-[#0070f2] focus:bg-white focus:outline-none" />
-                                </div>
-                                <div class="flex justify-between items-center gap-2">
-                                    <select id="officer-gate-select" class="flex-1 bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs font-bold text-[#1d2d3e]">
-                                        ${gates.map(g => `<option value="${g}">${lang === 'ar' ? `تعيين على: ${g}` : `Assign to: ${g}`}</option>`).join('')}
-                                    </select>
-                                    <button type="submit" class="px-5 py-2 sap-btn-primary text-xs font-bold shadow-sm flex-shrink-0">
-                                        ${lang === 'ar' ? 'إضافة للفريق' : 'Add Officer'}
-                                    </button>
-                                </div>
-                            </form>
-
-                            <!-- Officers List -->
-                            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
-                                ${officers.map(off => `
-                                    <div class="p-3 rounded-2xl bg-white border border-[#d7e2ee] flex items-center justify-between shadow-sm hover:border-[#b0cfee] transition-colors">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="w-9 h-9 rounded-xl bg-[#f0f4f8] text-[#002b66] flex items-center justify-center font-bold text-sm">
-                                                ${icon('shield', 'w-4 h-4 text-[#0070f2]')}
-                                            </div>
-                                            <div>
-                                                <div class="font-bold text-xs text-[#1d2d3e]">${off.name_ar}</div>
-                                                <div class="text-[11px] text-[#556b82] font-mono">
-                                                    <span class="text-[#0070f2] font-bold">${off.badge_id}</span> • <span>${off.gate_assigned}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        ${officers.length > 1 ? `
-                                            <button type="button" onclick="Manager.handleDeleteOfficer(${off.id})" title="حذف" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
                                                 ${icon('trash', 'w-3.5 h-3.5')}
                                             </button>
                                         ` : ''}

@@ -569,47 +569,88 @@ class DatabaseService {
         return this.getUsers().filter(u => u.role === 'officer');
     }
 
-    async addOfficer(officerData) {
+    async addUser(userData) {
         const users = this.getUsers();
-        const pin = officerData.pin_code || String(Math.floor(1000 + Math.random() * 9000));
-        const password = officerData.password || pin;
-        const hash = await window.Auth.createPasswordHash(password);
-        const pinHash = await window.Auth.createPasswordHash(pin);
-        const newOfficer = {
+        const role = userData.role || 'officer';
+        const pin = userData.pin_code || (role === 'officer' ? String(Math.floor(1000 + Math.random() * 9000)) : '');
+        const password = userData.password || pin || '123456';
+        
+        let hash = '';
+        let pinHash = '';
+        if (window.Auth && typeof window.Auth.createPasswordHash === 'function') {
+            hash = await window.Auth.createPasswordHash(password);
+            if (pin) pinHash = await window.Auth.createPasswordHash(pin);
+        }
+
+        const newUser = {
             id: this.generateId(),
-            role: 'officer',
-            badge_id: officerData.badge_id || `GT-0${users.length + 1}`,
-            name_ar: officerData.name_ar || 'حارس بوابة',
-            name_en: officerData.name_en || 'Gate Officer',
+            role: role,
+            badge_id: userData.badge_id || (role === 'manager' ? `MGR-0${users.length + 1}` : `GT-0${users.length + 1}`),
+            name_ar: userData.name_ar || 'مستخدم جديد',
+            name_en: userData.name_en || userData.name_ar || 'New User',
             pin_code: '',
             pin_hash: pinHash,
-            gate_assigned: officerData.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
-            email: officerData.email || `officer${Date.now()}@factory.com`,
+            gate_assigned: userData.gate_assigned || (role === 'officer' ? 'بوابة 1 الرئيسية - دوترا' : ''),
+            shift: userData.shift || 'day',
+            email: userData.email || `${role}${Date.now()}@dotra.com`,
             password_hash: hash
         };
-        users.push(newOfficer);
+
+        users.push(newUser);
         localStorage.setItem('gate_users', JSON.stringify(users));
         this.syncUsersToCloud();
-        return { ...newOfficer, pin_code: pin, password };
+        return { ...newUser, pin_code: pin, password };
     }
 
-    updateOfficer(id, data) {
+    async addOfficer(officerData) {
+        return this.addUser({ ...officerData, role: 'officer' });
+    }
+
+    async updateUser(id, data) {
         const users = this.getUsers();
         const user = users.find(u => u.id === id);
-        if (user) {
-            Object.assign(user, data);
-            localStorage.setItem('gate_users', JSON.stringify(users));
-            this.syncUsersToCloud();
+        if (!user) return null;
+
+        // If password is updated, recalculate hash
+        if (data.password && window.Auth && typeof window.Auth.createPasswordHash === 'function') {
+            data.password_hash = await window.Auth.createPasswordHash(data.password);
+            delete data.password;
         }
+
+        // If pin_code is updated, recalculate pin_hash
+        if (data.pin_code && window.Auth && typeof window.Auth.createPasswordHash === 'function') {
+            data.pin_hash = await window.Auth.createPasswordHash(data.pin_code);
+            delete data.pin_code;
+        }
+
+        Object.assign(user, data);
+        localStorage.setItem('gate_users', JSON.stringify(users));
+        this.syncUsersToCloud();
         return user;
     }
 
-    deleteOfficer(id) {
-        let users = this.getUsers();
-        users = users.filter(u => u.id !== id);
-        localStorage.setItem('gate_users', JSON.stringify(users));
+    updateOfficer(id, data) {
+        return this.updateUser(id, data);
+    }
+
+    deleteUser(id) {
+        const users = this.getUsers();
+        const user = users.find(u => u.id === id);
+        if (!user) return users;
+
+        // CRITICAL SECURITY RULE: CEO account CANNOT be deleted
+        if (user.role === 'ceo') {
+            throw new Error('حساب الرئيس التنفيذي محمي برمجياً ولا يمكن حذفه نهائياً.');
+        }
+
+        const filtered = users.filter(u => u.id !== id);
+        localStorage.setItem('gate_users', JSON.stringify(filtered));
         this.syncUsersToCloud();
-        return users;
+        return filtered;
+    }
+
+    deleteOfficer(id) {
+        return this.deleteUser(id);
     }
 
     assignOfficerToGate(officerId, gateName) {
