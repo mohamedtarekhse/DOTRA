@@ -71,18 +71,14 @@ class OfficerController {
                         </div>
 
                         <!-- Unified Action Toolbar -->
-                        <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap pt-2 sm:pt-0 border-t sm:border-t-0 border-[#edf2f7]">
-                            <button type="button" onclick="Officer.openQuickWalkinModal()" class="flex-1 sm:flex-initial px-3 py-2 sap-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'تسجيل دخول فوري' : 'Instant Walk-in Entry'}">
-                                ${icon('bolt', 'w-3.5 h-3.5')}
-                                <span>${lang === 'ar' ? 'دخول فوري' : 'Walk-in'}</span>
+                        <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap pt-2 sm:pt-0 border-t sm:border-t-0 border-[#edf2f7]">
+                            <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 sm:flex-initial px-3.5 py-2 sap-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
+                                ${icon('camera', 'w-3.5 h-3.5')}
+                                <span>${lang === 'ar' ? 'طلب استئذان وتفتيش' : 'Pass Request'}</span>
                             </button>
-                            <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 sm:flex-initial px-3 py-2 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
-                                ${icon('camera', 'w-3.5 h-3.5 text-[#0070f2]')}
-                                <span>${lang === 'ar' ? 'استئذان وتفتيش' : 'Pass Request'}</span>
-                            </button>
-                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3 py-2 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
+                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3.5 py-2 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
                                 ${icon('file', 'w-3.5 h-3.5 text-[#0070f2]')}
-                                <span class="hidden sm:inline">${lang === 'ar' ? 'المتوقع' : 'Manifest'}</span>
+                                <span>${lang === 'ar' ? 'كشف المتوقع' : 'Manifest'}</span>
                                 <span class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold leading-none">${window.DB.getExpectedArrivals().length}</span>
                             </button>
                         </div>
@@ -878,8 +874,8 @@ class OfficerController {
         const expected = window.DB.getExpectedArrivals();
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-2xl w-full p-5" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-2xl w-full p-5 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <h3 class="text-base font-black text-[#002b66] flex items-center gap-2">
                             ${icon('file', 'w-5 h-5 text-[#0070f2]')}
@@ -1285,6 +1281,15 @@ class OfficerController {
 
 // Global Singleton
 window.Officer = new OfficerController();
+
+OfficerController.prototype.search = function(q) { return this.handlePlateSearch(q); };
+OfficerController.prototype.keypadPress = function(k) { if (window.ArabicPlate && typeof window.ArabicPlate.insertKey === 'function') window.ArabicPlate.insertKey('officer-plate-input', k); };
+OfficerController.prototype.keypadBackspace = function() { if (window.ArabicPlate && typeof window.ArabicPlate.backspaceKey === 'function') window.ArabicPlate.backspaceKey('officer-plate-input'); };
+OfficerController.prototype.keypadClear = function() { if (window.ArabicPlate && typeof window.ArabicPlate.clearKey === 'function') window.ArabicPlate.clearKey('officer-plate-input'); };
+OfficerController.prototype.handleAdmit = function(cargo) { return this.recordAction('admitted', cargo); };
+OfficerController.prototype.handleExit = function() { return this.recordAction('exited'); };
+OfficerController.prototype.handleDeny = function(reason) { return this.recordAction('denied', reason); };
+
 window.openInspectionRequestModal = function() {
     if (window.Officer && typeof window.Officer.openInspectionRequestModal === 'function') {
         window.Officer.openInspectionRequestModal();

@@ -121,6 +121,18 @@ class ManagerController {
             const bOverstay = document.getElementById('tab-count-overstay');
             if (bOverstay) bOverstay.textContent = `(${overstayLogs.length})`;
 
+            // Update Pending Inspection Requests Button & Badge in-place
+            const pendingRequests = window.DB.getPendingInspectionRequests();
+            const btnRequests = document.getElementById('btn-pending-inspection-requests');
+            if (btnRequests) {
+                btnRequests.className = `px-3.5 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all ${pendingRequests.length > 0 ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 animate-pulse font-black' : 'sap-btn-secondary'}`;
+                btnRequests.innerHTML = `
+                    <span>🚨</span>
+                    <span>${lang === 'ar' ? 'طلبات الاستئذان' : 'Requests'}</span>
+                    ${pendingRequests.length > 0 ? `<span class="px-2 py-0.5 bg-slate-950 text-amber-300 rounded-full text-xs font-mono font-black">${pendingRequests.length}</span>` : ''}
+                `;
+            }
+
             // Update Tab Button Active Classes
             const tabButtons = container.querySelectorAll ? container.querySelectorAll('[data-manager-filter]') : (typeof document !== 'undefined' && document.querySelectorAll ? document.querySelectorAll('[data-manager-filter]') : []);
             if (tabButtons && tabButtons.forEach) {
@@ -161,7 +173,7 @@ class ManagerController {
                 </div>
                 <div class="flex items-center gap-2 flex-wrap justify-end">
                     <!-- Pending Officer Inspection Requests Button -->
-                    <button type="button" onclick="Manager.openPendingRequestsModal()" class="px-3.5 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all ${window.DB.getPendingInspectionRequests().length > 0 ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 animate-pulse font-black' : 'sap-btn-secondary'}" title="طلبات الاستئذان والتفتيش المرسلة من ضباط البوابات مع الصور">
+                    <button type="button" id="btn-pending-inspection-requests" onclick="Manager.openPendingRequestsModal()" class="px-3.5 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-1.5 shadow-sm transition-all ${window.DB.getPendingInspectionRequests().length > 0 ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 animate-pulse font-black' : 'sap-btn-secondary'}" title="طلبات الاستئذان والتفتيش المرسلة من ضباط البوابات مع الصور">
                         <span>🚨</span>
                         <span>${lang === 'ar' ? 'طلبات الاستئذان' : 'Requests'}</span>
                         ${window.DB.getPendingInspectionRequests().length > 0 ? `<span class="px-2 py-0.5 bg-slate-950 text-amber-300 rounded-full text-xs font-mono font-black">${window.DB.getPendingInspectionRequests().length}</span>` : ''}
@@ -958,8 +970,8 @@ class ManagerController {
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-3xl rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl w-full max-w-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp max-h-[92vh] overflow-y-auto ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
                     </button>
@@ -1289,8 +1301,8 @@ class ManagerController {
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-xl w-full p-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-xl w-full p-6 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2">
                             <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
@@ -1390,8 +1402,8 @@ class ManagerController {
         const pending = requests.filter(r => r.status === 'pending');
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-3xl w-full p-6 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2.5">
                             <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-lg border border-amber-300">
@@ -1481,8 +1493,8 @@ class ManagerController {
         const isPending = req.status === 'pending';
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-3xl w-full p-6 max-h-[92vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-3xl w-full p-6 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2">
                             <span class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-lg border border-amber-300">
@@ -1815,8 +1827,8 @@ class ManagerController {
         const vehicleTypeVal = prefill?.vehicle_type || 'truckHeavy';
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl w-full max-w-lg border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp max-h-[92vh] overflow-y-auto ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
                     </button>
@@ -2049,8 +2061,8 @@ class ManagerController {
         const typeBadge = typeLabels[data.permit_type] || typeLabels.entry;
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-lg rounded-3xl border-2 border-[#0070f2] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl w-full max-w-lg border-2 border-[#0070f2] shadow-2xl p-6 relative animate-scaleUp max-h-[92vh] overflow-y-auto ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     
                     <!-- Header -->
                     <div class="flex items-center gap-3 mb-4 border-b border-[#d7e2ee] pb-3">
@@ -2195,8 +2207,8 @@ class ManagerController {
         const validDateText = new Date(permit.valid_until).toLocaleDateString([], { year: 'numeric', month: '2-digit', day: '2-digit' });
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto modal-backdrop">
-                <div class="sap-panel w-full max-w-lg rounded-3xl border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp bg-white ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto modal-backdrop" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl w-full max-w-lg border border-[#b0cfee] shadow-2xl p-6 relative animate-scaleUp max-h-[92vh] overflow-y-auto ${lang === 'ar' ? 'text-right' : 'text-left'}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="no-print absolute top-4 ${lang === 'ar' ? 'left-4' : 'right-4'} text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
@@ -2951,8 +2963,8 @@ class ManagerController {
         const expected = window.DB.getExpectedArrivals();
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-3xl w-full p-5 max-h-[90vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-3xl w-full p-5 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <h3 class="text-base font-black text-[#002b66] flex items-center gap-2">
                             ${icon('file', 'w-5 h-5 text-emerald-600')}
@@ -3190,4 +3202,6 @@ class ManagerController {
 window.Manager = new ManagerController();
 ManagerController.createPassCanvasDataUrl = (permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails, pinCode) => window.Manager.createPassCanvasDataUrl(permitCode, plate, phone, driverName, validUntil, permitType, invoiceNo, cargoDetails, pinCode);
 ManagerController.dataURItoBlob = (dataURI) => window.Manager.dataURItoBlob(dataURI);
+window.openPendingRequestsModal = () => { if (window.Manager && typeof window.Manager.openPendingRequestsModal === 'function') window.Manager.openPendingRequestsModal(); };
+window.showRequestReviewModal = (id) => { if (window.Manager && typeof window.Manager.showRequestReviewModal === 'function') window.Manager.showRequestReviewModal(id); };
 

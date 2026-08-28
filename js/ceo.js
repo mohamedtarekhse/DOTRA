@@ -419,8 +419,8 @@ class CeoController {
         const gates = window.DB.getGates();
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-lg w-full p-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-lg w-full p-6 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2">
                             <span class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0070f2] flex items-center justify-center font-black text-lg border border-blue-200">
@@ -552,8 +552,8 @@ class CeoController {
         const isCEO = user.role === 'ceo';
 
         modalContainer.innerHTML = `
-            <div class="sap-modal-overlay" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
-                <div class="sap-modal-content max-w-lg w-full p-6" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-2xl max-w-lg w-full p-6 max-h-[92vh] overflow-y-auto shadow-2xl border border-[#d7e2ee]" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2">
                             <span class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0070f2] flex items-center justify-center font-black text-lg border border-blue-200">
@@ -939,8 +939,8 @@ class CeoController {
         const exitDate = m.exit_timestamp ? new Date(m.exit_timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : null;
 
         modalContainer.innerHTML = `
-            <div class="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-                <div class="sap-panel w-full max-w-xl rounded-3xl border-2 border-[#002b66] shadow-2xl p-6 relative animate-scaleUp bg-white text-right" dir="rtl">
+            <div class="sap-modal-overlay fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) document.getElementById('modal-container').innerHTML = ''">
+                <div class="sap-modal-content bg-white rounded-3xl w-full max-w-xl border-2 border-[#002b66] shadow-2xl p-6 relative animate-scaleUp max-h-[92vh] overflow-y-auto text-right" dir="rtl">
                     
                     <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="absolute top-4 left-4 text-[#556b82] hover:text-[#1d2d3e] text-xl font-bold">
                         ✕
@@ -1382,3 +1382,7 @@ class CeoController {
 
 // Global Singleton
 window.CEO = new CeoController();
+
+CeoController.prototype.exportAuditExcel = function() { return this.exportToExcel(); };
+CeoController.prototype.exportCSV = function() { return this.exportToExcel(); };
+CeoController.prototype.exportAuditCSV = function() { return this.exportToExcel(); };
