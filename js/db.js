@@ -1437,7 +1437,16 @@ class DatabaseService {
     }
 
     getOfficerRoster(officerId) {
-        if (!officerId) return null;
+        const defaultRoster = {
+            gate_name: 'بوابة 1 الرئيسية - دوترا',
+            shift: 'day',
+            shift_name_ar: 'وردية النهار (صباحية)',
+            shift_name_en: 'Day Shift',
+            partner_officer: null,
+            partner_name_ar: 'غير محدد',
+            partner_badge: '--'
+        };
+        if (!officerId) return defaultRoster;
         const roster = this.getGateRoster();
         const users = this.getUsers();
         const id = parseInt(officerId);

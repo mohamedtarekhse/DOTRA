@@ -40,47 +40,53 @@ class OfficerController {
 
         container.innerHTML = `
             <div class="max-w-xl mx-auto pb-12 animate-fadeIn" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
-                <!-- Officer & Gate Header Banner (SAP Style - Locked Gate by Manager) -->
-                <div class="sap-card p-4 mb-4 flex items-center justify-between border-l-4 border-l-[#0070f2] bg-white shadow-sm rounded-2xl">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center border border-[#b3d5fa] shadow-sm">
-                            ${icon('user', 'w-6 h-6')}
-                        </div>
-                        <div class="${lang === 'ar' ? 'text-right' : 'text-left'}">
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                                <span class="w-2 h-2 rounded-full bg-[#107e3e] animate-pulse"></span>
-                                <span class="text-xs font-bold text-[#107e3e] uppercase font-mono">${user.badge_id || 'GT-01'}</span>
-                                <span class="text-xs text-[#d7e2ee]">•</span>
-                                <!-- Fixed Locked Gate & Shift Stationing (Assigned by Manager) -->
-                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#ebf3fb] border border-[#b3d5fa] text-[#002b66] text-[11px] font-black shadow-xs" title="البوابة المعينة رسمياً من مدير العمليات">
-                                    <span>📍</span>
-                                    <span>${rosterInfo.gate_name}</span>
-                                    <span class="text-[10px] text-[#0070f2] font-bold">(${rosterInfo.shift === 'day' ? '☀️ نهار' : '🌙 ليل'})</span>
-                                </span>
+                <!-- Officer & Gate Header Banner (Clean Unified SAP Theme) -->
+                <div class="sap-panel p-4 mb-4 bg-white border border-[#d7e2ee] shadow-sm rounded-2xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+                        
+                        <!-- Officer Identity & Station Metadata -->
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-2xl bg-[#f0f4f8] text-[#002b66] flex items-center justify-center border border-[#d7e2ee] shadow-xs flex-shrink-0">
+                                ${icon('user', 'w-5 h-5')}
                             </div>
-                            <h2 class="text-base font-black text-[#002b66] mt-0.5">${lang === 'ar' ? user.name_ar : user.name_en}</h2>
-                            ${rosterInfo.partner_name_ar && rosterInfo.partner_name_ar !== 'غير محدد' ? `
-                                <div class="text-[10px] text-[#556b82] font-semibold mt-0.5 flex items-center gap-1">
-                                    <span>🔄 المناوب البديل (Back-to-Back):</span>
-                                    <b class="text-[#1d2d3e]">${rosterInfo.partner_name_ar} (${rosterInfo.partner_badge})</b>
+                            <div class="${lang === 'ar' ? 'text-right' : 'text-left'} min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#f0f4f8] border border-[#d7e2ee] text-[#002b66] text-[11px] font-mono font-bold shadow-xs">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#107e3e]"></span>
+                                        <span>${user.badge_id || 'GT-01'}</span>
+                                        <span class="text-[#8fa4b8]">•</span>
+                                        <span class="font-sans font-bold">${rosterInfo.gate_name}</span>
+                                        <span class="text-[#0070f2] font-sans">(${rosterInfo.shift === 'day' ? '☀️ نهار' : '🌙 ليل'})</span>
+                                    </span>
                                 </div>
-                            ` : ''}
+                                <h2 class="text-base font-black text-[#002b66] mt-1 truncate">${lang === 'ar' ? user.name_ar : user.name_en}</h2>
+                                ${rosterInfo.partner_name_ar && rosterInfo.partner_name_ar !== 'غير محدد' ? `
+                                    <div class="text-[11px] text-[#556b82] font-medium mt-0.5 flex items-center gap-1.5 truncate">
+                                        <span class="text-[#8fa4b8]">🔄 المناوب البديل:</span>
+                                        <span class="text-[#1d2d3e] font-bold">${rosterInfo.partner_name_ar}</span>
+                                        <span class="text-[10px] text-[#556b82] font-mono font-bold">(${rosterInfo.partner_badge})</span>
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button type="button" onclick="Officer.openInspectionRequestModal()" class="px-2.5 sm:px-3 py-2.5 bg-[#fff8eb] hover:bg-[#ffeed6] text-[#b85500] rounded-xl border-2 border-[#ffc966] text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
-                            <span>🚨</span>
-                            <span>${lang === 'ar' ? 'طلب استئذان وتفتيش' : 'Request Pass'}</span>
-                        </button>
-                        <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="px-2.5 sm:px-3 py-2.5 bg-[#ebf3fb] hover:bg-[#d8e9f8] text-[#0070f2] rounded-xl border border-[#b3d5fa] text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
-                            ${icon('file', 'w-4 h-4')}
-                            <span class="hidden sm:inline">${lang === 'ar' ? 'المتوقع وصولهم' : 'Manifest'}</span>
-                            <span class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold">${window.DB.getExpectedArrivals().length}</span>
-                        </button>
-                        <button type="button" onclick="Officer.openQuickWalkinModal()" class="px-2.5 sm:px-3 py-2.5 bg-[#e5f6eb] hover:bg-[#cdeed7] text-[#107e3e] rounded-xl border border-[#b4e3c4] text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
-                            ${icon('bolt', 'w-4 h-4')}
-                            <span>${lang === 'ar' ? 'دخول فوري' : 'Walk-in'}</span>
-                        </button>
+
+                        <!-- Unified Action Toolbar -->
+                        <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap pt-2 sm:pt-0 border-t sm:border-t-0 border-[#edf2f7]">
+                            <button type="button" onclick="Officer.openQuickWalkinModal()" class="flex-1 sm:flex-initial px-3 py-2 sap-btn-primary text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all" title="${lang === 'ar' ? 'تسجيل دخول فوري' : 'Instant Walk-in Entry'}">
+                                ${icon('bolt', 'w-3.5 h-3.5')}
+                                <span>${lang === 'ar' ? 'دخول فوري' : 'Walk-in'}</span>
+                            </button>
+                            <button type="button" onclick="Officer.openInspectionRequestModal()" class="flex-1 sm:flex-initial px-3 py-2 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'إرسال طلب فحص واستئذان دخول مع صور اللوحة وصندوق الحمولة للمدير' : 'Send Inspection & Pass Request to Manager'}">
+                                ${icon('camera', 'w-3.5 h-3.5 text-[#0070f2]')}
+                                <span>${lang === 'ar' ? 'استئذان وتفتيش' : 'Pass Request'}</span>
+                            </button>
+                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3 py-2 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
+                                ${icon('file', 'w-3.5 h-3.5 text-[#0070f2]')}
+                                <span class="hidden sm:inline">${lang === 'ar' ? 'المتوقع' : 'Manifest'}</span>
+                                <span class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold leading-none">${window.DB.getExpectedArrivals().length}</span>
+                            </button>
+                        </div>
+
                     </div>
                 </div>
 
@@ -958,11 +964,15 @@ class OfficerController {
     openInspectionRequestModal() {
         const modalContainer = document.getElementById('modal-container');
         if (!modalContainer) return;
-        const lang = window.i18n.getLang();
+        const lang = window.i18n ? window.i18n.getLang() : 'ar';
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
-        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'أمين الشرطة طارق', gate_assigned: 'بوابة 1 الرئيسية - دوترا' };
-        const rosterInfo = window.DB.getOfficerRoster(user.id);
-        const destinations = window.DB.getDestinations();
+        const user = (window.Auth && typeof window.Auth.getCurrentUser === 'function' ? window.Auth.getCurrentUser() : null) || { id: 2, name_ar: 'أمين الشرطة طارق', gate_assigned: 'بوابة 1 الرئيسية - دوترا' };
+        const rosterInfo = (window.DB && typeof window.DB.getOfficerRoster === 'function' ? window.DB.getOfficerRoster(user.id) : null) || {
+            gate_name: user.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
+            shift: 'day',
+            shift_name_ar: 'وردية النهار (صباحية)'
+        };
+        const destinations = (window.DB && typeof window.DB.getDestinations === 'function' ? window.DB.getDestinations() : null) || ['المستودع الرئيسي', 'مصنع الأسمدة والمخصبات', 'مستودع الكيماويات والمواد الخام'];
         const currentPlateInput = document.getElementById('officer-plate-input')?.value.trim() || '';
 
         this._inspectionPhotos = {
@@ -975,7 +985,7 @@ class OfficerController {
                 <div class="sap-modal-content max-w-2xl w-full p-5 max-h-[92vh] overflow-y-auto" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">
                     <div class="flex justify-between items-center pb-3 border-b border-[#d7e2ee]">
                         <div class="flex items-center gap-2.5">
-                            <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-lg border border-amber-300 shadow-sm">
+                            <div class="w-10 h-10 rounded-2xl bg-[#fff8eb] text-[#b85500] flex items-center justify-center font-black text-lg border border-[#ffc966] shadow-xs">
                                 🚨
                             </div>
                             <div>
@@ -987,13 +997,13 @@ class OfficerController {
                                 </p>
                             </div>
                         </div>
-                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-sm">✕</button>
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="w-8 h-8 rounded-full bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#556b82] flex items-center justify-center font-bold text-sm">✕</button>
                     </div>
 
                     <form onsubmit="Officer.submitInspectionRequest(event)" class="py-3 space-y-4 text-xs">
                         
                         <!-- Station & Officer Banner -->
-                        <div class="p-3 bg-[#ebf3fb] rounded-2xl border border-[#b3d5fa] flex items-center justify-between">
+                        <div class="p-3 bg-[#f0f4f8] rounded-2xl border border-[#d7e2ee] flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span>🚪</span>
                                 <span class="font-bold text-[#002b66]">${rosterInfo.gate_name}</span>
@@ -1053,7 +1063,7 @@ class OfficerController {
                             </div>
                             <div>
                                 <label class="block font-bold text-[#1d2d3e] mb-1">سبب الاستئذان / ملاحظات الحارس للمدير:</label>
-                                <input type="text" id="req-notes" required placeholder="مثال: شاحنة بدون تصريح مسبق تطلب تسليم عاجل" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
+                                <input type="text" id="req-notes" placeholder="مثال: شاحنة بدون تصريح مسبق تطلب تسليم عاجل" class="w-full bg-[#f8fafc] border border-[#d7e2ee] rounded-xl px-3 py-2 text-xs text-[#1d2d3e] focus:border-[#0070f2] focus:outline-none" />
                             </div>
                         </div>
 
@@ -1121,13 +1131,22 @@ class OfficerController {
         `;
     }
 
-    handleInspectionPhoto(event, photoType) {
+    async handleInspectionPhoto(event, photoType) {
         const file = event.target.files && event.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const dataUrl = e.target.result;
+        try {
+            let dataUrl;
+            if (window.DB && typeof window.DB.compressImage === 'function') {
+                dataUrl = await window.DB.compressImage(file, 800, 0.75);
+            } else {
+                dataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+            }
+
             if (!this._inspectionPhotos) this._inspectionPhotos = {};
             this._inspectionPhotos[photoType] = dataUrl;
 
@@ -1139,10 +1158,11 @@ class OfficerController {
                 previewContainer.classList.remove('hidden');
             }
             if (statusSpan) {
-                statusSpan.innerHTML = '<span class="text-emerald-700 font-bold">✅ تم الالتقاط</span>';
+                statusSpan.innerHTML = '<span class="text-[#107e3e] font-bold">✅ تم الالتقاط</span>';
             }
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+            console.error('Error handling inspection photo:', err);
+        }
     }
 
     submitInspectionRequest(event) {
@@ -1150,12 +1170,16 @@ class OfficerController {
 
         const plate = document.getElementById('req-plate-input')?.value.trim();
         if (!plate) {
-            alert('يرجى إدخال رقم لوحة المركبة');
+            alert(window.i18n ? (window.i18n.getLang() === 'ar' ? 'يرجى إدخال رقم لوحة المركبة' : 'Please enter plate number') : 'يرجى إدخال رقم لوحة المركبة');
             return;
         }
 
-        const user = window.Auth.getCurrentUser() || { id: 2, name_ar: 'أمين الشرطة طارق', gate_assigned: 'بوابة 1 الرئيسية - دوتra' };
-        const rosterInfo = window.DB.getOfficerRoster(user.id);
+        const user = (window.Auth && typeof window.Auth.getCurrentUser === 'function' ? window.Auth.getCurrentUser() : null) || { id: 2, name_ar: 'أمين الشرطة طارق', gate_assigned: 'بوابة 1 الرئيسية - دوترا' };
+        const rosterInfo = (window.DB && typeof window.DB.getOfficerRoster === 'function' ? window.DB.getOfficerRoster(user.id) : null) || {
+            gate_name: user.gate_assigned || 'بوابة 1 الرئيسية - دوترا',
+            shift: 'day',
+            shift_name_ar: 'وردية النهار (صباحية)'
+        };
         const driverName = document.getElementById('req-driver-name')?.value.trim() || 'سائق زائر';
         const driverPhone = document.getElementById('req-driver-phone')?.value.trim() || '';
         const company = document.getElementById('req-company')?.value.trim() || 'مورد عام';
@@ -1177,17 +1201,19 @@ class OfficerController {
             notes: notes,
             plate_photo_url: platePhoto,
             carriage_photo_url: carriagePhoto,
-            officer_id: user.id,
-            gate_name: rosterInfo.gate_name
+            officer_id: user.id || 2,
+            gate_name: rosterInfo.gate_name || user.gate_assigned || 'بوابة 1 الرئيسية - دوترا'
         });
+
+        this.activePendingRequestId = req.id;
 
         // Show Officer Real-Time Pending Tracker Modal
         const modalContainer = document.getElementById('modal-container');
         if (modalContainer) {
             modalContainer.innerHTML = `
                 <div class="sap-modal-overlay">
-                    <div class="sap-modal-content max-w-md w-full p-6 text-center" dir="rtl">
-                        <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-3xl animate-bounce">
+                    <div id="officer-inspection-tracker-card" class="sap-modal-content max-w-md w-full p-6 text-center animate-scaleUp" dir="rtl">
+                        <div class="w-16 h-16 rounded-2xl bg-[#ebf3fb] text-[#0070f2] flex items-center justify-center mx-auto mb-3 text-3xl shadow-sm">
                             ⏳
                         </div>
                         <h3 class="text-base font-black text-[#002b66] mb-1">
@@ -1196,14 +1222,14 @@ class OfficerController {
                         <p class="text-xs text-[#556b82] mb-3">
                             المركبة: <b class="text-[#002b66] font-mono">${req.plate_ar}</b> • السائق: <b>${req.driver_name}</b>
                         </p>
-                        <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900 mb-4 font-bold flex items-center justify-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping"></span>
+                        <div class="bg-[#fff8eb] p-3 rounded-2xl border border-[#ffc966] text-xs text-[#b85500] mb-4 font-bold flex items-center justify-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#b85500] animate-ping"></span>
                             <span>بانتظار مراجعة وقرار مدير العمليات الآن...</span>
                         </div>
-                        <p class="text-[11px] text-[#8fa4b8] mb-4">
+                        <p class="text-[11px] text-[#556b82] mb-4">
                             ستتحدث هذه النافذة فوراً عند اتخاذ المدير لقرار الموافقة أو الرفض تلقائياً.
                         </p>
-                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-5 py-2 sap-btn-secondary text-xs font-bold">
+                        <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-5 py-2.5 sap-btn-secondary text-xs font-bold">
                             إغلاق ومتابعة العمل
                         </button>
                     </div>
@@ -1213,6 +1239,46 @@ class OfficerController {
 
         if (window.App && typeof window.App.showToast === 'function') {
             window.App.showToast('🚨 طلب استئذان مرسل', `تم إرسال طلب الشاحنة (${plate}) لمدير العمليات للمراجعة.`, 'warning');
+        }
+    }
+
+    handleInspectionDecision(data) {
+        if (!data) return;
+        const modalContainer = document.getElementById('modal-container');
+        const trackerCard = document.getElementById('officer-inspection-tracker-card');
+        if ((trackerCard || modalContainer) && (!this.activePendingRequestId || this.activePendingRequestId === data.request_id)) {
+            const isApproved = data.status === 'approved';
+            const html = `
+                <div class="sap-modal-overlay">
+                    <div id="officer-inspection-tracker-card" class="sap-modal-content max-w-md w-full p-6 text-center animate-scaleUp" dir="rtl">
+                        <div class="w-16 h-16 rounded-2xl ${isApproved ? 'bg-[#f0fdf4] text-[#107e3e]' : 'bg-[#fdf2f2] text-[#bb0000]'} flex items-center justify-center mx-auto mb-3 text-3xl shadow-sm">
+                            ${isApproved ? '✅' : '⛔'}
+                        </div>
+                        <h3 class="text-base font-black ${isApproved ? 'text-[#107e3e]' : 'text-[#bb0000]'} mb-1">
+                            ${isApproved ? 'تمت موافقة واعتماد دخول الشاحنة!' : 'تم رفض طلب الدخول من المدير'}
+                        </h3>
+                        <p class="text-xs text-[#556b82] mb-3">
+                            المركبة: <b class="text-[#002b66] font-mono">${data.plate}</b>
+                            ${isApproved && data.pin_code ? ` • كود التحقق: <b class="text-[#0070f2] font-mono">${data.pin_code}</b>` : ''}
+                        </p>
+                        <div class="${isApproved ? 'bg-[#f0fdf4] text-[#107e3e] border-[#b4e3c4]' : 'bg-[#fdf2f2] text-[#bb0000] border-[#f8b4b4]'} p-3 rounded-2xl border text-xs font-bold mb-4">
+                            ${isApproved ? `🎫 رقم التصريح المعتمد: ${data.permit_code || ''}` : `ملاحظات الرفض: ${data.manager_notes || 'مرفوض'}`}
+                        </div>
+                        <div class="flex justify-center gap-2">
+                            ${isApproved ? `
+                                <button type="button" onclick="Officer.quickAdmitExpectedVehicle('${data.pin_code || data.plate}')" class="px-5 py-2.5 sap-btn-primary text-xs font-bold shadow-md">
+                                    ⚡ فتح وفحص التصريح فوراً
+                                </button>
+                            ` : ''}
+                            <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-5 py-2.5 sap-btn-secondary text-xs font-bold">
+                                إغلاق
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            if (modalContainer) modalContainer.innerHTML = html;
+            else if (trackerCard) trackerCard.innerHTML = html;
         }
     }
 }

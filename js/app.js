@@ -123,35 +123,10 @@ class AppController {
             notifType = isApprove ? 'success' : 'error';
             this.showToast(title, body, notifType, isApprove ? 'check' : 'ban');
 
-            // If Officer is currently waiting on modal, auto-refresh and display decision
-            if (this.currentView === 'officer' && document.getElementById('modal-container')) {
-                const modal = document.getElementById('modal-container');
-                if (isApprove && data.permit_id) {
-                    if (window.Officer && typeof window.Officer.handlePlateSearch === 'function') {
-                        window.Officer.handlePlateSearch(data.pin_code || data.plate);
-                    }
-                } else if (!isApprove) {
-                    modal.innerHTML = `
-                        <div class="sap-modal-overlay">
-                            <div class="sap-modal-content max-w-md w-full p-6 text-center" dir="rtl">
-                                <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3 text-3xl">
-                                    ⛔
-                                </div>
-                                <h3 class="text-base font-black text-rose-700 mb-1">
-                                    تم رفض طلب الدخول من مدير العمليات
-                                </h3>
-                                <p class="text-xs text-[#556b82] mb-3">
-                                    المركبة: <b class="font-mono text-[#1d2d3e]">${data.plate}</b>
-                                </p>
-                                <div class="bg-rose-50 p-3 rounded-xl border border-rose-200 text-xs text-rose-900 mb-4 font-bold">
-                                    السبب: ${data.manager_notes || 'رفض الدخول ومنع المركبة'}
-                                </div>
-                                <button type="button" onclick="document.getElementById('modal-container').innerHTML = ''" class="px-6 py-2.5 sap-btn-secondary text-xs font-bold">
-                                    إغلاق
-                                </button>
-                            </div>
-                        </div>
-                    `;
+            // If Officer is currently active or waiting on modal, auto-refresh and display decision
+            if (this.currentView === 'officer' && window.Officer) {
+                if (typeof window.Officer.handleInspectionDecision === 'function') {
+                    window.Officer.handleInspectionDecision(data);
                 }
             }
         } else if (data.type === 'ROSTER_UPDATED') {
