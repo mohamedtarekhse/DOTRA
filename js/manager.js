@@ -2740,6 +2740,7 @@ class ManagerController {
                                     <span>⏸️</span>
                                     <span>تعليق هذا التصريح وتجميد الصلاحية مؤقتاً (Hold)</span>
                                 </button>
+                            `}
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
