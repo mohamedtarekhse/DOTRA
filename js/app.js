@@ -312,8 +312,8 @@ class AppController {
                                 <span>${lang === 'ar' ? 'تحديث الكاش' : 'Sync Cache'}</span>
                             </button>
 
-                            <!-- Push Notification Toggle (Hidden for Gate Officers) -->
-                            ${(!user || user.role !== 'officer') ? `
+                            <!-- Push Notification Toggle (Hidden for Gate Officers & Login Page) -->
+                            ${(user && user.role !== 'officer') ? `
                                 <button type="button"
                                     onclick="App.toggleUserPush()"
                                     title="${localStorage.getItem('gate_push_enabled') === 'true' ? (lang === 'ar' ? 'الإشعارات الفورية مفعلة (انقر للتعطيل)' : 'Push Notifications Active (Click to disable)') : (lang === 'ar' ? 'تفعيل الإشعارات الفورية لهذا الحساب' : 'Enable Push Notifications')}"
@@ -409,8 +409,8 @@ class AppController {
                         </div>
 
                         <!-- Mobile Action Buttons -->
-                        <div class="grid ${(!user || user.role !== 'officer') ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
-                            ${(!user || user.role !== 'officer') ? `
+                        <div class="grid ${(user && user.role !== 'officer') ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+                            ${(user && user.role !== 'officer') ? `
                                 <button type="button"
                                     onclick="App.toggleUserPush()"
                                     class="nav-action-btn justify-center py-2 text-xs ${localStorage.getItem('gate_push_enabled') === 'true' ? 'bg-white/20 border-white/30' : ''}">
