@@ -134,6 +134,11 @@ class AppController {
             body = lang === 'ar' ? 'تم تحديث جدول توزيع البوابات والمناوبات من الإدارة' : 'Gate shift roster updated by manager';
             notifType = 'info';
             this.showToast(title, body, 'info', 'shield');
+        } else if (data.type === 'EXPECTED_ARRIVALS_UPDATED') {
+            title = lang === 'ar' ? '📋 تحديث كشف الشاحنات المتوقعة' : 'Expected Arrivals Updated';
+            body = lang === 'ar' ? `تم اعتماد وتحديث كشف الشاحنات المتوقعة (${data.count || 0} شاحنة)` : `Expected arrivals manifest updated (${data.count || 0} trucks)`;
+            notifType = 'info';
+            this.showToast(title, body, 'info', 'file');
         }
 
         // Re-render current view with updated state
@@ -143,6 +148,9 @@ class AppController {
             window.Manager.renderDashboard();
         } else if (this.currentView === 'officer' && window.Officer) {
             window.Officer.renderTerminal();
+            if (typeof window.Officer.updateExpectedArrivalsBadge === 'function') {
+                window.Officer.updateExpectedArrivalsBadge();
+            }
         }
 
         // Trigger System / OS Notification & Audio Chime

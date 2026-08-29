@@ -1846,6 +1846,7 @@ class DatabaseService {
             imported.push({ vehicle, permit });
         }
 
+        this.announce('EXPECTED_ARRIVALS_UPDATED', { count: imported.length });
         this.pushToCloud('/api/sync', { vehicles: this.getVehicles(), permits: this.getPermits(), logs: this.getLogs() });
         return { success: true, count: imported.length, items: imported };
     }

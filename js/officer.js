@@ -34,10 +34,11 @@ class OfficerController {
         const logs = window.DB.getLogs().slice().reverse().slice(0, 6);
         const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
 
-        // IN-PLACE SMART UPDATE: If officer terminal is already loaded in DOM, only refresh the recent logs list and return!
+        // IN-PLACE SMART UPDATE: If officer terminal is already loaded in DOM, refresh recent logs and live badges
         const recentListContainer = document.getElementById('officer-recent-activity-list');
         if (recentListContainer) {
             recentListContainer.innerHTML = this.renderRecentLogs(logs, lang);
+            this.updateExpectedArrivalsBadge();
             return;
         }
 
@@ -100,10 +101,10 @@ class OfficerController {
                                 <span>🚨</span>
                                 <span>${lang === 'ar' ? 'أمر مرور' : 'Pass Req'}</span>
                             </button>
-                            <button type="button" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3 py-2.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
+                            <button type="button" id="officer-expected-btn" onclick="Officer.openExpectedArrivalsModal()" class="flex-1 sm:flex-initial px-3 py-2.5 bg-[#f0f4f8] hover:bg-[#e2edf8] text-[#002b66] rounded-xl border border-[#d7e2ee] text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="${lang === 'ar' ? 'كشف الشاحنات المتوقع وصولها اليوم والمعتمدة مسبقاً من الإدارة' : 'Today Pre-Approved Arrival Manifest'}">
                                 ${icon('file', 'w-3.5 h-3.5 text-[#0070f2]')}
                                 <span>${lang === 'ar' ? 'المتوقع' : 'Manifest'}</span>
-                                <span class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold leading-none">${window.DB.getExpectedArrivals().length}</span>
+                                <span id="officer-expected-badge" class="px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold leading-none">${window.DB.getExpectedArrivals().length}</span>
                             </button>
                             <button type="button" onclick="Officer.openShiftHandoverModal()" class="flex-1 sm:flex-initial px-3 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-900 rounded-xl border border-purple-200 text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs active:scale-95 transition-all" title="محضر تسليم واستلام الوردية">
                                 <span>📄</span>
@@ -1838,7 +1839,7 @@ class OfficerController {
 
                     <div class="py-3">
                         <div class="flex justify-between items-center mb-3">
-                            <span class="text-xs text-[#556b82] font-bold">
+                            <span id="officer-expected-modal-count" class="text-xs text-[#556b82] font-bold">
                                 ${lang === 'ar' ? `إجمالي الشاحنات المتوقعة: ${expected.length}` : `Total Expected Trucks: ${expected.length}`}
                             </span>
                             <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold flex items-center gap-1">
@@ -1847,45 +1848,9 @@ class OfficerController {
                             </span>
                         </div>
 
-                        ${expected.length === 0 ? `
-                            <div class="text-center py-8 bg-[#f8fafc] rounded-2xl border border-dashed border-[#d7e2ee]">
-                                <div class="text-3xl mb-2">🚚</div>
-                                <div class="text-xs font-bold text-[#556b82]">
-                                    ${lang === 'ar' ? 'لا توجد شاحنات متبقية في كشف الوصول المسبق اليوم' : 'No pending expected arrivals for today'}
-                                </div>
-                                <div class="text-[11px] text-[#8fa4b8] mt-1">
-                                    ${lang === 'ar' ? 'تم تسجيل دخول جميع الشاحنات المصرحة أو لم يتم رفع كشف اليوم' : 'All scheduled trucks have entered or no manifest was uploaded'}
-                                </div>
-                            </div>
-                        ` : `
-                            <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-                                ${expected.map(item => `
-                                    <div class="p-3.5 rounded-2xl bg-white border-2 border-[#d7e2ee] hover:border-[#0070f2] transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                                        <div class="space-y-1">
-                                            <div class="flex items-center gap-2">
-                                                <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-mono font-black">
-                                                    PIN: ${item.pin_code}
-                                                </span>
-                                                <span class="font-black text-sm text-[#002b66]">${item.plate_ar}</span>
-                                            </div>
-                                            <div class="text-xs text-[#1d2d3e] font-bold">
-                                                <span>👤 ${item.driver_name_ar}</span>
-                                                ${item.company_ar ? `<span class="text-[#556b82]"> • (${item.company_ar})</span>` : ''}
-                                            </div>
-                                            <div class="text-[11px] text-[#556b82] flex flex-wrap items-center gap-x-3 gap-y-1">
-                                                <span>📍 الوجهة: <strong class="text-[#002b66]">${item.destination_ar || 'المستودع'}</strong></span>
-                                                ${item.cargo_details ? `<span>📦 الحمولة: <strong>${item.cargo_details}</strong></span>` : ''}
-                                                ${item.invoice_no ? `<span>📑 إذن/فاتورة: <strong>${item.invoice_no}</strong></span>` : ''}
-                                            </div>
-                                        </div>
-                                        <button type="button" onclick="Officer.quickAdmitExpectedVehicle('${item.pin_code}')" class="px-4 py-2 sap-btn-primary font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-center">
-                                            ${icon('shield', 'w-4 h-4')}
-                                            <span>${lang === 'ar' ? 'اعتماد الدخول فوراً' : 'Admit Entry'}</span>
-                                        </button>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        `}
+                        <div id="officer-expected-modal-list">
+                            ${this.renderExpectedArrivalsModalContent(expected)}
+                        </div>
                     </div>
 
                     <div class="flex justify-end pt-3 border-t border-[#d7e2ee]">
@@ -1896,6 +1861,78 @@ class OfficerController {
                 </div>
             </div>
         `;
+    }
+
+    renderExpectedArrivalsModalContent(expected) {
+        const lang = window.i18n ? window.i18n.getLang() : 'ar';
+        const icon = (name, cls = 'w-4 h-4') => window.Icons ? window.Icons.get(name, cls) : '';
+        if (!expected || expected.length === 0) {
+            return `
+                <div class="text-center py-8 bg-[#f8fafc] rounded-2xl border border-dashed border-[#d7e2ee]">
+                    <div class="text-3xl mb-2">🚚</div>
+                    <div class="text-xs font-bold text-[#556b82]">
+                        ${lang === 'ar' ? 'لا توجد شاحنات متبقية في كشف الوصول المسبق اليوم' : 'No pending expected arrivals for today'}
+                    </div>
+                    <div class="text-[11px] text-[#8fa4b8] mt-1">
+                        ${lang === 'ar' ? 'تم تسجيل دخول جميع الشاحنات المصرحة أو لم يتم رفع كشف اليوم' : 'All scheduled trucks have entered or no manifest was uploaded'}
+                    </div>
+                </div>
+            `;
+        }
+        return `
+            <div class="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                ${expected.map(item => `
+                    <div class="p-3.5 rounded-2xl bg-white border-2 border-[#d7e2ee] hover:border-[#0070f2] transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-mono font-black">
+                                    PIN: ${item.pin_code}
+                                </span>
+                                <span class="font-black text-sm text-[#002b66]">${item.plate_ar}</span>
+                            </div>
+                            <div class="text-xs text-[#1d2d3e] font-bold">
+                                <span>👤 ${item.driver_name_ar}</span>
+                                ${item.company_ar ? `<span class="text-[#556b82]"> • (${item.company_ar})</span>` : ''}
+                            </div>
+                            <div class="text-[11px] text-[#556b82] flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span>📍 الوجهة: <strong class="text-[#002b66]">${item.destination_ar || 'المستودع'}</strong></span>
+                                ${item.cargo_details ? `<span>📦 الحمولة: <strong>${item.cargo_details}</strong></span>` : ''}
+                                ${item.invoice_no ? `<span>📑 إذن/فاتورة: <strong>${item.invoice_no}</strong></span>` : ''}
+                            </div>
+                        </div>
+                        <button type="button" onclick="Officer.quickAdmitExpectedVehicle('${item.pin_code}')" class="px-4 py-2 sap-btn-primary font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5 flex-shrink-0 w-full sm:w-auto justify-center">
+                            ${icon('shield', 'w-4 h-4')}
+                            <span>${lang === 'ar' ? 'اعتماد الدخول فوراً' : 'Admit Entry'}</span>
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    updateExpectedArrivalsBadge() {
+        const expected = window.DB && typeof window.DB.getExpectedArrivals === 'function' ? window.DB.getExpectedArrivals() : [];
+        const badge = document.getElementById('officer-expected-badge');
+        if (badge) {
+            badge.textContent = String(expected.length);
+            badge.innerHTML = String(expected.length);
+            if (expected.length > 0) {
+                badge.className = "px-1.5 py-0.5 bg-[#0070f2] text-white rounded-full text-[10px] font-mono font-bold leading-none animate-pulse";
+            } else {
+                badge.className = "px-1.5 py-0.5 bg-slate-400 text-white rounded-full text-[10px] font-mono font-bold leading-none";
+            }
+        }
+
+        const modalCount = document.getElementById('officer-expected-modal-count');
+        const lang = window.i18n ? window.i18n.getLang() : 'ar';
+        if (modalCount) {
+            modalCount.textContent = lang === 'ar' ? `إجمالي الشاحنات المتوقعة: ${expected.length}` : `Total Expected Trucks: ${expected.length}`;
+        }
+
+        const modalList = document.getElementById('officer-expected-modal-list');
+        if (modalList) {
+            modalList.innerHTML = this.renderExpectedArrivalsModalContent(expected);
+        }
     }
 
     quickAdmitExpectedVehicle(pinCode) {
@@ -2192,9 +2229,11 @@ class OfficerController {
 
     handleInspectionDecision(data) {
         if (!data) return;
+        this.updateExpectedArrivalsBadge();
+
         const modalContainer = document.getElementById('modal-container');
         const trackerCard = document.getElementById('officer-inspection-tracker-card');
-        if ((trackerCard || modalContainer) && (!this.activePendingRequestId || this.activePendingRequestId === data.request_id)) {
+        if (trackerCard || (modalContainer && (!this.activePendingRequestId || this.activePendingRequestId === data.request_id))) {
             const isApproved = data.status === 'approved';
             const html = `
                 <div class="sap-modal-overlay">
@@ -2227,6 +2266,11 @@ class OfficerController {
             `;
             if (modalContainer) modalContainer.innerHTML = html;
             else if (trackerCard) trackerCard.innerHTML = html;
+        }
+
+        // If the officer is currently typing or searching for this plate, auto-refresh search result!
+        if (this.activeSearchQuery && data.plate && (this.activeSearchQuery.includes(data.plate) || data.plate.includes(this.activeSearchQuery))) {
+            this.handlePlateSearch(this.activeSearchQuery);
         }
     }
 

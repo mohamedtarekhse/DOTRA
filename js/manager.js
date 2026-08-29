@@ -496,26 +496,17 @@ class ManagerController {
                             <button type="button" onclick="Manager.openHoldPermitModal(${permit.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg border border-amber-300 text-[11px] font-bold inline-flex items-center gap-1">
                                 <span>⏸️ تعليق</span>
                             </button>
-                            <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold inline-flex items-center gap-1" title="حذف وإلغاء التصريح قبل وصول المركبة">
-                                <span>🗑️ حذف</span>
-                            </button>
                         `;
                     } else if (permit.status === 'hold') {
                         cardPermitActions = `
                             <button type="button" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold inline-flex items-center gap-1">
                                 <span>▶️ تفعيل</span>
                             </button>
-                            <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold inline-flex items-center gap-1">
-                                <span>🗑️ حذف</span>
-                            </button>
                         `;
                     } else if (permit.status === 'revoked') {
                         cardPermitActions = `
                             <button type="button" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-lg border border-emerald-300 text-[11px] font-bold inline-flex items-center gap-1">
                                 <span>▶️ تفعيل</span>
-                            </button>
-                            <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-300 text-[11px] font-bold inline-flex items-center gap-1">
-                                <span>🗑️ حذف</span>
                             </button>
                         `;
                     }
@@ -775,7 +766,7 @@ class ManagerController {
                 timeCellHtml = `<span class="text-[#556b82] font-mono text-xs">⏳ بانتظار الدخول</span>`;
             }
 
-            // Action Buttons for this row (Pass Card, Hold, Delete for unentered, Blacklist)
+            // Action Buttons for this row (Pass Card, Hold, Reactivate)
             let tablePermitActions = '';
             if (permit) {
                 if (!hasVehicleEntered) {
@@ -784,26 +775,17 @@ class ManagerController {
                             <button type="button" title="تعليق وتجميد التصريح مؤقتاً" onclick="Manager.openHoldPermitModal(${permit.id})" class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-xl border border-amber-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
                                 <span>⏸️ تعليق</span>
                             </button>
-                            <button type="button" title="حذف وإلغاء التصريح نهائياً قبل وصول ودخول الشاحنة" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
-                                <span>🗑️ حذف</span>
-                            </button>
                         `;
                     } else if (permit.status === 'hold') {
                         tablePermitActions = `
                             <button type="button" title="إلغاء التعليق وتفعيل التصريح" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl border border-emerald-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
                                 <span>▶️ تفعيل</span>
                             </button>
-                            <button type="button" title="حذف التصريح نهائياً من النظام" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
-                                <span>🗑️ حذف</span>
-                            </button>
                         `;
                     } else if (permit.status === 'revoked') {
                         tablePermitActions = `
                             <button type="button" title="إعادة تفعيل التصريح" onclick="Manager.handleActivatePermit(${permit.id})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 rounded-xl border border-emerald-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
                                 <span>▶️ تفعيل</span>
-                            </button>
-                            <button type="button" title="حذف التصريح نهائياً" onclick="Manager.handleDeletePermit(${permit.id})" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl border border-red-300 text-xs font-bold inline-flex items-center gap-1 shadow-sm transition-all active:scale-95">
-                                <span>🗑️ حذف</span>
                             </button>
                         `;
                     }
@@ -2758,17 +2740,6 @@ class ManagerController {
                                     <span>⏸️</span>
                                     <span>تعليق هذا التصريح وتجميد الصلاحية مؤقتاً (Hold)</span>
                                 </button>
-                            `}
-                            ${!hasVehicleEntered ? `
-                                <button type="button" onclick="Manager.handleDeletePermit(${permit.id})" class="w-full mt-2 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-all" title="حذف التصريح نهائياً في حالة إنشائه بالخطأ قبل وصول المركبة">
-                                    <span>🗑️</span>
-                                    <span>حذف وإلغاء هذا التصريح بالكامل (تم إنشاؤه بالخطأ)</span>
-                                </button>
-                            ` : `
-                                <div class="mt-2 text-[10px] text-center text-[#556b82] font-semibold bg-[#f0f4f8] p-1.5 rounded-lg border border-[#d7e2ee]">
-                                    🔒 لا يمكن حذف التصريح - تم تسجيل حركة دخول فعلية للشاحنة بالمصنع.
-                                </div>
-                            `}
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
